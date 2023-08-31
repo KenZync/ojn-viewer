@@ -238,8 +238,10 @@ function OJNParser(hitSounds) {
     let cursor = 0
 
     data.header.songId = dataview.getInt32(cursor, true);
+    console.log('TRUE song Id', dataview.getInt32(cursor, true))
     cursor += 4
     data.header.signature = dataview.getInt32(cursor, true);
+    console.log('TRUE signature', dataview.getInt32(cursor, true))
     cursor += 4
 
     if(data.header.signature != OJN_SIGNATURE)

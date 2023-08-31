@@ -255,6 +255,9 @@ var processO2jamFolder = async function (files) {
     await readFileAsArrayBuffer(ojnFile),
     hitSounds
   );
+  console.log('True File',ojnFile)
+
+  console.log('True Buffer',await readFileAsArrayBuffer(ojnFile))
   return difficulties;
 };
 
