@@ -96,6 +96,7 @@ const pixiContainer = ref();
 onMounted(async () => {
   // Global Variables
   var leftMargin = 10;
+  var leftStart = -10;
   var rightMargin = leftMargin;
   var bottomMargin = 75;
   var headerHeight = 20;
@@ -162,7 +163,7 @@ onMounted(async () => {
   }
   var posXinit = leftMargin;
   var posYinit = renderer.height - thumbnailHeight - bottomMargin;
-  var posX = posXinit;
+  var posX = leftStart;
   var posY = posYinit;
   for (var x = 0; x < json.score.length; x++) {
     // console.log(x);
@@ -270,6 +271,7 @@ const Measure = (param: any) => {
   var gGridY = gHeight / gLogicalLength;
   var gSide = param.side;
   var gPattern = param.pattern;
+  var gLineStart = 43
   //   // パラメータをセット
   //   g.logicalLength = param.length;
   //   g.unitLength = param.unit;
@@ -285,11 +287,11 @@ const Measure = (param: any) => {
   //   // 外枠描画メソッド
   //   g.drawOuterBound = function () {
   g.lineStyle(lineWidth, schemes.default.outerBound, 1);
-  g.moveTo(43, 0);
+  g.moveTo(gLineStart, 0);
   g.lineTo(gWidth + lineWidth, 0);
   g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
-  g.lineTo(44, gHeight - lineWidth);
-  g.lineTo(44, 0);
+  g.lineTo(gLineStart + 1, gHeight - lineWidth);
+  g.lineTo(gLineStart + 1, 0);
   //   };
 
   //   // 小節線描画メソッド
@@ -304,7 +306,7 @@ const Measure = (param: any) => {
 
     //Draw Measure Line
     g.lineStyle(lineWidth, color, 1);
-    g.moveTo(43, gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth);
+    g.moveTo(gLineStart, gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth);
     g.lineTo(
       gWidth,
       gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth
