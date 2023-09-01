@@ -22,18 +22,18 @@ var schemes = {
     stopLine: 0xff0000,
     stopText: null,
     stopTextStroke: null,
-    noteBlueFill: 0x5074fe,
+    noteBlueFill: 0x02ffff,
     noteBlueLine: null,
-    noteWhiteFill: 0xbebebe,
+    noteWhiteFill: 0xffffff,
     noteWhiteLine: null,
-    noteRedFill: 0xe04a4a,
-    noteRedLine: null,
-    lnoteBlueFill: 0xb0c0ff,
+    noteYellowFill: 0xffff00,
+    noteYellowLine: null,
+    lnoteBlueFill: 0x02ffff,
     lnoteBlueLine: null,
-    lnoteWhiteFill: 0xe6ffc2,
+    lnoteWhiteFill: 0xffffff,
     lnoteWhiteLine: null,
-    lnoteRedFill: 0xff9a9a,
-    lnoteRedLine: null,
+    lnoteYellowFill: 0xffff00,
+    lnoteYellowLine: null,
     mineRedFill: 0x700000,
     mineRedLine: 0x700000,
     lnWidthRatio: 0,
@@ -365,43 +365,30 @@ const Measure = (param: any) => {
     var noteThickness = 4;
     var blue = schemes.default.noteBlueFill;
     var white = schemes.default.noteWhiteFill; // 0x8b8b8b
-    var red = schemes.default.noteRedFill;
+    var yellow = schemes.default.noteYellowFill;
     var blueLine = schemes.default.noteBlueLine;
     var whiteLine = schemes.default.noteWhiteLine;
-    var redLine = schemes.default.noteRedLine;
+    var yellowLine = schemes.default.noteYellowLine;
     var lnWhite = schemes.default.lnoteWhiteFill;
     var lnBlue = schemes.default.lnoteBlueFill;
-    var lnRed = schemes.default.lnoteRedFill;
+    var lnYellow = schemes.default.lnoteYellowFill;
     var lnWhiteLine = schemes.default.lnoteWhiteLine;
     var lnBlueLine = schemes.default.lnoteBlueLine;
-    var lnRedLine = schemes.default.lnoteRedLine;
+    var lnYellowLine = schemes.default.lnoteYellowLine;
     var mineRed = schemes.default.mineRedFill;
     var mineRedLine = schemes.default.mineRedLine;
     var lnRatio = schemes.default.lnWidthRatio;
 
     // KEY
-    var idx = gSide == 1 ? 5 : 0;
+    var idx = 5;
     var color = blue;
     var colorBlueLine = blueLine;
-    var lnColor = lnBlue;
     var lnColorLine = lnBlueLine;
 
+    var colScheme = [white,blue,white,yellow,white,blue,white]
+    var colSchemeLN = [lnWhite,lnBlue,lnWhite,lnYellow,lnWhite,lnBlue,lnWhite]
+    var counter = 0;
     keych.forEach(function (key) {
-            if (color == blue) {
-                color = white;
-                colorBlueLine = whiteLine;
-            } else {
-                color = blue;
-                colorBlueLine = blueLine;
-            }
-            if (lnColor == lnBlue) {
-                lnColor = lnWhite;
-                lnColorLine = lnWhiteLine;
-            } else {
-                lnColor = lnBlue
-                lnColorLine = lnBlueLine;
-            }
-
             if (key in gLnmap) {
                 gLnmap[key].forEach(function (area: any[][]) {
                     if (area[0][0] <= gIndex && area[1][0] >= gIndex) {
@@ -415,7 +402,7 @@ const Measure = (param: any) => {
                         }
                         var noteLineWidth = lnColorLine != null ? 1 : 0;
                         var noteLineAlpha = lnColorLine != null ? 1 : 0;
-                        g.beginFill(lnColor);
+                        g.beginFill(colSchemeLN[counter]);
                         g.lineStyle(noteLineWidth, lnColorLine, noteLineAlpha);
                         g.drawRect(
                             idx * gGridX - (idx == 0 ? lineWidth : 0) + lnRatio * gGridX / 2,
@@ -429,13 +416,12 @@ const Measure = (param: any) => {
             }
             [['D' + key.charAt(1), mineRed, mineRed], [key, color, colorBlueLine]].forEach(function (q) {
                 var _key = q[0];
-                var _color = q[1];
                 var _colorLine = q[2];
                 if (_key in gScore) {
                     gScore[_key].forEach(function (pos: number[]) {
                         var noteLineWidth = _colorLine != null ? 1 : 0;
                         var noteLineAlpha = _colorLine != null ? 1 : 0;
-                        g.beginFill(_color);
+                        g.beginFill(colScheme[counter]);
                         g.lineStyle(noteLineWidth, _colorLine, noteLineAlpha);
                         g.drawRect(
                             idx * gGridX - (idx == 0 ? lineWidth : 0),
@@ -448,6 +434,7 @@ const Measure = (param: any) => {
                 }
             });
             idx += 2;
+            counter++;
         });
 
     //Draw BPM
