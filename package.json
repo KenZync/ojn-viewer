@@ -15,6 +15,7 @@
   "dependencies": {
     "iconv-lite": "^0.6.3",
     "pixi.js": "^7.2.4",
+    "pixijs": "^7.1.4",
     "struct-fu": "^1.2.1"
   }
 }

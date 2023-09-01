@@ -71,7 +71,7 @@ var schemes = {
   },
 };
 
-// 定数
+// Constants
 var measureGridSize = {
   7: 23,
 };
@@ -94,10 +94,10 @@ var colorScheme = "default";
 const pixiContainer = ref();
 
 onMounted(async () => {
-  // グローバル変数
-  var leftMargin = 20;
+  // Global Variables
+  var leftMargin = 10;
   var rightMargin = leftMargin;
-  var bottomMargin = 10;
+  var bottomMargin = 75;
   var headerHeight = 20;
   var thumbnailHeight = 50;
   var renderer = null;
@@ -108,9 +108,9 @@ onMounted(async () => {
   var data = null;
   var md5 = "";
 
-  // - レンダリングパラメータ
+  // - Rendering Parameters
   var urlParam = {};
-  var scaleW = 7;
+  var scaleW = 9;
   var minScaleW = 4;
   var maxScaleW = 10;
   var scaleH = 2;
@@ -151,7 +151,7 @@ onMounted(async () => {
   renderer = PIXI.autoDetectRenderer({
     width: window.innerHeight*15,
     // width: window.innerHeight,
-    height: window.innerHeight - headerHeight,
+    height: window.innerHeight,
     backgroundColor: schemes.default.backgroundFill,
   });
 
@@ -177,7 +177,7 @@ onMounted(async () => {
         scaleW: scaleW,
         scaleH: scaleH,
         length: json.score[x].length || json.unit,
-        side: playSide,
+        side: 1,
         keys: 7,
         pattern: pattern,
         unit: json.unit,
@@ -285,11 +285,11 @@ const Measure = (param: any) => {
   //   // 外枠描画メソッド
   //   g.drawOuterBound = function () {
   g.lineStyle(lineWidth, schemes.default.outerBound, 1);
-  g.moveTo(-lineWidth, 0);
+  g.moveTo(43, 0);
   g.lineTo(gWidth + lineWidth, 0);
   g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
-  g.lineTo(-lineWidth, gHeight - lineWidth);
-  g.lineTo(-lineWidth, 0);
+  g.lineTo(44, gHeight - lineWidth);
+  g.lineTo(44, 0);
   //   };
 
   //   // 小節線描画メソッド
@@ -304,7 +304,7 @@ const Measure = (param: any) => {
 
     //Draw Measure Line
     g.lineStyle(lineWidth, color, 1);
-    g.moveTo(-1, gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth);
+    g.moveTo(43, gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth);
     g.lineTo(
       gWidth,
       gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth
@@ -317,19 +317,14 @@ const Measure = (param: any) => {
     var color = schemes.default.laneLine;
     var idx = gSide == 1 ? 5 : 2 * gKeys + 5;
     // console.log(idx)
-    // SC
-    g.lineStyle(lineWidth, color, 1);
-    g.moveTo(grid * idx, 0);
-    g.lineTo(grid * idx, gHeight - lineWidth);
 
-    // KEY
-    if (gSide == 2) idx = 0;
     // console.log(i,gSide,gKeys)
     for (var j = 0; j < gKeys; j++) {
       idx += 2;
       g.moveTo(grid * idx, 0);
       g.lineTo(grid * idx, gHeight - lineWidth);
     }
+
     // LABEL
     idx = 2 * gKeys + 5;
     color = schemes.default.labelFill;
@@ -464,7 +459,7 @@ const Measure = (param: any) => {
       if (key in gScore) {
         gScore[key].forEach(function (pos: number[]) {
           g.lineStyle(lineH, colorLine, 1);
-          g.moveTo(-1, g.height - gGridY * pos[0] - lineH);
+          g.moveTo(43, g.height - gGridY * pos[0] - lineH);
           g.lineTo(
             gGridX * measureLeftLaneSize[7],
             gHeight - gGridY * pos[0] - lineH
