@@ -94,6 +94,7 @@ var colorScheme = "default";
 const pixiContainer = ref();
 
 onMounted(async () => {
+  PIXI.settings.ROUND_PIXELS = true
   // グローバル変数
   var leftMargin = 20;
   var rightMargin = leftMargin;
@@ -149,7 +150,7 @@ onMounted(async () => {
 
   // }
   renderer = PIXI.autoDetectRenderer({
-    width: window.innerHeight*15,
+    width: window.innerHeight,
     // width: window.innerHeight,
     height: window.innerHeight - headerHeight,
     backgroundColor: schemes.default.backgroundFill,
@@ -223,6 +224,7 @@ onMounted(async () => {
   // thumbnail.position.y = posYinit + bottomMargin;
   base = new PIXI.Container();
   base.addChild(stage);
+  renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
   renderer.render(base);
   // base.addChild(thumbnail);
 
