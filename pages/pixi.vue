@@ -95,17 +95,21 @@ const pixiContainer = ref();
 const thumbnailHeight = ref(50);
 const leftMargin = 20;
 
+const renderer = ref();
+const containerWidthShrinkRatio = ref();
+
+var base: PIXI.Container<PIXI.DisplayObject>;
+var stage: PIXI.Container<PIXI.DisplayObject>;
+var thumbnail: PIXI.Container<PIXI.DisplayObject>;
+var rightMargin = leftMargin;
 onMounted(async () => {
   PIXI.settings.ROUND_PIXELS = true;
   // グローバル変数
-  var rightMargin = leftMargin;
   var bottomMargin = 10;
   var headerHeight = 20;
 
-  var renderer = null;
-  var base = null;
-  var stage = null;
-  var thumbnail = null;
+  // var renderer.value = null;
+
   var measures = [];
   var data = null;
   var md5 = "";
@@ -136,7 +140,7 @@ onMounted(async () => {
   thumbnailHeight.value = Math.max(window.innerHeight * 0.05, 25);
   headerHeight = 50; /* WORKAROUND */
 
-  renderer = PIXI.autoDetectRenderer({
+  renderer.value = PIXI.autoDetectRenderer({
     width: window.innerHeight,
     height: window.innerHeight - headerHeight,
     backgroundColor: schemes.default.backgroundFill,
@@ -148,7 +152,7 @@ onMounted(async () => {
     stage = new PIXI.Container();
   }
   var posXinit = leftMargin;
-  var posYinit = renderer.height - thumbnailHeight.value - bottomMargin;
+  var posYinit = renderer.value.height - thumbnailHeight.value - bottomMargin;
   var posX = posXinit;
   var posY = posYinit;
   for (var x = 0; x < json.score.length; x++) {
@@ -203,9 +207,9 @@ onMounted(async () => {
   stage.hitArea = new PIXI.Rectangle(0, 0, stage.width, stage.height);
   stage.position.x = 0;
   stage.position.y = 0;
-  renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
+  renderer.value.resize(window.innerWidth, window.innerHeight - headerHeight);
 
-  thumbnail = Thumbnail(renderer, stage);
+  thumbnail = Thumbnail(renderer.value, stage);
 
   thumbnail.position.x = 0;
   thumbnail.position.y = posYinit + bottomMargin;
@@ -213,8 +217,8 @@ onMounted(async () => {
   base = new PIXI.Container();
   base.addChild(stage);
   base.addChild(thumbnail);
-  renderer.render(base);
-  pixiContainer.value.appendChild(renderer.view);
+  renderer.value.render(base);
+  pixiContainer.value.appendChild(renderer.value.view);
 });
 
 // 小節オブジェクト
@@ -469,7 +473,7 @@ const Measure = (param: any) => {
 };
 
 const Thumbnail = (
-  renderer: PIXI.IRenderer<PIXI.ICanvas>,
+  inputRenderer: PIXI.IRenderer<PIXI.ICanvas>,
   stage: PIXI.Container<PIXI.DisplayObject>
 ) => {
   var lineWidth = 1;
@@ -488,19 +492,20 @@ const Thumbnail = (
   container.addChild(g);
 
   // サムネイル作成
-  var containerWidthShrinkRatio = renderer.width / stage.width;
+  containerWidthShrinkRatio.value = inputRenderer.width / stage.width;
   var containerHeightShrinkRatio = thumbnailHeight.value / stage.height;
 
-  const texture = renderer.generateTexture(stage,{resolution: 2 * containerWidthShrinkRatio, scaleMode:PIXI.SCALE_MODES.NEAREST})
+  const texture = inputRenderer.generateTexture(stage,{resolution: 2 * containerWidthShrinkRatio.value, scaleMode:PIXI.SCALE_MODES.NEAREST})
   var containerThumbnail = new PIXI.Sprite(texture);
-  containerThumbnail.width = renderer.width /*- leftMargin - rightMargin*/ ;
+  containerThumbnail.width = inputRenderer.width /*- leftMargin - rightMargin*/ ;
   containerThumbnail.height = thumbnailHeight.value;
   // CANVAS ではうまくスプライトが作成できない？ので無表示に
-    if (renderer.type != PIXI.RENDERER_TYPE.CANVAS) container.addChild(containerThumbnail);
+    if (inputRenderer.type != PIXI.RENDERER_TYPE.CANVAS) container.addChild(containerThumbnail);
 
   // 表示中領域の白枠を作成
 
-  var containerViewBox = new PIXI.Container();
+  const drawViewBox = () => {
+    var containerViewBox = new PIXI.Container();
 
   // グレーボックス
   var grayMask = new PIXI.Graphics();
@@ -508,19 +513,19 @@ const Thumbnail = (
   grayMask.beginFill(0xffffff);
   grayMask.lineStyle(lineWidth, 0x404040, 1);
   grayMask.moveTo(0, 0);
-  grayMask.lineTo(-renderer.width, 0);
-  grayMask.lineTo(-renderer.width, thumbnailHeight.value);
+  grayMask.lineTo(-inputRenderer.width, 0);
+  grayMask.lineTo(-inputRenderer.width, thumbnailHeight.value);
   grayMask.lineTo(0, thumbnailHeight.value);
   grayMask.lineTo(0, 0);
   // 右
-  grayMask.moveTo(renderer.width * containerWidthShrinkRatio, 0);
-  grayMask.lineTo(renderer.width, 0);
-  grayMask.lineTo(renderer.width, thumbnailHeight.value);
+  grayMask.moveTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
+  grayMask.lineTo(inputRenderer.width, 0);
+  grayMask.lineTo(inputRenderer.width, thumbnailHeight.value);
   grayMask.lineTo(
-    renderer.width * containerWidthShrinkRatio,
+    inputRenderer.width * containerWidthShrinkRatio.value,
     thumbnailHeight.value
   );
-  grayMask.lineTo(renderer.width * containerWidthShrinkRatio, 0);
+  grayMask.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
   grayMask.endFill();
   // アルファ
   grayMask.alpha = 0.4;
@@ -530,9 +535,9 @@ const Thumbnail = (
   grayMask.cursor = 'pointer';
   grayMask.eventMode = 'static';
   grayMask.hitArea = new PIXI.Rectangle(
-    -renderer.width,
+    -inputRenderer.width,
     0,
-    2 * renderer.width,
+    2 * inputRenderer.width,
     thumbnailHeight.value + 50
 
     
@@ -547,9 +552,9 @@ const Thumbnail = (
   frame.lineStyle(lineWidth, 0xffffff, 1);
   //枠の描画
   frame.moveTo(lineWidth, 0);
-  frame.lineTo(renderer.width * containerWidthShrinkRatio, 0);
+  frame.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
   frame.lineTo(
-    renderer.width * containerWidthShrinkRatio,
+    inputRenderer.width * containerWidthShrinkRatio.value,
     thumbnailHeight.value
   );
   frame.lineTo(lineWidth, thumbnailHeight.value);
@@ -560,7 +565,7 @@ const Thumbnail = (
   frame.hitArea = new PIXI.Rectangle(
     lineWidth,
     0,
-    renderer.width * containerWidthShrinkRatio - lineWidth,
+    inputRenderer.width * containerWidthShrinkRatio.value - lineWidth,
     thumbnailHeight.value + 50
   ); // +50: はみ出しクリック可能領域
   // frame.on('mousedown', onDragStart)
@@ -576,25 +581,34 @@ const Thumbnail = (
   container.addChild(containerViewBox);
 
   containerViewBox.position.x =
-    (-leftMargin - stage.position.x) * containerWidthShrinkRatio;
+    (-leftMargin - stage.position.x) * containerWidthShrinkRatio.value;
   containerViewBox.position.y = 0;
+  }
+  drawViewBox()
 
   return container;
 };
 
 function onClick(this: any, event:any) {
-  console.log(event.data.x,event.data.y)
+  // console.log(event.data.x,event.data.y)
   // var posX = curPosition.x - renderer.width * thumbnail.widthShrinkRatio / 2;
     // console.log(this.this.parent.parent == thumbnail)
     // console.log(thumbnail.value)
     // if (this.parent.parent == thumbnail) {
     //     curPosition = this.data.getLocalPosition(thumbnail);
-    //     var posX = curPosition.x - renderer.width * thumbnail.widthShrinkRatio / 2;
+        var posX = event.data.x - renderer.value.width * containerWidthShrinkRatio.value / 2;
+        stage.position.x = Math.min(Math.max(-posX / containerWidthShrinkRatio.value , renderer.value.width - stage.width - leftMargin - rightMargin), 0);
+        requestAnimationFrame(refresh)
     //     stage.position.x = Math.min(Math.max(-posX / thumbnail.widthShrinkRatio, renderer.width - stage.width - leftMargin - rightMargin), 0);
     //     thumbnail.drawViewBox();
     //     requestAnimationFrame(refresh);
     // }
 }
+
+var refresh = function () {
+    renderer.value.render(base);
+};
+
 </script>
 
 <style scoped></style>
