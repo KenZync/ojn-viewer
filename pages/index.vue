@@ -18,8 +18,8 @@
       <div class="">OJN Viewer by KenZ</div>
       <div class="flex flex-col text-center">
         <div>Credits</div>
-        <div>https://rodrig0v.github.io/webmania/#/</div>
-        <div>http://www.ribbit.xyz/bms/score/</div>
+        <a href="https://rodrig0v.github.io/webmania/#/">https://rodrig0v.github.io/webmania/#/</a>
+        <a href="http://www.ribbit.xyz/bms/score/">http://www.ribbit.xyz/bms/score/</a>
         <div>Contributer</div>
         <div>Lelloq</div>
       </div>
