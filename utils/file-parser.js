@@ -234,7 +234,6 @@ var readFileAsArrayBuffer = async function (file) {
 //     return { beatmap: beatmap, image: image, hitSounds: hitSounds, starRating: 0 }
 // }
 
-
 // TODO Separate each same ID
 var processO2jamFolder = async function (files) {
   let ojnFile;
@@ -248,17 +247,42 @@ var processO2jamFolder = async function (files) {
     }
   }
 
-  let hitSounds
-  
-  if(ojmFile)hitSounds = OJMParser.parseContent(await readFileAsArrayBuffer(ojmFile));
+  let hitSounds;
+
+  if (ojmFile)
+    hitSounds = OJMParser.parseContent(await readFileAsArrayBuffer(ojmFile));
   let difficulties = OJNParser.parseContent(
     await readFileAsArrayBuffer(ojnFile),
     hitSounds
   );
-  console.log('True File',ojnFile)
+  console.log("True File", ojnFile);
 
-  console.log('True Buffer',await readFileAsArrayBuffer(ojnFile))
+  console.log("True Buffer", await readFileAsArrayBuffer(ojnFile));
   return difficulties;
+};
+
+var processO2jamFolderV2 = async function (files) {
+  let ojnFile;
+  let ojmFile;
+  for (let file of files) {
+    if (file.name.match(/\.ojn$/i) != null) {
+      ojnFile = file;
+    }
+    if (file.name.match(/\.ojm$/i) != null) {
+      ojmFile = file;
+    }
+  }
+
+  // let hitSounds;
+
+  // if (ojmFile)
+    // hitSounds = OJMParser.parseContent(await readFileAsArrayBuffer(ojmFile));
+  // let difficulties = OJNParser.parseContent(
+  //   await readFileAsArrayBuffer(ojnFile),
+  //   hitSounds
+  // );
+  let arrayBuffer = await readFileAsArrayBuffer(ojnFile)
+  return convert(arrayBuffer);
 };
 
 // var processOsz = async function(file) {
@@ -317,8 +341,8 @@ export default {
       } else {
         files = await readAllFileEntries(items);
       }
-    }else{
-      files = items
+    } else {
+      files = items;
     }
     for (let file of files) {
       let extension = file.name.match(/\.([a-zA-Z0-9]+)$/i);
@@ -329,7 +353,7 @@ export default {
         // case 'osu':
         //   return processOsuFolder(files)
         case "ojn":
-          return processO2jamFolder(files);
+          return processO2jamFolderV2(files);
         // case 'bms':
         // case 'bme':
         // case 'bml':
@@ -343,3 +367,39 @@ export default {
     throw "invalidformat";
   },
 };
+
+// export const parseFiles = async (items, drop) => {
+//   let files = [];
+//   if (drop) {
+//     if (items.length == 0) return files;
+//     if (items.length == 1 && items[0].isDirectory) {
+//       let fileEntries = await getFileEntriesFromDirectory(items[0]);
+//       files = await readAllFileEntries(fileEntries);
+//     } else {
+//       files = await readAllFileEntries(items);
+//     }
+//   } else {
+//     files = items;
+//   }
+//   for (let file of files) {
+//     let extension = file.name.match(/\.([a-zA-Z0-9]+)$/i);
+//     if (extension == null) continue;
+//     switch (extension[1]) {
+//       // case 'osz':
+//       //   return processOsz(file)
+//       // case 'osu':
+//       //   return processOsuFolder(files)
+//       case "ojn":
+//         return processO2jamFolderV2(files);
+//       // case 'bms':
+//       // case 'bme':
+//       // case 'bml':
+//       // case 'pms':
+//       //   return processBeatmaniaFolder(files)
+//       // case 'sm':
+//       // case 'ssc':
+//       //   return processStepmaniaFolder(files)
+//     }
+//   }
+//   throw "invalidformat";
+// };

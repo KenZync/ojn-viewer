@@ -1,29 +1,77 @@
 <template>
   <div>
-    <div v-if="jsonData" class="flex justify-between h-[50px] bg-black text-white text-xl font-bold p-4">
+    <div
+      v-if="jsonData"
+      class="flex justify-between h-[50px] bg-black text-white text-xl font-bold p-4"
+    >
       <div>
-      {{
-        `${jsonData.title} / ${jsonData.artist} / obj : / bpm: ${jsonData.bpm} / Notes: ${jsonData.notes}`
-      }}
+        {{
+          `${jsonData.title} / ${jsonData.artist} / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${jsonData.notes}`
+        }}
       </div>
       <button @click="toggleSetting">Setting</button>
     </div>
-    <div v-else class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold">Loading...</div>
-    <div v-if="showPanel" class="absolute top-0 right-0 bg-stone-700 px-5 w-48 h-screen flex flex-col text-white space-y-4">
+    <div
+      v-else
+      class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold"
+    >
+      Loading...
+    </div>
+    <div
+      v-if="showPanel"
+      class="absolute top-0 right-0 bg-stone-700 px-5 w-48 h-screen flex flex-col text-white space-y-4"
+    >
       <!-- <div @click="toggleSetting" class="text-white text-xl font-bold pt-4 w-full">Close</div> -->
-      <button @click="toggleSetting" class="text-xl font-bold pt-4 w-full text-right">Close</button>
+      <button
+        @click="toggleSetting"
+        class="text-xl font-bold pt-4 w-full text-right"
+      >
+        Close
+      </button>
       <div class="">Options</div>
       <div class="flex w-full space-x-2">
-        <input v-model="seed" placeholder="seed" class="w-full text-black"/>
-        <button @click="random" class="border w-8 h-8 rounded-full text-center font-bold bg-gray-700">R</button>
-
-
+        <input v-model="seed" placeholder="seed" class="w-full text-black" />
+        <button
+          @click="random"
+          class="border w-8 h-8 rounded-full text-center font-bold bg-gray-700"
+        >
+          R
+        </button>
       </div>
-      
-      <button class="border rounded-lg text-center font-bold bg-gray-700 py-2">OK</button>
-      
 
+      <button class="border rounded-lg text-center font-bold bg-gray-700 py-2">
+        OK
+      </button>
 
+      <DropZone
+        class="drop-area text-center"
+        @files-dropped="onInputChange"
+        #default="{ dropZoneActive }"
+      >
+      <div class="border-dashed border-2 h-28 flex items-center">
+
+        <label for="file-input" class="text-stone-200">
+          <span v-if="dropZoneActive">
+            <span>Drop Them Here</span>
+            <span>to add them</span>
+          </span>
+          <span v-else>
+            <span>Drag Your .ojn Here</span>
+            <span>
+              or <strong><em>click here</em></strong> to select files
+            </span>
+          </span>
+
+          <input
+            class="hidden"
+            type="file"
+            id="file-input"
+            multiple
+            @change="onInputChange"
+          />
+        </label>
+      </div>
+      </DropZone>
     </div>
     <div ref="pixiContainer"></div>
   </div>
@@ -31,6 +79,7 @@
 
 <script setup lang="ts">
 import * as PIXI from "pixi.js";
+import FileParser from "~/utils/file-parser";
 
 var schemes = {
   default: {
@@ -51,13 +100,13 @@ var schemes = {
     noteBlueLine: null,
     noteWhiteFill: 0xffffff,
     noteWhiteLine: null,
-    noteYellowFill: 0xE1C85B,
+    noteYellowFill: 0xe1c85b,
     noteYellowLine: null,
     lnoteBlueFill: 0x02ffff,
     lnoteBlueLine: null,
     lnoteWhiteFill: 0xffffff,
     lnoteWhiteLine: null,
-    lnoteYellowFill: 0xE1C85B,
+    lnoteYellowFill: 0xe1c85b,
     lnoteYellowLine: null,
     mineRedFill: 0x700000,
     mineRedLine: 0x700000,
@@ -127,10 +176,8 @@ const showPanel = ref(true);
 const seed = ref("1352467");
 // const pattern = ref(['0','2','4,','1','3','5','6']);
 const pattern = computed(() => {
-  console.log(seed.value.split('').map(char => (parseInt(char) - 1).toString()))
-  return seed.value.split('').map(char => (parseInt(char) - 1).toString());
-})
-
+  return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
+});
 
 var base: PIXI.Container<PIXI.DisplayObject>;
 var stage: PIXI.Container<PIXI.DisplayObject>;
@@ -173,7 +220,6 @@ onMounted(async () => {
   //   }
 
   //   if (res) {
-
 
   thumbnailHeight.value = Math.max(window.innerHeight * 0.05, 25);
   headerHeight = 50; /* WORKAROUND */
@@ -365,13 +411,13 @@ const Measure = (param: any) => {
     // console.log(gPattern)
 
     //Draw Notes
-    var keych:string[] = [];
-    if(gPattern != null && gPattern.length == gKeys){
+    var keych: string[] = [];
+    if (gPattern != null && gPattern.length == gKeys) {
       for (var c = 0; c < gKeys; c++) {
-        keych[c] = keyCh[7][parseInt(gPattern[c])]
+        keych[c] = keyCh[7][parseInt(gPattern[c])];
       }
-    }else{
-      keych = keyCh[7]
+    } else {
+      keych = keyCh[7];
     }
     // console.log(gPattern,keych)
     // ノート描画
@@ -699,60 +745,140 @@ var refresh = function () {
 };
 
 function shuffle(arr: string[]) {
-    var i, j, tmp, length;
-    for (length = arr.length, i = length - 1; i > 0; i--) {
-        j = Math.floor(Math.random() * (i + 1));
-        tmp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = tmp;
-    }
-    return arr;
+  var i, j, tmp, length;
+  for (length = arr.length, i = length - 1; i > 0; i--) {
+    j = Math.floor(Math.random() * (i + 1));
+    tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr;
 }
 
-const toggleSetting = ()=>{
-  showPanel.value = !showPanel.value
-}
+const toggleSetting = () => {
+  showPanel.value = !showPanel.value;
+};
 
-const random = ()=>{
-  seed.value = shuffle("1234567".split("")).join("")
-}
-function validateKeyPattern(p :any, k:any) {
+const random = () => {
+  seed.value = shuffle("1234567".split("")).join("");
+  // renderer.value.resize(window.innerWidth, window.innerHeight - headerHeight);
+
+  // renderer.value.render(base);
+};
+function validateKeyPattern(p: any, k: any) {
   var isValid = false;
   var ret = [];
   var str = "";
 
-
   if (p == 0) {
-      str = String(p);
-      for (var i = 0; i < k; i++) {
-          ret.push(i);
-      }
-      isValid = true;
+    str = String(p);
+    for (var i = 0; i < k; i++) {
+      ret.push(i);
+    }
+    isValid = true;
   } else if (p == 1) {
-      str = String(p);
-      for (var i = 1; i <= k; i++) {
-          ret.push(k - i);
-      }
-      isValid = true;
+    str = String(p);
+    for (var i = 1; i <= k; i++) {
+      ret.push(k - i);
+    }
+    isValid = true;
   } else {
-      var ar = p.split("");
+    var ar = p.split("");
+    if (ar.length == k) {
+      ar = ar.filter(function (x: any, i: any, self: any) {
+        return self.indexOf(x) === i && x >= 1 && x <= k;
+      });
       if (ar.length == k) {
-          ar = ar.filter(function (x:any, i:any, self:any) {
-              return self.indexOf(x) === i &&
-                  x >= 1 &&
-                  x <= k;
-          });
-          if (ar.length == k) {
-              ret = [];
-              str = "";
-              for (var i = 0; i < k; i++) {
-                  ret.push(ar[i] - 1);
-                  str += ar[i];
-              }
-              isValid = true;
-          }
+        ret = [];
+        str = "";
+        for (var i = 0; i < k; i++) {
+          ret.push(ar[i] - 1);
+          str += ar[i];
+        }
+        isValid = true;
       }
+    }
   }
   return [isValid, ret, str];
 }
+
+const onInputChange = async (e) => {
+  let originalFiles;
+  let drop = false;
+  if (e.target.files) {
+    originalFiles = e.target.files;
+  } else {
+    originalFiles = e.dataTransfer.items;
+    drop = true;
+  }
+
+  try {
+    let files = [];
+    if (drop) {
+      for (let item of originalFiles) {
+        if (item != null && item.kind == "file")
+          files.push(item.webkitGetAsEntry());
+      }
+    } else {
+      files = originalFiles;
+    }
+
+
+
+
+    // for (let file of files) {
+    //   let extension = file.name.match(/\.([a-zA-Z0-9]+)$/i);
+
+    //   if (extension == null) continue;
+    //   switch (extension[1]) {
+    //     case "ojn":
+    //       console.log(file)
+    //     const reader = new FileReader();
+    //     reader.onload = e => console.log(e.target.result);
+
+    //     reader.readAsText(file);
+    //       // let ojnFile;
+    //       // let ojmFile;
+    //       // for (let file of files) {
+    //       //   if (file.name.match(/\.ojn$/i) != null) {
+    //       //     ojnFile = file;
+    //       //   }
+    //       //   if (file.name.match(/\.ojm$/i) != null) {
+    //       //     ojmFile = file;
+    //       //   }
+    //       // }
+
+    //       // console.log(file)
+    //       // await readFileAsArrayBuffer(file)
+    //       // convert(file)
+
+    //       return;
+    //   }
+    //   // console.log(extension)
+    // }
+    // var test = convert(files)
+    let converted = await FileParser.parseFiles(files, drop);
+
+
+    console.log(converted)
+    // console.log("DIFF",difficulty)
+
+    // for (let diff in difficulty) {
+    //   const longestValue = Object.keys(difficulty[diff].hitSounds).reduce(
+    //     (a, b) =>
+    //       difficulty[diff].hitSounds[a].length >
+    //       difficulty[diff].hitSounds[b].length
+    //         ? a
+    //         : b
+    //   );
+
+    //   difficulty[diff].mainMusic = difficulty[diff].hitSounds[longestValue];
+    // }
+    // output.value = difficulty;
+  } catch (err) {
+    console.log("err", err);
+  } finally {
+  }
+};
+
 </script>
