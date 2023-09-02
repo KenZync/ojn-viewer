@@ -89,18 +89,19 @@ var keyCh = {
 };
 
 var colorScheme = "default";
-// const { data:json } = await useFetch('/test.json')
 
 const pixiContainer = ref();
 
+const thumbnailHeight = ref(50);
+const leftMargin = 20;
+
 onMounted(async () => {
-  PIXI.settings.ROUND_PIXELS = true
+  PIXI.settings.ROUND_PIXELS = true;
   // グローバル変数
-  var leftMargin = 20;
   var rightMargin = leftMargin;
   var bottomMargin = 10;
   var headerHeight = 20;
-  var thumbnailHeight = 50;
+
   var renderer = null;
   var base = null;
   var stage = null;
@@ -122,8 +123,6 @@ onMounted(async () => {
   var measureFrom = 0;
   var measureTo = 0;
 
-  // const test = new PIXI.Container
-
   const json: any = await $fetch("/test.json");
   var res = true;
   //   if (json.notes > 100000) {
@@ -134,24 +133,11 @@ onMounted(async () => {
 
   //   if (res) {
 
-  thumbnailHeight = Math.max(window.innerHeight * 0.05, 25);
+  thumbnailHeight.value = Math.max(window.innerHeight * 0.05, 25);
   headerHeight = 50; /* WORKAROUND */
 
-  // if (stage == null) {
-  // if (renderer != null) {
-  //     renderer.destroy(true); // GPU メモリリーク対策
-  // }
-  // renderer = PIXI.autoDetectRenderer({width:window.innerHeight, height:window.innerHeight - headerHeight, backgroundColor:schemes.default.backgroundFill})
-  // renderer.roundPixels = true;
-  // renderer.clearBeforeRender = (schemes.default.backgroundFill != 0x000000);
-  // renderer.preserveDrawingBuffer = true;
-
-  // }
-
-  // }
   renderer = PIXI.autoDetectRenderer({
     width: window.innerHeight,
-    // width: window.innerHeight,
     height: window.innerHeight - headerHeight,
     backgroundColor: schemes.default.backgroundFill,
   });
@@ -162,7 +148,7 @@ onMounted(async () => {
     stage = new PIXI.Container();
   }
   var posXinit = leftMargin;
-  var posYinit = renderer.height - thumbnailHeight - bottomMargin;
+  var posYinit = renderer.height - thumbnailHeight.value - bottomMargin;
   var posX = posXinit;
   var posY = posYinit;
   for (var x = 0; x < json.score.length; x++) {
@@ -214,25 +200,20 @@ onMounted(async () => {
   //             .on('mousemove', onDragMove)
   //             .on('touchmove', onDragMove);
   //     }
-  //     stage.hitArea = new PIXI.Rectangle(0, 0, stage.width, stage.height);
-  //     stage.position.x = 0;
-  //     stage.position.y = 0;
+  stage.hitArea = new PIXI.Rectangle(0, 0, stage.width, stage.height);
+  stage.position.x = 0;
+  stage.position.y = 0;
+  renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
 
-  // thumbnail = Thumbnail();
+  thumbnail = Thumbnail(renderer, stage);
 
-  // thumbnail.position.x = 0;
-  // thumbnail.position.y = posYinit + bottomMargin;
+  thumbnail.position.x = 0;
+  thumbnail.position.y = posYinit + bottomMargin;
+
   base = new PIXI.Container();
   base.addChild(stage);
-  renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
+  base.addChild(thumbnail);
   renderer.render(base);
-  // base.addChild(thumbnail);
-
-  // const app = new PIXI.Application({
-  //   background: "#1099bb",
-  //   resizeTo: window,
-  // });
-  // pixiContainer.value.appendChild(app.view);
   pixiContainer.value.appendChild(renderer.view);
 });
 
@@ -243,25 +224,13 @@ const Measure = (param: any) => {
   var g = new PIXI.Graphics();
   container.addChild(g);
 
+    //   // コンテナサイズを決定
   var cHeight = param.length * param.scaleH * param.exratio;
   var cWidth = measureGridSize[7] * param.scaleW;
   var gHeight = param.length * param.scaleH * param.exratio;
   var gWidth = measureGridSize[7] * param.scaleW;
 
-  //   console.log(cHeight, cWidth, gHeight, gWidth);
-
-  //   g.lineStyle(2, 0xFFFFFF, 1);
-  //     g.beginFill(0xAA4F08);
-  //     g.drawRect(530, 50, 140, 100);
-  //     g.endFill();
-
-  // console.log(container.innerHeight)
-  //   // コンテナサイズを決定
-  //   container.innerHeight = g.innerHeight =
-  //     param.length * param.scaleH * param.exratio;
-  //   container.innerWidth = g.innerWidth =
-  //     measureGridSize[param.keys] * param.scaleW;
-
+    //   // パラメータをセット
   var gLogicalLength = param.length;
   var gUnitLength = param.unit;
   var gIndex = param.index;
@@ -272,17 +241,7 @@ const Measure = (param: any) => {
   var gGridY = gHeight / gLogicalLength;
   var gSide = param.side;
   var gPattern = param.pattern;
-  //   // パラメータをセット
-  //   g.logicalLength = param.length;
-  //   g.unitLength = param.unit;
-  //   g.index = param.index;
-  //   g.score = param.score;
-  //   g.lnmap = param.lnmap;
-  //   g.keys = param.keys;
-  //   g.gridX = param.scaleW;
-  //   g.gridY = g.innerHeight / g.logicalLength;
-  //   g.side = param.side;
-  //   g.pattern = param.pattern;
+
 
 
   //   // 小節線描画メソッド
@@ -349,15 +308,15 @@ const Measure = (param: any) => {
       container.addChild(labelText);
     }
 
-  //   // 外枠描画メソッド
-  //   g.drawOuterBound = function () {
+    //   // 外枠描画メソッド
+    //   g.drawOuterBound = function () {
     g.lineStyle(lineWidth, schemes.default.outerBound, 1);
-  g.moveTo(-lineWidth, 0);
-  g.lineTo(gWidth + lineWidth, 0);
-  g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
-  g.lineTo(-lineWidth, gHeight - lineWidth);
-  g.lineTo(-lineWidth, 0);
-  //   };
+    g.moveTo(-lineWidth, 0);
+    g.lineTo(gWidth + lineWidth, 0);
+    g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
+    g.lineTo(-lineWidth, gHeight - lineWidth);
+    g.lineTo(-lineWidth, 0);
+    //   };
 
     //Draw Notes
     var keych = keyCh[7];
@@ -394,68 +353,79 @@ const Measure = (param: any) => {
     var lnColorLine = lnBlueLine;
 
     keych.forEach(function (key) {
-            if (color == blue) {
-                color = white;
-                colorBlueLine = whiteLine;
-            } else {
-                color = blue;
-                colorBlueLine = blueLine;
-            }
-            if (lnColor == lnBlue) {
-                lnColor = lnWhite;
-                lnColorLine = lnWhiteLine;
-            } else {
-                lnColor = lnBlue
-                lnColorLine = lnBlueLine;
-            }
+      if (color == blue) {
+        color = white;
+        colorBlueLine = whiteLine;
+      } else {
+        color = blue;
+        colorBlueLine = blueLine;
+      }
+      if (lnColor == lnBlue) {
+        lnColor = lnWhite;
+        lnColorLine = lnWhiteLine;
+      } else {
+        lnColor = lnBlue;
+        lnColorLine = lnBlueLine;
+      }
 
-            if (key in gLnmap) {
-                gLnmap[key].forEach(function (area: any[][]) {
-                    if (area[0][0] <= gIndex && area[1][0] >= gIndex) {
-                        var lnBegin = 0;
-                        var lnEnd = gLogicalLength;
-                        if (area[0][0] == gIndex) {
-                            lnBegin = area[0][1];
-                        }
-                        if (area[1][0] == gIndex) {
-                            lnEnd = area[1][1];
-                        }
-                        var noteLineWidth = lnColorLine != null ? 1 : 0;
-                        var noteLineAlpha = lnColorLine != null ? 1 : 0;
-                        g.beginFill(lnColor);
-                        g.lineStyle(noteLineWidth, lnColorLine, noteLineAlpha);
-                        g.drawRect(
-                            idx * gGridX - (idx == 0 ? lineWidth : 0) + lnRatio * gGridX / 2,
-                            gHeight - (gGridY * lnEnd) - lineWidth + (lnEnd == gLogicalLength ? noteLineWidth : 0) ,
-                            2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
-                            gGridY * (lnEnd - lnBegin) + (lnBegin == 0 ? lineWidth : 0) - lineWidth - (lnEnd == gLogicalLength ? noteLineWidth : 0) 
-                        );
-                        g.endFill();
-                    }
-                });
+      if (key in gLnmap) {
+        gLnmap[key].forEach(function (area: any[][]) {
+          if (area[0][0] <= gIndex && area[1][0] >= gIndex) {
+            var lnBegin = 0;
+            var lnEnd = gLogicalLength;
+            if (area[0][0] == gIndex) {
+              lnBegin = area[0][1];
             }
-            [['D' + key.charAt(1), mineRed, mineRed], [key, color, colorBlueLine]].forEach(function (q) {
-                var _key = q[0];
-                var _color = q[1];
-                var _colorLine = q[2];
-                if (_key in gScore) {
-                    gScore[_key].forEach(function (pos: number[]) {
-                        var noteLineWidth = _colorLine != null ? 1 : 0;
-                        var noteLineAlpha = _colorLine != null ? 1 : 0;
-                        g.beginFill(_color);
-                        g.lineStyle(noteLineWidth, _colorLine, noteLineAlpha);
-                        g.drawRect(
-                            idx * gGridX - (idx == 0 ? lineWidth : 0),
-                            gHeight - (gGridY * pos[0] + noteThickness) - lineWidth,
-                            2 * gGridX - (idx == 0 ? 0 : lineWidth) + noteLineWidth,
-                            noteThickness
-                        );
-                        g.endFill();
-                    });
-                }
-            });
-            idx += 2;
+            if (area[1][0] == gIndex) {
+              lnEnd = area[1][1];
+            }
+            var noteLineWidth = lnColorLine != null ? 1 : 0;
+            var noteLineAlpha = lnColorLine != null ? 1 : 0;
+            g.beginFill(lnColor);
+            g.lineStyle(noteLineWidth, lnColorLine, noteLineAlpha);
+            g.drawRect(
+              idx * gGridX -
+                (idx == 0 ? lineWidth : 0) +
+                (lnRatio * gGridX) / 2,
+              gHeight -
+                gGridY * lnEnd -
+                lineWidth +
+                (lnEnd == gLogicalLength ? noteLineWidth : 0),
+              2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
+              gGridY * (lnEnd - lnBegin) +
+                (lnBegin == 0 ? lineWidth : 0) -
+                lineWidth -
+                (lnEnd == gLogicalLength ? noteLineWidth : 0)
+            );
+            g.endFill();
+          }
         });
+      }
+      [
+        ["D" + key.charAt(1), mineRed, mineRed],
+        [key, color, colorBlueLine],
+      ].forEach(function (q) {
+        var _key = q[0];
+        var _color = q[1];
+        var _colorLine = q[2];
+        if (_key in gScore) {
+          gScore[_key].forEach(function (pos: number[]) {
+            var noteLineWidth = _colorLine != null ? 1 : 0;
+            var noteLineAlpha = _colorLine != null ? 1 : 0;
+            g.beginFill(_color);
+            g.lineStyle(noteLineWidth, _colorLine, noteLineAlpha);
+            g.drawRect(
+              idx * gGridX - (idx == 0 ? lineWidth : 0),
+              gHeight - (gGridY * pos[0] + noteThickness) - lineWidth,
+              2 * gGridX - (idx == 0 ? 0 : lineWidth) + noteLineWidth,
+              noteThickness
+            );
+            g.endFill();
+          });
+        }
+      });
+      idx += 2;
+    });
 
     //Draw BPM
     var colorLine = schemes.default.bpmLine;
@@ -474,11 +444,6 @@ const Measure = (param: any) => {
             gHeight - gGridY * pos[0] - lineH
           );
 
-          // if (gKeys == 10 || gKeys == 14) {
-          //     // for DP
-          //     g.moveTo(gGridX * (measureGridSize[7] - measureLeftLaneSize[7]), gHeight - gGridY * pos[0] - lineH);
-          //     g.lineTo(gGridX * measureGridSize[7], g.Height - gGridY * pos[0] - lineH);
-          // }
           if (colorText != null) {
             var fontSetting = "bold " + gGridX * 1.5 + "px Arial";
             var labelText = new PIXI.Text(Math.round(pos[1] * 10) / 10, {
@@ -499,294 +464,137 @@ const Measure = (param: any) => {
       }
     });
   }
-  //   };
-
-  //   // ノート境界線描画メソッド
-  //   g.drawNoteLines = function () {
-  //     switch (g.keys) {
-  //       case 7:
-  //         g.drawNoteLinesSP(g.keys);
-  //         break;
-  //       default:
-  //         break;
-  //     }
-  //   };
-  //   // ノート境界線SP
-  //   g.drawNoteLinesSP = function (keys) {
-  //     // ノート境界線を描画
-  //     // SC:5, KEY:2, LABEL:2
-  //     var grid = g.gridX;
-  //     var color = schemes.default.laneLine;
-  //     var idx = g.side == 1 ? 5 : 2 * keys + 5;
-  //     // SC
-  //     g.lineStyle(lineWidth, color, 1);
-  //     g.moveTo(grid * idx, 0);
-  //     g.lineTo(grid * idx, g.innerHeight - lineWidth);
-  //     // KEY
-  //     if (g.side == 2) idx = 0;
-  //     for (var i = 0; i < keys; i++) {
-  //       idx += 2;
-  //       g.moveTo(grid * idx, 0);
-  //       g.lineTo(grid * idx, g.innerHeight - lineWidth);
-  //     }
-  //     // LABEL
-  //     idx = 2 * keys + 5;
-  //     color = schemes.default.labelFill;
-  //     g.beginFill(color);
-  //     g.lineStyle(0, null, 1);
-  //     g.moveTo(grid * idx, 0);
-  //     g.lineTo(grid * idx, g.innerHeight - lineWidth);
-  //     g.lineTo(grid * (4 + idx), g.innerHeight - lineWidth);
-  //     g.lineTo(grid * (4 + idx), 0);
-  //     g.endFill();
-  //     if (g.logicalLength >= g.unitLength / 4 / param.scaleH) {
-  //       idx += 2;
-  //       var fontSetting = "bold " + grid * 2 + "px Arial";
-  //       var labelText = new PIXI.Text(g.index, {
-  //         font: fontSetting,
-  //         fill: schemes.default.labelText,
-  //       });
-  //       labelText.anchor.x = 0.5;
-  //       labelText.anchor.y = 0.5;
-  //       labelText.x = grid * idx;
-  //       labelText.y = g.innerHeight / 2;
-  //       container.addChild(labelText);
-  //     }
-  //   };
-  //   // ノート描画メソッド
-  //   g.drawNotes = function () {
-  //     switch (g.keys) {
-  //       case 7:
-  //         g.drawNotesSP(g.keys);
-  //         break;
-  //       default:
-  //         break;
-  //     }
-  //   };
-
-  //   // ノートSP
-  //   g.drawNotesSP = function (keys) {
-  //     // レーン入れ替え
-  //     var keych = keyCh[keys];
-  //     if (g.pattern != null && g.pattern.length == keys) {
-  //       var temp = keych;
-  //       keych = [];
-  //       for (var i = 0; i < keys; i++) {
-  //         keych.push(temp[g.pattern[i]]);
-  //       }
-  //     }
-
-  //     // ノート描画
-  //     var noteThickness = 4;
-  //     var blue = schemes.default.noteBlueFill;
-  //     var white = schemes.default.noteWhiteFill; // 0x8b8b8b
-  //     var red = schemes.default.noteRedFill;
-  //     var blueLine = schemes.default.noteBlueLine;
-  //     var whiteLine = schemes.default.noteWhiteLine;
-  //     var redLine = schemes.default.noteRedLine;
-  //     var lnWhite = schemes.default.lnoteWhiteFill;
-  //     var lnBlue = schemes.default.lnoteBlueFill;
-  //     var lnRed = schemes.default.lnoteRedFill;
-  //     var lnWhiteLine = schemes.default.lnoteWhiteLine;
-  //     var lnBlueLine = schemes.default.lnoteBlueLine;
-  //     var lnRedLine = schemes.default.lnoteRedLine;
-  //     var mineRed = schemes.default.mineRedFill;
-  //     var mineRedLine = schemes.default.mineRedLine;
-  //     var lnRatio = schemes.default.lnWidthRatio;
-
-  //     // KEY
-  //     var idx = g.side == 1 ? 5 : 0;
-  //     var color = blue;
-  //     var colorLine = blueLine;
-  //     var lnColor = lnBlue;
-  //     var lnColorLine = lnBlueLine;
-  //     keych.forEach(function (key) {
-  //       if (color == blue) {
-  //         color = white;
-  //         colorLine = whiteLine;
-  //       } else {
-  //         color = blue;
-  //         colorLine = blueLine;
-  //       }
-  //       if (lnColor == lnBlue) {
-  //         lnColor = lnWhite;
-  //         lnColorLine = lnWhiteLine;
-  //       } else {
-  //         lnColor = lnBlue;
-  //         lnColorLine = lnBlueLine;
-  //       }
-
-  //       if (key in g.lnmap) {
-  //         g.lnmap[key].forEach(function (area) {
-  //           if (area[0][0] <= g.index && area[1][0] >= g.index) {
-  //             var lnBegin = 0;
-  //             var lnEnd = g.logicalLength;
-  //             if (area[0][0] == g.index) {
-  //               lnBegin = area[0][1];
-  //             }
-  //             if (area[1][0] == g.index) {
-  //               lnEnd = area[1][1];
-  //             }
-  //             var noteLineWidth = lnColorLine != null ? 1 : 0;
-  //             var noteLineAlpha = lnColorLine != null ? 1 : 0;
-  //             g.beginFill(lnColor);
-  //             g.lineStyle(noteLineWidth, lnColorLine, noteLineAlpha);
-  //             g.drawRect(
-  //               idx * g.gridX -
-  //                 (idx == 0 ? lineWidth : 0) +
-  //                 (lnRatio * g.gridX) / 2,
-  //               g.innerHeight -
-  //                 g.gridY * lnEnd -
-  //                 lineWidth +
-  //                 (lnEnd == g.logicalLength ? noteLineWidth : 0),
-  //               2 * g.gridX - (idx == 0 ? 0 : lineWidth) - lnRatio * g.gridX,
-  //               g.gridY * (lnEnd - lnBegin) +
-  //                 (lnBegin == 0 ? lineWidth : 0) -
-  //                 lineWidth -
-  //                 (lnEnd == g.logicalLength ? noteLineWidth : 0)
-  //             );
-  //             g.endFill();
-  //           }
-  //         });
-  //       }
-  //       [
-  //         ["D" + key.charAt(1), mineRed, mineRed],
-  //         [key, color, colorLine],
-  //       ].forEach(function (q) {
-  //         var _key = q[0];
-  //         var _color = q[1];
-  //         var _colorLine = q[2];
-  //         if (_key in g.score) {
-  //           g.score[_key].forEach(function (pos) {
-  //             var noteLineWidth = _colorLine != null ? 1 : 0;
-  //             var noteLineAlpha = _colorLine != null ? 1 : 0;
-  //             g.beginFill(_color);
-  //             g.lineStyle(noteLineWidth, _colorLine, noteLineAlpha);
-  //             g.drawRect(
-  //               idx * g.gridX - (idx == 0 ? lineWidth : 0),
-  //               g.innerHeight - (g.gridY * pos[0] + noteThickness) - lineWidth,
-  //               2 * g.gridX - (idx == 0 ? 0 : lineWidth) + noteLineWidth,
-  //               noteThickness
-  //             );
-  //             g.endFill();
-  //           });
-  //         }
-  //       });
-  //       idx += 2;
-  //     });
-  //   };
-  //   // BPM描画メソッド
-  //   g.drawBPM = function () {
-  //     var colorLine = schemes.default.bpmLine;
-  //     var colorText = schemes.default.bpmText;
-  //     var colorStroke = schemes.default.bpmTextStroke;
-  //     var lineH = schemes.default.bpmLineH;
-  //     // BPM, exBPM
-  //     var ch = ["03", "08"];
-  //     ch.forEach(function (key) {
-  //       if (key in g.score) {
-  //         g.score[key].forEach(function (pos) {
-  //           g.lineStyle(lineH, colorLine, 1);
-  //           g.moveTo(-1, g.innerHeight - g.gridY * pos[0] - lineH);
-  //           g.lineTo(
-  //             g.gridX * measureLeftLaneSize[g.keys],
-  //             g.innerHeight - g.gridY * pos[0] - lineH
-  //           );
-
-  //           if (g.keys == 10 || g.keys == 14) {
-  //             // for DP
-  //             g.moveTo(
-  //               g.gridX * (measureGridSize[g.keys] - measureLeftLaneSize[g.keys]),
-  //               g.innerHeight - g.gridY * pos[0] - lineH
-  //             );
-  //             g.lineTo(
-  //               g.gridX * measureGridSize[g.keys],
-  //               g.innerHeight - g.gridY * pos[0] - lineH
-  //             );
-  //           }
-  //           if (colorText != null) {
-  //             var fontSetting = "bold " + g.gridX * 1.5 + "px Arial";
-  //             var labelText = new PIXI.Text(Math.round(pos[1] * 10) / 10, {
-  //               font: fontSetting,
-  //               fill: colorText,
-  //               stroke: colorStroke,
-  //               strokeThickness: colorStroke != null ? 2 : 0,
-  //             });
-  //             labelText.anchor.x = 0.5;
-  //             labelText.anchor.y = 0.5;
-  //             labelText.x = g.gridX * (measureLeftLaneSize[g.keys] + 2);
-  //             labelText.y = g.innerHeight - g.gridY * pos[0] - lineWidth;
-  //             container.addChild(labelText);
-  //           }
-  //         });
-  //       }
-  //     });
-  //   };
-
-  //   // STOP描画メソッド
-  //   g.drawStop = function () {
-  //     var colorLine = schemes.default.stopLine;
-  //     var colorText = schemes.default.stopText;
-  //     var colorStroke = schemes.default.stopTextStroke;
-  //     var lineH = schemes.default.bpmLineH;
-  //     // STOP
-  //     var ch = ["09"];
-  //     ch.forEach(function (key) {
-  //       if (key in g.score) {
-  //         g.score[key].forEach(function (pos) {
-  //           g.lineStyle(lineH, colorLine, 1);
-  //           g.moveTo(-1, g.innerHeight - g.gridY * pos[0] - lineH);
-  //           g.lineTo(
-  //             g.gridX * measureLeftLaneSize[g.keys],
-  //             g.innerHeight - g.gridY * pos[0] - lineH
-  //           );
-
-  //           if (g.keys == 10 || g.keys == 14) {
-  //             // for DP
-  //             g.moveTo(
-  //               g.gridX * (measureGridSize[g.keys] - measureLeftLaneSize[g.keys]),
-  //               g.innerHeight - g.gridY * pos[0] - lineH
-  //             );
-  //             g.lineTo(
-  //               g.gridX * measureGridSize[g.keys],
-  //               g.innerHeight - g.gridY * pos[0] - lineH
-  //             );
-  //           }
-
-  //           if (colorText != null) {
-  //             var fontSetting = "bold " + g.gridX * 1.75 + "px Arial";
-  //             var labelText = new PIXI.Text(
-  //               /*Math.round(pos[1] * 10 / 48) / 10*/ "S",
-  //               {
-  //                 font: fontSetting,
-  //                 fill: colorText,
-  //                 stroke: colorStroke,
-  //                 strokeThickness: colorStroke != null ? 2 : 0,
-  //               }
-  //             );
-  //             labelText.anchor.x = 0.5;
-  //             labelText.anchor.y = 0.5;
-  //             labelText.x = g.gridX * (measureLeftLaneSize[g.keys] + 2);
-  //             labelText.y = g.innerHeight - g.gridY * pos[0] - lineWidth;
-  //             container.addChild(labelText);
-  //           }
-  //         });
-  //       }
-  //     });
-  //   };
-
-  //   g.drawMeasureLines();
 
   return container;
 };
 
-// function start(tempParam:string){
+const Thumbnail = (
+  renderer: PIXI.IRenderer<PIXI.ICanvas>,
+  stage: PIXI.Container<PIXI.DisplayObject>
+) => {
+  var lineWidth = 1;
+  var container = new PIXI.Container();
 
-// }
+  // サムネイル枠を作成
+  var g = new PIXI.Graphics();
+  g.beginFill(0x0);
+  g.lineStyle(lineWidth, 0x404040, 1);
+  g.moveTo(0, 0);
+  g.lineTo(stage.width + lineWidth, 0);
+  g.lineTo(stage.width + lineWidth, thumbnailHeight.value);
+  g.lineTo(0, thumbnailHeight.value);
+  g.lineTo(0, 0);
+  g.endFill();
+  container.addChild(g);
 
-// onUnmounted(() => {
-//   app.destroy();
-// });
+  // サムネイル作成
+  var containerWidthShrinkRatio = renderer.width / stage.width;
+  var containerHeightShrinkRatio = thumbnailHeight.value / stage.height;
+
+  const texture = renderer.generateTexture(stage,{resolution: 2 * containerWidthShrinkRatio, scaleMode:PIXI.SCALE_MODES.NEAREST})
+  var containerThumbnail = new PIXI.Sprite(texture);
+  containerThumbnail.width = renderer.width /*- leftMargin - rightMargin*/ ;
+  containerThumbnail.height = thumbnailHeight.value;
+  // CANVAS ではうまくスプライトが作成できない？ので無表示に
+    if (renderer.type != PIXI.RENDERER_TYPE.CANVAS) container.addChild(containerThumbnail);
+
+  // 表示中領域の白枠を作成
+
+  var containerViewBox = new PIXI.Container();
+
+  // グレーボックス
+  var grayMask = new PIXI.Graphics();
+  //左
+  grayMask.beginFill(0xffffff);
+  grayMask.lineStyle(lineWidth, 0x404040, 1);
+  grayMask.moveTo(0, 0);
+  grayMask.lineTo(-renderer.width, 0);
+  grayMask.lineTo(-renderer.width, thumbnailHeight.value);
+  grayMask.lineTo(0, thumbnailHeight.value);
+  grayMask.lineTo(0, 0);
+  // 右
+  grayMask.moveTo(renderer.width * containerWidthShrinkRatio, 0);
+  grayMask.lineTo(renderer.width, 0);
+  grayMask.lineTo(renderer.width, thumbnailHeight.value);
+  grayMask.lineTo(
+    renderer.width * containerWidthShrinkRatio,
+    thumbnailHeight.value
+  );
+  grayMask.lineTo(renderer.width * containerWidthShrinkRatio, 0);
+  grayMask.endFill();
+  // アルファ
+  grayMask.alpha = 0.4;
+  // クリック可能にする
+  // grayMask.buttonMode = true;
+  // grayMask.interactive = true;
+  grayMask.cursor = 'pointer';
+  grayMask.eventMode = 'static';
+  grayMask.hitArea = new PIXI.Rectangle(
+    -renderer.width,
+    0,
+    2 * renderer.width,
+    thumbnailHeight.value + 50
+
+    
+  ); // +50: はみ出しクリック可能領域
+  // grayMask.on('mousedown', onClick)
+  //     .on('touchstart', onClick);
+  grayMask.on('pointerdown', onClick)
+
+  containerViewBox.addChild(grayMask);
+
+  var frame = new PIXI.Graphics();
+  frame.lineStyle(lineWidth, 0xffffff, 1);
+  //枠の描画
+  frame.moveTo(lineWidth, 0);
+  frame.lineTo(renderer.width * containerWidthShrinkRatio, 0);
+  frame.lineTo(
+    renderer.width * containerWidthShrinkRatio,
+    thumbnailHeight.value
+  );
+  frame.lineTo(lineWidth, thumbnailHeight.value);
+  frame.lineTo(lineWidth, 0);
+  // ドラッグ可能にする
+  // frame.buttonMode = true;
+  // frame.interactive = true;
+  frame.hitArea = new PIXI.Rectangle(
+    lineWidth,
+    0,
+    renderer.width * containerWidthShrinkRatio - lineWidth,
+    thumbnailHeight.value + 50
+  ); // +50: はみ出しクリック可能領域
+  // frame.on('mousedown', onDragStart)
+  //     .on('touchstart', onDragStart)
+  //     .on('mouseup', onDragEnd)
+  //     .on('mouseupoutside', onDragEnd)
+  //     .on('touchend', onDragEnd)
+  //     .on('touchendoutside', onDragEnd)
+  //     .on('mousemove', onDragMove)
+  //     .on('touchmove', onDragMove);
+  containerViewBox.addChild(frame);
+
+  container.addChild(containerViewBox);
+
+  containerViewBox.position.x =
+    (-leftMargin - stage.position.x) * containerWidthShrinkRatio;
+  containerViewBox.position.y = 0;
+
+  return container;
+};
+
+function onClick(this: any, event:any) {
+  console.log(event.data.x,event.data.y)
+  // var posX = curPosition.x - renderer.width * thumbnail.widthShrinkRatio / 2;
+    // console.log(this.this.parent.parent == thumbnail)
+    // console.log(thumbnail.value)
+    // if (this.parent.parent == thumbnail) {
+    //     curPosition = this.data.getLocalPosition(thumbnail);
+    //     var posX = curPosition.x - renderer.width * thumbnail.widthShrinkRatio / 2;
+    //     stage.position.x = Math.min(Math.max(-posX / thumbnail.widthShrinkRatio, renderer.width - stage.width - leftMargin - rightMargin), 0);
+    //     thumbnail.drawViewBox();
+    //     requestAnimationFrame(refresh);
+    // }
+}
 </script>
 
 <style scoped></style>
