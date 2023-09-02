@@ -101,6 +101,7 @@ const containerWidthShrinkRatio = ref();
 var base: PIXI.Container<PIXI.DisplayObject>;
 var stage: PIXI.Container<PIXI.DisplayObject>;
 var thumbnail: PIXI.Container<PIXI.DisplayObject>;
+var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
 var rightMargin = leftMargin;
 onMounted(async () => {
   PIXI.settings.ROUND_PIXELS = true;
@@ -228,13 +229,13 @@ const Measure = (param: any) => {
   var g = new PIXI.Graphics();
   container.addChild(g);
 
-    //   // コンテナサイズを決定
+  //   // コンテナサイズを決定
   var cHeight = param.length * param.scaleH * param.exratio;
   var cWidth = measureGridSize[7] * param.scaleW;
   var gHeight = param.length * param.scaleH * param.exratio;
   var gWidth = measureGridSize[7] * param.scaleW;
 
-    //   // パラメータをセット
+  //   // パラメータをセット
   var gLogicalLength = param.length;
   var gUnitLength = param.unit;
   var gIndex = param.index;
@@ -245,8 +246,6 @@ const Measure = (param: any) => {
   var gGridY = gHeight / gLogicalLength;
   var gSide = param.side;
   var gPattern = param.pattern;
-
-
 
   //   // 小節線描画メソッド
   //   g.drawMeasureLines = function () {
@@ -356,56 +355,75 @@ const Measure = (param: any) => {
     var lnColor = lnBlue;
     var lnColorLine = lnBlueLine;
 
-    var colScheme = [white,blue,white,yellow,white,blue,white]
-    var colSchemeLN = [lnWhite,lnBlue,lnWhite,lnYellow,lnWhite,lnBlue,lnWhite]
+    var colScheme = [white, blue, white, yellow, white, blue, white];
+    var colSchemeLN = [
+      lnWhite,
+      lnBlue,
+      lnWhite,
+      lnYellow,
+      lnWhite,
+      lnBlue,
+      lnWhite,
+    ];
     var counter = 0;
     keych.forEach(function (key) {
       if (key in gLnmap) {
-                gLnmap[key].forEach(function (area: any[][]) {
-                    if (area[0][0] <= gIndex && area[1][0] >= gIndex) {
-                        var lnBegin = 0;
-                        var lnEnd = gLogicalLength;
-                        if (area[0][0] == gIndex) {
-                            lnBegin = area[0][1];
-                        }
-                        if (area[1][0] == gIndex) {
-                            lnEnd = area[1][1];
-                        }
-                        var noteLineWidth = lnColorLine != null ? 1 : 0;
-                        var noteLineAlpha = lnColorLine != null ? 1 : 0;
-                        g.beginFill(colSchemeLN[counter]);
-                        g.lineStyle(noteLineWidth, lnColorLine, noteLineAlpha);
-                        g.drawRect(
-                            idx * gGridX - (idx == 0 ? lineWidth : 0) + lnRatio * gGridX / 2,
-                            gHeight - (gGridY * lnEnd) - lineWidth + (lnEnd == gLogicalLength ? noteLineWidth : 0) ,
-                            2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
-                            gGridY * (lnEnd - lnBegin) + (lnBegin == 0 ? lineWidth : 0) - lineWidth - (lnEnd == gLogicalLength ? noteLineWidth : 0) 
-                        );
-                        g.endFill();
-                    }
-                });
+        gLnmap[key].forEach(function (area: any[][]) {
+          if (area[0][0] <= gIndex && area[1][0] >= gIndex) {
+            var lnBegin = 0;
+            var lnEnd = gLogicalLength;
+            if (area[0][0] == gIndex) {
+              lnBegin = area[0][1];
             }
-            [['D' + key.charAt(1), mineRed, mineRed], [key, color, colorBlueLine]].forEach(function (q) {
-                var _key = q[0];
-                var _colorLine = q[2];
-                if (_key in gScore) {
-                    gScore[_key].forEach(function (pos: number[]) {
-                        var noteLineWidth = _colorLine != null ? 1 : 0;
-                        var noteLineAlpha = _colorLine != null ? 1 : 0;
-                        g.beginFill(colScheme[counter]);
-                        g.lineStyle(noteLineWidth, _colorLine, noteLineAlpha);
-                        g.drawRect(
-                            idx * gGridX - (idx == 0 ? lineWidth : 0),
-                            gHeight - (gGridY * pos[0] + noteThickness) - lineWidth,
-                            2 * gGridX - (idx == 0 ? 0 : lineWidth) + noteLineWidth,
-                            noteThickness
-                        );
-                        g.endFill();
-                    });
-                }
-            });
-            idx += 2;
-            counter++;
+            if (area[1][0] == gIndex) {
+              lnEnd = area[1][1];
+            }
+            var noteLineWidth = lnColorLine != null ? 1 : 0;
+            var noteLineAlpha = lnColorLine != null ? 1 : 0;
+            g.beginFill(colSchemeLN[counter]);
+            g.lineStyle(noteLineWidth, lnColorLine, noteLineAlpha);
+            g.drawRect(
+              idx * gGridX -
+                (idx == 0 ? lineWidth : 0) +
+                (lnRatio * gGridX) / 2,
+              gHeight -
+                gGridY * lnEnd -
+                lineWidth +
+                (lnEnd == gLogicalLength ? noteLineWidth : 0),
+              2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
+              gGridY * (lnEnd - lnBegin) +
+                (lnBegin == 0 ? lineWidth : 0) -
+                lineWidth -
+                (lnEnd == gLogicalLength ? noteLineWidth : 0)
+            );
+            g.endFill();
+          }
+        });
+      }
+      [
+        ["D" + key.charAt(1), mineRed, mineRed],
+        [key, color, colorBlueLine],
+      ].forEach(function (q) {
+        var _key = q[0];
+        var _colorLine = q[2];
+        if (_key in gScore) {
+          gScore[_key].forEach(function (pos: number[]) {
+            var noteLineWidth = _colorLine != null ? 1 : 0;
+            var noteLineAlpha = _colorLine != null ? 1 : 0;
+            g.beginFill(colScheme[counter]);
+            g.lineStyle(noteLineWidth, _colorLine, noteLineAlpha);
+            g.drawRect(
+              idx * gGridX - (idx == 0 ? lineWidth : 0),
+              gHeight - (gGridY * pos[0] + noteThickness) - lineWidth,
+              2 * gGridX - (idx == 0 ? 0 : lineWidth) + noteLineWidth,
+              noteThickness
+            );
+            g.endFill();
+          });
+        }
+      });
+      idx += 2;
+      counter++;
     });
 
     //Draw BPM
@@ -472,120 +490,129 @@ const Thumbnail = (
   containerWidthShrinkRatio.value = inputRenderer.width / stage.width;
   var containerHeightShrinkRatio = thumbnailHeight.value / stage.height;
 
-  const texture = inputRenderer.generateTexture(stage,{resolution: 2 * containerWidthShrinkRatio.value, scaleMode:PIXI.SCALE_MODES.NEAREST})
+  const texture = inputRenderer.generateTexture(stage, {
+    resolution: 2 * containerWidthShrinkRatio.value,
+    scaleMode: PIXI.SCALE_MODES.NEAREST,
+  });
   var containerThumbnail = new PIXI.Sprite(texture);
-  containerThumbnail.width = inputRenderer.width /*- leftMargin - rightMargin*/ ;
+  containerThumbnail.width = inputRenderer.width /*- leftMargin - rightMargin*/;
   containerThumbnail.height = thumbnailHeight.value;
   // CANVAS ではうまくスプライトが作成できない？ので無表示に
-    if (inputRenderer.type != PIXI.RENDERER_TYPE.CANVAS) container.addChild(containerThumbnail);
+  if (inputRenderer.type != PIXI.RENDERER_TYPE.CANVAS)
+    container.addChild(containerThumbnail);
 
   // 表示中領域の白枠を作成
 
-  const drawViewBox = () => {
-    var containerViewBox = new PIXI.Container();
+  if (containerViewBox == null) {
+    containerViewBox = new PIXI.Container();
 
-  // グレーボックス
-  var grayMask = new PIXI.Graphics();
-  //左
-  grayMask.beginFill(0xffffff);
-  grayMask.lineStyle(lineWidth, 0x404040, 1);
-  grayMask.moveTo(0, 0);
-  grayMask.lineTo(-inputRenderer.width, 0);
-  grayMask.lineTo(-inputRenderer.width, thumbnailHeight.value);
-  grayMask.lineTo(0, thumbnailHeight.value);
-  grayMask.lineTo(0, 0);
-  // 右
-  grayMask.moveTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
-  grayMask.lineTo(inputRenderer.width, 0);
-  grayMask.lineTo(inputRenderer.width, thumbnailHeight.value);
-  grayMask.lineTo(
-    inputRenderer.width * containerWidthShrinkRatio.value,
-    thumbnailHeight.value
-  );
-  grayMask.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
-  grayMask.endFill();
-  // アルファ
-  grayMask.alpha = 0.4;
-  // クリック可能にする
-  // grayMask.buttonMode = true;
-  // grayMask.interactive = true;
-  grayMask.cursor = 'pointer';
-  grayMask.eventMode = 'static';
-  grayMask.hitArea = new PIXI.Rectangle(
-    -inputRenderer.width,
-    0,
-    2 * inputRenderer.width,
-    thumbnailHeight.value + 50
+    // グレーボックス
+    var grayMask = new PIXI.Graphics();
+    //左
+    grayMask.beginFill(0xffffff);
+    grayMask.lineStyle(lineWidth, 0x404040, 1);
+    grayMask.moveTo(0, 0);
+    grayMask.lineTo(-inputRenderer.width, 0);
+    grayMask.lineTo(-inputRenderer.width, thumbnailHeight.value);
+    grayMask.lineTo(0, thumbnailHeight.value);
+    grayMask.lineTo(0, 0);
+    // 右
+    grayMask.moveTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
+    grayMask.lineTo(inputRenderer.width, 0);
+    grayMask.lineTo(inputRenderer.width, thumbnailHeight.value);
+    grayMask.lineTo(
+      inputRenderer.width * containerWidthShrinkRatio.value,
+      thumbnailHeight.value
+    );
+    grayMask.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
+    grayMask.endFill();
+    // アルファ
+    grayMask.alpha = 0.4;
+    // クリック可能にする
+    // grayMask.buttonMode = true;
+    // grayMask.interactive = true;
+    grayMask.cursor = "pointer";
+    grayMask.eventMode = "static";
+    grayMask.hitArea = new PIXI.Rectangle(
+      -inputRenderer.width,
+      0,
+      2 * inputRenderer.width,
+      thumbnailHeight.value + 50
+    ); // +50: はみ出しクリック可能領域
+    // grayMask.on('mousedown', onClick)
+    //     .on('touchstart', onClick);
+    grayMask.on("pointerdown", onClick);
 
-    
-  ); // +50: はみ出しクリック可能領域
-  // grayMask.on('mousedown', onClick)
-  //     .on('touchstart', onClick);
-  grayMask.on('pointerdown', onClick)
+    containerViewBox.addChild(grayMask);
 
-  containerViewBox.addChild(grayMask);
+    var frame = new PIXI.Graphics();
+    frame.lineStyle(lineWidth, 0xffffff, 1);
+    //枠の描画
+    frame.moveTo(lineWidth, 0);
+    frame.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
+    frame.lineTo(
+      inputRenderer.width * containerWidthShrinkRatio.value,
+      thumbnailHeight.value
+    );
+    frame.lineTo(lineWidth, thumbnailHeight.value);
+    frame.lineTo(lineWidth, 0);
+    // ドラッグ可能にする
+    // frame.buttonMode = true;
+    // frame.interactive = true;
+    frame.hitArea = new PIXI.Rectangle(
+      lineWidth,
+      0,
+      inputRenderer.width * containerWidthShrinkRatio.value - lineWidth,
+      thumbnailHeight.value + 50
+    ); // +50: はみ出しクリック可能領域
+    // frame.on('mousedown', onDragStart)
+    //     .on('touchstart', onDragStart)
+    //     .on('mouseup', onDragEnd)
+    //     .on('mouseupoutside', onDragEnd)
+    //     .on('touchend', onDragEnd)
+    //     .on('touchendoutside', onDragEnd)
+    //     .on('mousemove', onDragMove)
+    //     .on('touchmove', onDragMove);
+    containerViewBox.addChild(frame);
 
-  var frame = new PIXI.Graphics();
-  frame.lineStyle(lineWidth, 0xffffff, 1);
-  //枠の描画
-  frame.moveTo(lineWidth, 0);
-  frame.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
-  frame.lineTo(
-    inputRenderer.width * containerWidthShrinkRatio.value,
-    thumbnailHeight.value
-  );
-  frame.lineTo(lineWidth, thumbnailHeight.value);
-  frame.lineTo(lineWidth, 0);
-  // ドラッグ可能にする
-  // frame.buttonMode = true;
-  // frame.interactive = true;
-  frame.hitArea = new PIXI.Rectangle(
-    lineWidth,
-    0,
-    inputRenderer.width * containerWidthShrinkRatio.value - lineWidth,
-    thumbnailHeight.value + 50
-  ); // +50: はみ出しクリック可能領域
-  // frame.on('mousedown', onDragStart)
-  //     .on('touchstart', onDragStart)
-  //     .on('mouseup', onDragEnd)
-  //     .on('mouseupoutside', onDragEnd)
-  //     .on('touchend', onDragEnd)
-  //     .on('touchendoutside', onDragEnd)
-  //     .on('mousemove', onDragMove)
-  //     .on('touchmove', onDragMove);
-  containerViewBox.addChild(frame);
-
-  container.addChild(containerViewBox);
-
-  containerViewBox.position.x =
-    (-leftMargin - stage.position.x) * containerWidthShrinkRatio.value;
-  containerViewBox.position.y = 0;
+    container.addChild(containerViewBox);
   }
-  drawViewBox()
 
   return container;
 };
 
-function onClick(this: any, event:any) {
+function onClick(this: any, event: any) {
   // console.log(event.data.x,event.data.y)
   // var posX = curPosition.x - renderer.width * thumbnail.widthShrinkRatio / 2;
-    // console.log(this.this.parent.parent == thumbnail)
-    // console.log(thumbnail.value)
-    // if (this.parent.parent == thumbnail) {
-    //     curPosition = this.data.getLocalPosition(thumbnail);
-        var posX = event.data.x - renderer.value.width * containerWidthShrinkRatio.value / 2;
-        stage.position.x = Math.min(Math.max(-posX / containerWidthShrinkRatio.value , renderer.value.width - stage.width - leftMargin - rightMargin), 0);
-        requestAnimationFrame(refresh)
-    //     stage.position.x = Math.min(Math.max(-posX / thumbnail.widthShrinkRatio, renderer.width - stage.width - leftMargin - rightMargin), 0);
-    //     thumbnail.drawViewBox();
-    //     requestAnimationFrame(refresh);
-    // }
+  // console.log(this.this.parent.parent == thumbnail)
+  // console.log(thumbnail.value)
+  // if (this.parent.parent == thumbnail) {
+  //     curPosition = this.data.getLocalPosition(thumbnail);
+  var posX =
+    event.data.x - (renderer.value.width * containerWidthShrinkRatio.value) / 2;
+  stage.position.x = Math.min(
+    Math.max(
+      -posX / containerWidthShrinkRatio.value,
+      renderer.value.width - stage.width - leftMargin - rightMargin
+    ),
+    0
+  );
+  if (containerViewBox) {
+    containerViewBox.position.x =
+      (-leftMargin - stage.position.x) * containerWidthShrinkRatio.value;
+    containerViewBox.position.y = 0;
+  }
+  requestAnimationFrame(refresh);
+
+  //     stage.position.x = Math.min(Math.max(-posX / thumbnail.widthShrinkRatio, renderer.width - stage.width - leftMargin - rightMargin), 0);
+  //     thumbnail.drawViewBox();
+  //     requestAnimationFrame(refresh);
+  // }
 }
 
 var refresh = function () {
-    renderer.value.render(base);
+  renderer.value.render(base);
 };
-
 </script>
 
 <style scoped></style>
