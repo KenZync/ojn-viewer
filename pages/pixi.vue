@@ -51,13 +51,13 @@ var schemes = {
     noteBlueLine: null,
     noteWhiteFill: 0xffffff,
     noteWhiteLine: null,
-    noteYellowFill: 0xffff00,
+    noteYellowFill: 0xE1C85B,
     noteYellowLine: null,
     lnoteBlueFill: 0x02ffff,
     lnoteBlueLine: null,
     lnoteWhiteFill: 0xffffff,
     lnoteWhiteLine: null,
-    lnoteYellowFill: 0xffff00,
+    lnoteYellowFill: 0xE1C85B,
     lnoteYellowLine: null,
     mineRedFill: 0x700000,
     mineRedLine: 0x700000,
@@ -124,7 +124,12 @@ const renderer = ref();
 const containerWidthShrinkRatio = ref();
 const jsonData = ref();
 const showPanel = ref(true);
-const seed = ref("1234567");
+const seed = ref("1352467");
+// const pattern = ref(['0','2','4,','1','3','5','6']);
+const pattern = computed(() => {
+  console.log(seed.value.split('').map(char => (parseInt(char) - 1).toString()))
+  return seed.value.split('').map(char => (parseInt(char) - 1).toString());
+})
 
 
 var base: PIXI.Container<PIXI.DisplayObject>;
@@ -133,31 +138,31 @@ var thumbnail: PIXI.Container<PIXI.DisplayObject>;
 var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
 var grayMask: PIXI.Graphics | null = null;
 var rightMargin = leftMargin;
+// グローバル変数
+var bottomMargin = 10;
+var headerHeight = 20;
+
+// var renderer.value = null;
+
+var measures: any[] = [];
+var data = null;
+var md5 = "";
+
+// - レンダリングパラメータ
+var urlParam = {};
+var scaleW = 7;
+var minScaleW = 4;
+var maxScaleW = 10;
+var scaleH = 2;
+var minScaleH = 0.5;
+var maxScaleH = 3.5;
+var playSide = 1;
+// var pattern: null = null;
+var measureFrom = 0;
+var measureTo = 0;
 onMounted(async () => {
   PIXI.settings.ROUND_PIXELS = true;
-  // グローバル変数
-  var bottomMargin = 10;
-  var headerHeight = 20;
-
-  // var renderer.value = null;
-
-  var measures = [];
-  var data = null;
-  var md5 = "";
-
-  // - レンダリングパラメータ
-  var urlParam = {};
-  var scaleW = 7;
-  var minScaleW = 4;
-  var maxScaleW = 10;
-  var scaleH = 2;
-  var minScaleH = 0.5;
-  var maxScaleH = 3.5;
-  var playSide = 1;
-  var pattern = null;
-  var measureFrom = 0;
-  var measureTo = 0;
-
+  // var pattern = null
   const json: any = await $fetch("/test.json");
   jsonData.value = json;
   var res = true;
@@ -168,6 +173,7 @@ onMounted(async () => {
   //   }
 
   //   if (res) {
+
 
   thumbnailHeight.value = Math.max(window.innerHeight * 0.05, 25);
   headerHeight = 50; /* WORKAROUND */
@@ -202,7 +208,7 @@ onMounted(async () => {
         length: json.score[x].length || json.unit,
         side: playSide,
         keys: 7,
-        pattern: pattern,
+        pattern: pattern.value,
         unit: json.unit,
         exratio: expLen > posYinit ? (posYinit - 1) / expLen : 1,
       });
@@ -277,6 +283,7 @@ const Measure = (param: any) => {
   var gGridY = gHeight / gLogicalLength;
   var gSide = param.side;
   var gPattern = param.pattern;
+  // console.log(param)
 
   //   // 小節線描画メソッド
   //   g.drawMeasureLines = function () {
@@ -352,15 +359,21 @@ const Measure = (param: any) => {
     g.lineTo(-lineWidth, 0);
     //   };
 
+    // gPattern=['0','2','4,','1','3','5','6']
+    // gPattern=[0,2,4,1,3,5,6]
+
+    // console.log(gPattern)
+
     //Draw Notes
-    var keych = keyCh[7];
-    if (gPattern != null && gPattern.length == gKeys) {
-      var temp = keych;
-      keych = [];
-      for (var i = 0; i < gKeys; i++) {
-        keych.push(temp[gPattern[i]]);
+    var keych:string[] = [];
+    if(gPattern != null && gPattern.length == gKeys){
+      for (var c = 0; c < gKeys; c++) {
+        keych[c] = keyCh[7][parseInt(gPattern[c])]
       }
+    }else{
+      keych = keyCh[7]
     }
+    // console.log(gPattern,keych)
     // ノート描画
     var noteThickness = 4;
     var blue = schemes.default.noteBlueFill;
@@ -702,9 +715,44 @@ const toggleSetting = ()=>{
 
 const random = ()=>{
   seed.value = shuffle("1234567".split("")).join("")
+}
+function validateKeyPattern(p :any, k:any) {
+  var isValid = false;
+  var ret = [];
+  var str = "";
 
 
-
-  
+  if (p == 0) {
+      str = String(p);
+      for (var i = 0; i < k; i++) {
+          ret.push(i);
+      }
+      isValid = true;
+  } else if (p == 1) {
+      str = String(p);
+      for (var i = 1; i <= k; i++) {
+          ret.push(k - i);
+      }
+      isValid = true;
+  } else {
+      var ar = p.split("");
+      if (ar.length == k) {
+          ar = ar.filter(function (x:any, i:any, self:any) {
+              return self.indexOf(x) === i &&
+                  x >= 1 &&
+                  x <= k;
+          });
+          if (ar.length == k) {
+              ret = [];
+              str = "";
+              for (var i = 0; i < k; i++) {
+                  ret.push(ar[i] - 1);
+                  str += ar[i];
+              }
+              isValid = true;
+          }
+      }
+  }
+  return [isValid, ret, str];
 }
 </script>

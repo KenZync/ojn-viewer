@@ -552,6 +552,7 @@ function render() {
             var measure;
             if (measures[i] == null || initStage) {
                 var expLen = (data.score[i].length || data.unit) * scaleH;
+                console.log(pattern)
                 measure = Measure({
                     index: i,
                     score: data.score[i],
@@ -829,6 +830,7 @@ function start(tempParam) {
         if (result[0]) {
             urlParam.o = result[2];
             pattern = keys >= 10 ? result[1].concat(pattern.slice(keys / 2)) : result[1];
+            
             if (urlParam.o >= 2) {
                 $("#random_pattern_input").val(result[2]);
             }
@@ -984,8 +986,8 @@ function start(tempParam) {
             var result = validateKeyPattern($("#random_pattern_input").val(), keys >= 10 ? keys / 2 : keys);
             if (result[0]) {
                 pattern = keys >= 10 ? result[1].concat(pattern.slice(keys / 2)) : result[1];
-                // urlParam.o = result[2];
-                // console.log(pattern,urlParam.o)
+                urlParam.o = result[2];
+                console.log(pattern,urlParam.o)
                 updateRender();
                 setUrlParam();
             } else {
