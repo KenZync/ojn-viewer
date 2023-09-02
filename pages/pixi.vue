@@ -284,15 +284,6 @@ const Measure = (param: any) => {
   //   g.side = param.side;
   //   g.pattern = param.pattern;
 
-  //   // 外枠描画メソッド
-  //   g.drawOuterBound = function () {
-  g.lineStyle(lineWidth, schemes.default.outerBound, 1);
-  g.moveTo(-lineWidth, 0);
-  g.lineTo(gWidth + lineWidth, 0);
-  g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
-  g.lineTo(-lineWidth, gHeight - lineWidth);
-  g.lineTo(-lineWidth, 0);
-  //   };
 
   //   // 小節線描画メソッド
   //   g.drawMeasureLines = function () {
@@ -357,6 +348,17 @@ const Measure = (param: any) => {
       labelText.y = gHeight / 2;
       container.addChild(labelText);
     }
+
+  //   // 外枠描画メソッド
+  //   g.drawOuterBound = function () {
+    g.lineStyle(lineWidth, schemes.default.outerBound, 1);
+  g.moveTo(-lineWidth, 0);
+  g.lineTo(gWidth + lineWidth, 0);
+  g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
+  g.lineTo(-lineWidth, gHeight - lineWidth);
+  g.lineTo(-lineWidth, 0);
+  //   };
+
     //Draw Notes
     var keych = keyCh[7];
     if (gPattern != null && gPattern.length == gKeys) {
