@@ -334,7 +334,7 @@ const Measure = (param: any) => {
     idx = 2 * gKeys + 5;
     color = schemes.default.labelFill;
     g.beginFill(color);
-    g.lineStyle(0, null, 1);
+    g.lineStyle(0, undefined, 1);
     g.moveTo(grid * idx, 0);
     g.lineTo(grid * idx, gHeight - lineWidth);
     g.lineTo(grid * (4 + idx), gHeight - lineWidth);
@@ -460,11 +460,11 @@ const Measure = (param: any) => {
     var lineH = schemes.default.bpmLineH;
     // BPM, exBPM
     var ch = ["03", "08"];
-    ch.forEach(function (key) {
-      if (key in gScore) {
-        gScore[key].forEach(function (pos: number[]) {
+    ch.forEach(function (aKey) {
+      if (aKey in gScore) {
+        gScore[aKey].forEach(function (pos: number[]) {
           g.lineStyle(lineH, colorLine, 1);
-          g.moveTo(-1, g.height - gGridY * pos[0] - lineH);
+          g.moveTo(-1, gHeight - gGridY * pos[0] - lineH);
           g.lineTo(
             gGridX * measureLeftLaneSize[7],
             gHeight - gGridY * pos[0] - lineH
