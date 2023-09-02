@@ -253,7 +253,7 @@ const renderNote = async () => {
   }
   var posXinit = leftMargin;
   var posYinit = renderer.value.height - thumbnailHeight.value - bottomMargin;
-  var posX = posXinit;
+  var posX = 0;
   var posY = posYinit;
   for (var x = 0; x < json.score.length; x++) {
     // console.log(x);
@@ -324,6 +324,7 @@ const renderNote = async () => {
 // 小節オブジェクト
 const Measure = (param: any) => {
   var lineWidth = 1;
+  var lineStart = 35;
   var container = new PIXI.Container();
   var g = new PIXI.Graphics();
   container.addChild(g);
@@ -359,7 +360,7 @@ const Measure = (param: any) => {
 
     //Draw Measure Line
     g.lineStyle(lineWidth, color, 1);
-    g.moveTo(-1, gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth);
+    g.moveTo(lineStart - 1, gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth);
     g.lineTo(
       gWidth,
       gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth
@@ -370,7 +371,7 @@ const Measure = (param: any) => {
     // SC:5, KEY:2, LABEL:2
     var grid = gGridX;
     var color = schemes.default.laneLine;
-    var idx = gSide == 1 ? 5 : 2 * gKeys + 5;
+    var idx = 5;
     // console.log(idx)
     // SC
     g.lineStyle(lineWidth, color, 1);
@@ -414,11 +415,11 @@ const Measure = (param: any) => {
     //   // 外枠描画メソッド
     //   g.drawOuterBound = function () {
     g.lineStyle(lineWidth, schemes.default.outerBound, 1);
-    g.moveTo(-lineWidth, 0);
+    g.moveTo(lineStart - 1, 0);
     g.lineTo(gWidth + lineWidth, 0);
     g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
-    g.lineTo(-lineWidth, gHeight - lineWidth);
-    g.lineTo(-lineWidth, 0);
+    g.lineTo(lineStart - 1, gHeight - lineWidth);
+    g.lineTo(lineStart - 1, 0);
     //   };
 
     // gPattern=['0','2','4,','1','3','5','6']
@@ -553,7 +554,7 @@ const Measure = (param: any) => {
       if (aKey in gScore) {
         gScore[aKey].forEach(function (pos: number[]) {
           g.lineStyle(lineH, colorLine, 1);
-          g.moveTo(-1, gHeight - gGridY * pos[0] - lineH);
+          g.moveTo(lineStart, gHeight - gGridY * pos[0] - lineH);
           g.lineTo(
             gGridX * measureLeftLaneSize[7],
             gHeight - gGridY * pos[0] - lineH
