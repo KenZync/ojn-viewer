@@ -1,5 +1,30 @@
 <template>
   <div>
+    <div v-if="jsonData" class="flex justify-between h-[50px] bg-black text-white text-xl font-bold p-4">
+      <div>
+      {{
+        `${jsonData.title} / ${jsonData.artist} / obj : / bpm: ${jsonData.bpm} / Notes: ${jsonData.notes}`
+      }}
+      </div>
+      <button @click="toggleSetting">Setting</button>
+    </div>
+    <div v-else class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold">Loading...</div>
+    <div v-if="showPanel" class="absolute top-0 right-0 bg-stone-700 px-5 w-48 h-screen flex flex-col text-white space-y-4">
+      <!-- <div @click="toggleSetting" class="text-white text-xl font-bold pt-4 w-full">Close</div> -->
+      <button @click="toggleSetting" class="text-xl font-bold pt-4 w-full text-right">Close</button>
+      <div class="">Options</div>
+      <div class="flex w-full space-x-2">
+        <input v-model="seed" placeholder="seed" class="w-full text-black"/>
+        <button @click="random" class="border w-8 h-8 rounded-full text-center font-bold bg-gray-700">R</button>
+
+
+      </div>
+      
+      <button class="border rounded-lg text-center font-bold bg-gray-700 py-2">OK</button>
+      
+
+
+    </div>
     <div ref="pixiContainer"></div>
   </div>
 </template>
@@ -97,6 +122,10 @@ const leftMargin = 20;
 
 const renderer = ref();
 const containerWidthShrinkRatio = ref();
+const jsonData = ref();
+const showPanel = ref(true);
+const seed = ref("1234567");
+
 
 var base: PIXI.Container<PIXI.DisplayObject>;
 var stage: PIXI.Container<PIXI.DisplayObject>;
@@ -130,6 +159,7 @@ onMounted(async () => {
   var measureTo = 0;
 
   const json: any = await $fetch("/test.json");
+  jsonData.value = json;
   var res = true;
   //   if (json.notes > 100000) {
   //     res = confirm(
@@ -654,6 +684,27 @@ const updateDrawbox = () => {
 var refresh = function () {
   renderer.value.render(base);
 };
-</script>
 
-<style scoped></style>
+function shuffle(arr: string[]) {
+    var i, j, tmp, length;
+    for (length = arr.length, i = length - 1; i > 0; i--) {
+        j = Math.floor(Math.random() * (i + 1));
+        tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+    }
+    return arr;
+}
+
+const toggleSetting = ()=>{
+  showPanel.value = !showPanel.value
+}
+
+const random = ()=>{
+  seed.value = shuffle("1234567".split("")).join("")
+
+
+
+  
+}
+</script>

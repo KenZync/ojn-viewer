@@ -984,7 +984,8 @@ function start(tempParam) {
             var result = validateKeyPattern($("#random_pattern_input").val(), keys >= 10 ? keys / 2 : keys);
             if (result[0]) {
                 pattern = keys >= 10 ? result[1].concat(pattern.slice(keys / 2)) : result[1];
-                urlParam.o = result[2];
+                // urlParam.o = result[2];
+                // console.log(pattern,urlParam.o)
                 updateRender();
                 setUrlParam();
             } else {
