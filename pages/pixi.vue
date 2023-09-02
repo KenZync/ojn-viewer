@@ -102,6 +102,7 @@ var base: PIXI.Container<PIXI.DisplayObject>;
 var stage: PIXI.Container<PIXI.DisplayObject>;
 var thumbnail: PIXI.Container<PIXI.DisplayObject>;
 var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
+var grayMask: PIXI.Graphics | null = null;
 var rightMargin = leftMargin;
 onMounted(async () => {
   PIXI.settings.ROUND_PIXELS = true;
@@ -190,21 +191,21 @@ onMounted(async () => {
     measure.position.y = posY;
     if (initStage) stage.addChild(measure);
     measure.cacheAsBitmap = true;
-    // }
-    // console.log(measure)
   }
-  //   if (initStage) {
-  //         stage.interactive = true;
-  //         stage.buttonMode = true;
-  //         stage.on('mousedown', onDragStart)
-  //             .on('touchstart', onDragStart)
-  //             .on('mouseup', onDragEnd)
-  //             .on('mouseupoutside', onDragEnd)
-  //             .on('touchend', onDragEnd)
-  //             .on('touchendoutside', onDragEnd)
-  //             .on('mousemove', onDragMove)
-  //             .on('touchmove', onDragMove);
-  //     }
+  if (initStage) {
+    stage.cursor = "pointer";
+    stage.eventMode = "static";
+    stage
+      .on("mousedown", onDragStart)
+      .on("touchstart", onDragStart)
+      .on("mouseup", onDragEnd)
+      .on("mouseupoutside", onDragEnd)
+      .on("touchend", onDragEnd)
+      .on("touchendoutside", onDragEnd)
+      .on("mousemove", onDragMove)
+      .on("touchmove", onDragMove);
+  }
+
   stage.hitArea = new PIXI.Rectangle(0, 0, stage.width, stage.height);
   stage.position.x = 0;
   stage.position.y = 0;
@@ -507,7 +508,7 @@ const Thumbnail = (
     containerViewBox = new PIXI.Container();
 
     // グレーボックス
-    var grayMask = new PIXI.Graphics();
+    grayMask = new PIXI.Graphics();
     //左
     grayMask.beginFill(0xffffff);
     grayMask.lineStyle(lineWidth, 0x404040, 1);
@@ -539,9 +540,7 @@ const Thumbnail = (
       2 * inputRenderer.width,
       thumbnailHeight.value + 50
     ); // +50: はみ出しクリック可能領域
-    // grayMask.on('mousedown', onClick)
-    //     .on('touchstart', onClick);
-    grayMask.on("pointerdown", onClick);
+    grayMask.on("mousedown", onClick).on("touchstart", onClick);
 
     containerViewBox.addChild(grayMask);
 
@@ -557,22 +556,26 @@ const Thumbnail = (
     frame.lineTo(lineWidth, thumbnailHeight.value);
     frame.lineTo(lineWidth, 0);
     // ドラッグ可能にする
-    // frame.buttonMode = true;
-    // frame.interactive = true;
+    frame.cursor = "pointer";
+    frame.eventMode = "static";
     frame.hitArea = new PIXI.Rectangle(
       lineWidth,
       0,
       inputRenderer.width * containerWidthShrinkRatio.value - lineWidth,
       thumbnailHeight.value + 50
     ); // +50: はみ出しクリック可能領域
-    // frame.on('mousedown', onDragStart)
-    //     .on('touchstart', onDragStart)
-    //     .on('mouseup', onDragEnd)
-    //     .on('mouseupoutside', onDragEnd)
-    //     .on('touchend', onDragEnd)
-    //     .on('touchendoutside', onDragEnd)
-    //     .on('mousemove', onDragMove)
-    //     .on('touchmove', onDragMove);
+
+    frame
+      .on("mousedown", onDragStart)
+      .on("touchstart", onDragStart)
+      .on("mouseup", onDragEnd)
+      .on("mouseupoutside", onDragEnd)
+      .on("touchend", onDragEnd)
+      .on("touchendoutside", onDragEnd)
+      .on("mousemove", onDragMove)
+      .on("touchmove", onDragMove);
+    // frame.on('mousedown', onClick)
+
     containerViewBox.addChild(frame);
 
     container.addChild(containerViewBox);
@@ -581,34 +584,72 @@ const Thumbnail = (
   return container;
 };
 
-function onClick(this: any, event: any) {
-  // console.log(event.data.x,event.data.y)
-  // var posX = curPosition.x - renderer.width * thumbnail.widthShrinkRatio / 2;
-  // console.log(this.this.parent.parent == thumbnail)
-  // console.log(thumbnail.value)
-  // if (this.parent.parent == thumbnail) {
-  //     curPosition = this.data.getLocalPosition(thumbnail);
-  var posX =
-    event.data.x - (renderer.value.width * containerWidthShrinkRatio.value) / 2;
-  stage.position.x = Math.min(
-    Math.max(
-      -posX / containerWidthShrinkRatio.value,
-      renderer.value.width - stage.width - leftMargin - rightMargin
-    ),
-    0
-  );
+var dragStartPos = null;
+var startPos = null;
+var curPosition: { x: number } = { x: 0 };
+var dragging = false;
+
+function onClick(event: any) {
+  // console.log(event.target == thumbnail)
+  if (event.target == grayMask) {
+    curPosition = event.data.getLocalPosition(thumbnail);
+    var posX =
+      curPosition.x -
+      (renderer.value.width * containerWidthShrinkRatio.value) / 2;
+    stage.position.x = Math.min(
+      Math.max(
+        -posX / containerWidthShrinkRatio.value,
+        renderer.value.width - stage.width - leftMargin - rightMargin
+      ),
+      0
+    );
+    updateDrawbox();
+  }
+}
+
+function onDragStart(this: any, event: any) {
+  dragging = true;
+  curPosition = event.data.getLocalPosition(thumbnail);
+}
+
+function onDragEnd() {
+  dragging = false;
+  curPosition = null;
+}
+
+function onDragMove(this: any, event: any) {
+  if (dragging && curPosition != null) {
+    var newPosition;
+    var deltaX;
+    if (this.parent.parent == thumbnail) {
+      newPosition = event.data.getLocalPosition(thumbnail);
+      deltaX = -curPosition.x + newPosition.x;
+      deltaX /= -containerWidthShrinkRatio.value;
+    } else {
+      newPosition = event.data.getLocalPosition(this.parent);
+      deltaX = -curPosition.x + newPosition.x;
+    }
+
+    stage.position.x = Math.min(
+      Math.max(
+        stage.position.x + deltaX,
+        renderer.value.width - stage.width - leftMargin - rightMargin
+      ),
+      0
+    );
+    updateDrawbox();
+    curPosition = newPosition;
+  }
+}
+
+const updateDrawbox = () => {
   if (containerViewBox) {
     containerViewBox.position.x =
       (-leftMargin - stage.position.x) * containerWidthShrinkRatio.value;
     containerViewBox.position.y = 0;
   }
   requestAnimationFrame(refresh);
-
-  //     stage.position.x = Math.min(Math.max(-posX / thumbnail.widthShrinkRatio, renderer.width - stage.width - leftMargin - rightMargin), 0);
-  //     thumbnail.drawViewBox();
-  //     requestAnimationFrame(refresh);
-  // }
-}
+};
 
 var refresh = function () {
   renderer.value.render(base);
