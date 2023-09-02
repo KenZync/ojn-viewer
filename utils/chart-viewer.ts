@@ -75,10 +75,7 @@ export const convert = (ojn: any) => {
     image: "",
     bmp: "",
   };
-  //   var ojn;
 
-//   const score: any = ref([]);
-// const lnmap: any = ref({});
   var score=[];
   var lnmap={}
   if (ojn != undefined) {
@@ -223,16 +220,8 @@ export const convert = (ojn: any) => {
       // if(current_package.events != 1){
       //   score[current_package.measure]["length"] = current_package.events;
       // }
-
       // score[current_package.measure]["length"] = current_package.events;
 
-      // console.log(current_package)
-
-      // console.log(
-      //   current_package.measure,
-      //   current_package.channel,
-      //   current_package.events
-      // );
 
       for (let j = 0; j < current_package.events; j++) {
         // let beat = (current_package.measure + j / current_package.events) * 4;
@@ -267,17 +256,11 @@ export const convert = (ojn: any) => {
             // } else {
             //   score[current_package.measure] = { "03": [beat_bpm] };
             // }
-
             // .push({bpm})
-
-            // console.log(score)
             // set.add([current_package.measure,j,bpm])
 
-            // console.log(set.add([current_package.measure,j,bpm]))
-            // console.log(set)
             // score[current_package.measure] = {"03":[...set]}
 
-            // console.log(current_package.measure,j,current_package.events,bpm)
           }
           // parseTimingPoint(beat, bpm)
         } else if (current_package.channel > 8) {
@@ -330,159 +313,29 @@ export const convert = (ojn: any) => {
 
           switch (event.type) {
             case 0:
-              // console.log("NOTE")
-              // data[currentDiff].noteLines.push({ beat, key, timing, hitSound: event.hitSound, soundTypes: [], objectName: 'note', volume, pan })
-              // console.log(event.hitSound,key)
               score[current_package.measure][key].push([
                 (j / current_package.events) * 192,
                 "00",
               ]);
               break;
             case 2:
-              //   if (!score[current_package.measure][key]) {
-              //   score[current_package.measure][key] = [];
-              // }
-
               if (!lnmap[key]) {
                 lnmap[key] = [];
               }
               lnmap[key].push([
                 [current_package.measure, (j / current_package.events) * 192],
               ]);
-
-              // lnmap[current_package.measure][key].push( [j,'00'] );
-              // data[currentDiff].noteLines.push({ beat, key, timing, hitSound: event.hitSound, soundTypes: [], objectName: 'longnote', volume, pan, start: true })
               break;
             case 3:
               lnmap[key][lnmap[key].length - 1].push([
                 current_package.measure,
                 (j / current_package.events) * 192,
               ]);
-              // if (lnmap[key][lnmap[key].length - 1][0][0] === current_package.measure){
-              //     lnmap[key][lnmap[key].length - 1].push([
-              //       current_package.measure,
-              //       j,
-              //     ]);
-              // }
-
-              // if (
-              //   lnmap[key][lnmap[key].length - 1][0][0] ===
-              //   current_package.measure
-              // ) {
-              //   lnmap[key][lnmap[key].length - 1].push([
-              //     current_package.measure,
-              //     j,
-              //   ]);
-              // } else {
-              //   lnmap[key].push([[current_package.measure, j]]);
-              // }
-              // console.log("START END")
-              // data[currentDiff].noteLines.push({ beat, key, timing, hitSound: event.hitSound, soundTypes: [], objectName: 'longnote', volume, pan, start: false })
               break;
           }
-
-          // console.log("it's Note motherfucker")
-
-          // console.log(event);
-
-          // if (!score[current_package.measure]) {
-          //   score[current_package.measure] = {};
-          // }
-          // if (!score[current_package.measure][key]) {
-          //   score[current_package.measure][key] = [];
-          // }
-
-          // score[current_package.measure][key].push( [j,'00'] );
-
-          // console.log(keyMapping[current_package.channel])
-
-          // if(score[current_package.measure][key]){
-          //   console.log("yes")
-          // }
-          // console.log(key)
-
-          // if (score[current_package.measure]) {
-
-          //   if(score[current_package.measure][key]){
-
-          //   }else{
-          //     console.log(score[current_package.measure])
-          //   }
-          //   // const valueExists = score[current_package.measure][
-          //   // key
-          //   // ].some(
-          //   //   (item) => item[0] === j && item[1] === j
-          //   // );
-          //   // (item) => item[0] === beat_bpm[0] && item[1] === beat_bpm[1]
-          //   // console.log(score[current_package.measure][key])
-          // }
-
-          // if (score[current_package.measure]) {
-
-          // // Check if the value already exists in the array
-          // const valueExists = score[current_package.measure][
-          //   key
-          // ].some(
-          //   (item) => item[0] === beat_bpm[0] && item[1] === beat_bpm[1]
-          // );
-          // if (!valueExists) {
-          //   // If the value doesn't exist, push it to the array
-          //   score[current_package.measure][key].push(beat_bpm);
-          // }
-          // } else {
-          // score[current_package.measure] = { key: [beat_bpm] };
-          // }
-
-          // score[current_package.measure]["length"] = current_package.events
-
-          // parseNote(beat, current_package.channel - 2, getTiming(j, current_package.events), event)
-
-          // console.log(current_package.measure, current_package.events, current_package.channel - 2)
         }
       }
-
-      // score[current_package.measure] = {}
-
-      // for (let j = 0; j < current_package.events; j++) {
-      //   // let beat = (current_package.measure + j / current_package.events) * 4;
-      //   if (current_package.channel == 0) {
-      //     let time = dataview.getFloat32(cursor, true);
-      //     // console.log(time)
-      //     cursor += 4;
-      //     // parseTimeSignature(beat, time)
-      //   } else if (current_package.channel == 1) {
-      //     let bpm = dataview.getFloat32(cursor, true);
-      //     // console.log(bpm, current_package.measure)
-      //     cursor += 4;
-      //     // parseTimingPoint(beat, bpm)
-      //   } else if (current_package.channel > 8) {
-      //     let event = {};
-      //     event.hitSound = dataview.getInt16(cursor, true);
-      //     cursor += 2;
-      //     event.volumePan = dataview.getInt8(cursor, true);
-      //     cursor += 1;
-      //     event.type = dataview.getInt8(cursor, true);
-      //     cursor += 1;
-      //     // parseTimeSound(beat, event)
-      //   } else {
-      //     let event = {};
-      //     event.hitSound = dataview.getInt16(cursor, true);
-      //     cursor += 2;
-      //     event.volumePan = dataview.getInt8(cursor, true);
-      //     cursor += 1;
-      //     event.type = dataview.getInt8(cursor, true);
-      //     cursor += 1;
-      //     // parseNote(beat, current_package.channel - 2, getTiming(j, current_package.events), event)
-
-      //     // console.log(current_package.measure, current_package.events, current_package.channel - 2)
-      //   }
-      // }
-
-      // console.log(current_package);
     }
-    // for(i = 0 ; )
-    // score[current_package.measure] = {"03":[...set]}
-    // }
 
     const results = [];
     for (const value of score) {
@@ -496,55 +349,6 @@ export const convert = (ojn: any) => {
     }
     score = results;
 
-    // for(let difficulty of ['Easy', 'Normal', 'Hard']) {
-    //   currentDiff = difficulty
-    //   cursor = data[currentDiff].noteOffset
-    //   for(let i = 0; i < data[currentDiff].package_count; i++) {
-    //     let currentPackage = {}
-    //     currentPackage.measure = dataview.getInt32(cursor, true);
-    //     cursor += 4
-    //     currentPackage.channel = dataview.getInt16(cursor, true);
-    //     cursor += 2
-    //     currentPackage.events = dataview.getInt16(cursor, true);
-    //     cursor += 2
-
-    //     for(let j = 0; j < currentPackage.events; j++) {
-    //       let beat = (currentPackage.measure + j / currentPackage.events) * 4
-    //       if(currentPackage.channel == 0) {
-    //         let time = dataview.getFloat32(cursor, true)
-    //         cursor += 4
-    //         parseTimeSignature(beat, time)
-    //       } else if(currentPackage.channel == 1) {
-    //         let bpm = dataview.getFloat32(cursor, true)
-    //         cursor += 4
-    //         parseTimingPoint(beat, bpm)
-    //       } else if(currentPackage.channel > 8) {
-    //         let event = {}
-    //         event.hitSound = dataview.getInt16(cursor, true)
-    //         cursor += 2
-    //         event.volumePan = dataview.getInt8(cursor, true)
-    //         cursor += 1
-    //         event.type = dataview.getInt8(cursor, true)
-    //         cursor += 1
-    //         parseTimeSound(beat, event)
-    //       } else {
-    //         let event = {}
-    //         event.hitSound = dataview.getInt16(cursor, true)
-    //         cursor += 2
-    //         event.volumePan = dataview.getInt8(cursor, true)
-    //         cursor += 1
-    //         event.type = dataview.getInt8(cursor, true)
-    //         cursor += 1
-    //         parseNote(beat, currentPackage.channel - 2, getTiming(j, currentPackage.events), event)
-    //       }
-    //     }
-    //   }
-    // }
-
-    // return buffer;
-
-    // return parseOJN(buf);
-    //  return typeof(ojn)
     let ribbit = {
       artist: header.artist,
       bpm: header.bpm,
@@ -562,12 +366,3 @@ export const convert = (ojn: any) => {
     return ribbit
   }
 };
-
-// export const readFileAsArrayBuffer = async function (file) {
-//     return new Promise((resolve, reject) => {
-//       let fileReader = new FileReader();
-//       fileReader.onload = (e) => resolve(e.target.result);
-//       fileReader.onerror = (e) => reject(e.target.error.message);
-//       fileReader.readAsArrayBuffer(file);
-//     });
-// };

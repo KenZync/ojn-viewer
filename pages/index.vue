@@ -13,9 +13,16 @@
     </div>
     <div
       v-else
-      class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold"
+      class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold flex flex-col"
     >
-      Loading...
+      <div class="">OJN Viewer by KenZ</div>
+      <div class="flex flex-col text-center">
+        <div>Credits</div>
+        <div>https://rodrig0v.github.io/webmania/#/</div>
+        <div>http://www.ribbit.xyz/bms/score/</div>
+        <div>Contributer</div>
+        <div>Lelloq</div>
+      </div>
     </div>
     <div
       v-if="showPanel"
@@ -59,7 +66,7 @@
             <span v-else>
               <span>Drag Your .ojn Here</span>
               <span>
-                or <strong><em>click here</em></strong> to select files
+                or <strong><em>click here</em></strong> to select file
               </span>
             </span>
 
@@ -67,12 +74,12 @@
               class="hidden"
               type="file"
               id="file-input"
-              multiple
               @change="onInputChange"
             />
           </label>
         </div>
       </DropZone>
+      <div class=""></div>
     </div>
     <div ref="pixiContainer"></div>
   </div>
@@ -81,6 +88,11 @@
 <script setup lang="ts">
 import * as PIXI from "pixi.js";
 import FileParser from "~/utils/file-parser";
+
+useHead({
+  title: "OJN Viewer",
+  meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
+});
 
 var schemes = {
   default: {
@@ -163,8 +175,6 @@ var keyCh = {
   7: ["11", "12", "13", "14", "15", "18", "19"],
 };
 
-var colorScheme = "default";
-
 const pixiContainer = ref();
 
 const thumbnailHeight = ref(50);
@@ -204,7 +214,6 @@ var scaleH = 2;
 var minScaleH = 0.5;
 var maxScaleH = 3.5;
 var playSide = 1;
-// var pattern: null = null;
 var measureFrom = 0;
 var measureTo = 0;
 const renderNote = async () => {
@@ -226,8 +235,8 @@ const renderNote = async () => {
   headerHeight = 50; /* WORKAROUND */
 
   if (renderer.value != null) {
-    stage = null
-    containerViewBox = null
+    stage = null;
+    containerViewBox = null;
     renderer.value.destroy(true); // GPU メモリリーク対策
   }
 
@@ -478,7 +487,11 @@ const Measure = (param: any) => {
             var noteLineWidth = lnColorLine != null ? 1 : 0;
             var noteLineAlpha = lnColorLine != null ? 1 : 0;
             g.beginFill(colSchemeLN[counter]);
-            g.lineStyle(noteLineWidth, lnColorLine != null ? lnColorLine : 0, noteLineAlpha);
+            g.lineStyle(
+              noteLineWidth,
+              lnColorLine != null ? lnColorLine : 0,
+              noteLineAlpha
+            );
             g.drawRect(
               idx * gGridX -
                 (idx == 0 ? lineWidth : 0) +
@@ -503,13 +516,17 @@ const Measure = (param: any) => {
       ].forEach(function (q) {
         var _key = q[0];
         var _colorLine = q[2];
-        if(_key !== null){
+        if (_key !== null) {
           if (_key in gScore) {
             gScore[_key].forEach(function (pos: number[]) {
               var noteLineWidth = _colorLine != null ? 1 : 0;
               var noteLineAlpha = _colorLine != null ? 1 : 0;
               g.beginFill(colScheme[counter]);
-              g.lineStyle(noteLineWidth, _colorLine, noteLineAlpha);
+              g.lineStyle(
+                noteLineWidth,
+                _colorLine == null ? 0 : _colorLine,
+                noteLineAlpha
+              );
               g.drawRect(
                 idx * gGridX - (idx == 0 ? lineWidth : 0),
                 gHeight - (gGridY * pos[0] + noteThickness) - lineWidth,
@@ -518,7 +535,7 @@ const Measure = (param: any) => {
               );
               g.endFill();
             });
-        }
+          }
         }
       });
       idx += 2;
@@ -680,12 +697,12 @@ const Thumbnail = (
   return container;
 };
 
-var curPosition: { x: number } = { x: 0 };
+var curPosition: any;
 var dragging = false;
 
 function onClick(event: any) {
   // console.log(event.target == thumbnail)
-  if (event.target == grayMask) {
+  if (event.target == grayMask && stage) {
     curPosition = event.data.getLocalPosition(thumbnail);
     var posX =
       curPosition.x -
@@ -761,15 +778,14 @@ function shuffle(arr: string[]) {
 }
 
 const toggleSetting = () => {
-  showPanel.value = !showPanel.value;
+  if(jsonData.value){
+    showPanel.value = !showPanel.value;
+  }
 };
 
 const random = () => {
   seed.value = shuffle("1234567".split("")).join("");
-  renderNote()
-  // renderer.value.resize(window.innerWidth, window.innerHeight - headerHeight);
-
-  // renderer.value.render(base);
+  renderNote();
 };
 function validateKeyPattern(p: any, k: any) {
   var isValid = false;
@@ -808,7 +824,7 @@ function validateKeyPattern(p: any, k: any) {
   return [isValid, ret, str];
 }
 
-const onInputChange = async (e: { target: { files: any; }; dataTransfer: { items: any; }; }) => {
+const onInputChange = async (e: any) => {
   let originalFiles;
   let drop = false;
   if (e.target.files) {
@@ -828,55 +844,8 @@ const onInputChange = async (e: { target: { files: any; }; dataTransfer: { items
     } else {
       files = originalFiles;
     }
-
-    // for (let file of files) {
-    //   let extension = file.name.match(/\.([a-zA-Z0-9]+)$/i);
-
-    //   if (extension == null) continue;
-    //   switch (extension[1]) {
-    //     case "ojn":
-    //       console.log(file)
-    //     const reader = new FileReader();
-    //     reader.onload = e => console.log(e.target.result);
-
-    //     reader.readAsText(file);
-    //       // let ojnFile;
-    //       // let ojmFile;
-    //       // for (let file of files) {
-    //       //   if (file.name.match(/\.ojn$/i) != null) {
-    //       //     ojnFile = file;
-    //       //   }
-    //       //   if (file.name.match(/\.ojm$/i) != null) {
-    //       //     ojmFile = file;
-    //       //   }
-    //       // }
-
-    //       // console.log(file)
-    //       // await readFileAsArrayBuffer(file)
-    //       // convert(file)
-
-    //       return;
-    //   }
-    //   // console.log(extension)
-    // }
-    // var test = convert(files)
     jsonData.value = await FileParser.parseFiles(files, drop);
     renderNote();
-
-    // console.log("DIFF",difficulty)
-
-    // for (let diff in difficulty) {
-    //   const longestValue = Object.keys(difficulty[diff].hitSounds).reduce(
-    //     (a, b) =>
-    //       difficulty[diff].hitSounds[a].length >
-    //       difficulty[diff].hitSounds[b].length
-    //         ? a
-    //         : b
-    //   );
-
-    //   difficulty[diff].mainMusic = difficulty[diff].hitSounds[longestValue];
-    // }
-    // output.value = difficulty;
   } catch (err) {
     console.log("err", err);
   } finally {
