@@ -83,10 +83,12 @@
           </label>
         </div>
       </DropZone>
-      <div>BMP</div>
-      <img :src="headerData.bmp" alt="BMP" />
-      <div>Image</div>
-      <img :src="headerData.image" alt="Image" />
+      <div v-if="headerData">
+        <div>BMP</div>
+        <img v-if="headerData.bmp" :src="headerData.bmp" alt="BMP" />
+        <div>Image</div>
+        <img v-if="headerData.image" :src="headerData.image" alt="Image" />
+      </div>
       
     </div>
     <div ref="pixiContainer"></div>
