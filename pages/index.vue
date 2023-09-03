@@ -201,8 +201,6 @@ const jsonData = ref<RibbitScore>();
 const headerData = ref<OJNHeader>();
 const showPanel = ref(true);
 const seed = ref("1234567");
-// const server = ref(route.query.server);
-// const id = ref(route.query.id);
 
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
