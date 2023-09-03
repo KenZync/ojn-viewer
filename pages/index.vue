@@ -108,6 +108,8 @@ useHead({
   meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
 });
 
+
+
 var schemes = {
   default: {
     backgroundFill: 0x000000,
@@ -189,6 +191,7 @@ var keyCh = {
   7: ["11", "12", "13", "14", "15", "18", "19"],
 };
 
+const route = useRoute();
 const pixiContainer = ref();
 
 const thumbnailHeight = ref(50);
@@ -196,14 +199,18 @@ const leftMargin = 20;
 
 const renderer = ref();
 const containerWidthShrinkRatio = ref();
-const jsonData: RibbitScore = ref();
-const headerData: OJNHeader = ref();
-
+const jsonData = ref<RibbitScore>();
+const headerData = ref<OJNHeader>();
 const showPanel = ref(true);
 const seed = ref("1234567");
+const server = ref(route.query.server);
+const id = ref(route.query.id);
+
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
 });
+
+
 
 var base: PIXI.Container<PIXI.DisplayObject>;
 var stage: PIXI.Container<PIXI.DisplayObject> | null;
@@ -232,6 +239,49 @@ var maxScaleH = 3.5;
 var playSide = 1;
 var measureFrom = 0;
 var measureTo = 0;
+
+const preFetch = async() =>{
+  const { data: ojn } = await useFetch<any>(`/api/${server.value}/${id.value}`, {
+  server: false,
+  responseType: "arrayBuffer",
+  });
+
+  let output:ConvertedOJN = convert(ojn.value)
+  jsonData.value = output.ribbit;
+  headerData.value = output.header;
+  renderNote();
+}
+
+watch(
+  () => route.query,
+  async() => {
+    if(server.value && id.value){
+      await preFetch()
+    }
+  },
+  { immediate: true }
+);
+
+
+
+
+// onMounted(async()=>{
+//   if(server.value && id.value){
+//     preFetch()
+
+//     // const { data: ojnRaw, error } = await useFetch<any>(`/api/${server.value}/${id.value}`, {
+//     //   server: false,
+//     //   responseType: "arrayBuffer",
+//     // });
+//     // if(error.value){
+//     //   alert("ERROR")
+//     // }else{
+//     //   console.log(ojnRaw.value)
+//     // }
+//   }
+
+// })
+
 const renderNote = async () => {
   PIXI.settings.ROUND_PIXELS = true;
   // var pattern = null
