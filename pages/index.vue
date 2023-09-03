@@ -287,7 +287,7 @@ const renderNote = async () => {
   }
   var posXinit = leftMargin;
   var posYinit = renderer.value.height - thumbnailHeight.value - bottomMargin;
-  var posX = 0;
+  var posX = -15;
   var posY = posYinit;
   for (var x = 0; x < json.score.length; x++) {
     // console.log(x);
@@ -358,7 +358,7 @@ const renderNote = async () => {
 // 小節オブジェクト
 const Measure = (param: any) => {
   var lineWidth = 1;
-  var lineStart = 20;
+  var lineStart = 35;
   var container = new PIXI.Container();
   var g = new PIXI.Graphics();
   container.addChild(g);
