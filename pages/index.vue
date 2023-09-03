@@ -138,8 +138,8 @@ var schemes = {
     lnoteWhiteLine: null,
     lnoteYellowFill: 0xe1c85b,
     lnoteYellowLine: null,
-    mineRedFill: 0x700000,
-    mineRedLine: 0x700000,
+    mineRedFill: 0xff0000,
+    mineRedLine: 0xff0000,
     lnWidthRatio: 0,
     bpmLineH: 1,
   },
@@ -237,6 +237,9 @@ var playSide = 1;
 var measureFrom = 0;
 var measureTo = 0;
 
+var justX = 0;
+var justY = 0;
+
 const { data: ojn } = useAsyncData(
   "ojn",
   async () => {
@@ -248,16 +251,13 @@ const { data: ojn } = useAsyncData(
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("")
         .toUpperCase();
-      const response: ArrayBuffer = await $fetch(
-        `/api/${route.query.server}/${hashHex}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/octet-stream",
-          },
-          responseType: "arrayBuffer",
-        }
-      );
+      const response: ArrayBuffer = await $fetch(`/o2ma785.ojn`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/octet-stream",
+        },
+        responseType: "arrayBuffer",
+      });
       let output: ConvertedOJN = convert(response);
       jsonData.value = output.ribbit;
       headerData.value = output.header;
@@ -319,11 +319,11 @@ const renderNote = async () => {
     } else {
       measure = measures[x];
     }
-    if (posY == posYinit || posY - measure.height > 0) {
-      posY -= measure.height - 1;
+    if (posY == posYinit || posY - justY > 0) {
+      posY -= justY - 1;
     } else {
-      posY = posYinit - measure.height - 1;
-      posX += measure.width + posXinit;
+      posY = posYinit - justY - 1;
+      posX += justX + posXinit;
     }
     measure.cacheAsBitmap = false;
     measure.position.x = posX;
@@ -366,9 +366,9 @@ const renderNote = async () => {
 const Measure = (param: any) => {
   var lineWidth = 1;
   var lineStart = 35;
-  var container = new PIXI.Container();
+  var measureContainer = new PIXI.Container();
   var g = new PIXI.Graphics();
-  container.addChild(g);
+  measureContainer.addChild(g);
 
   //   // コンテナサイズを決定
   var cHeight = param.length * param.scaleH * param.exratio;
@@ -448,12 +448,14 @@ const Measure = (param: any) => {
         fontWeight: "bold",
         // font: fontSetting,
         fill: schemes.default.labelText,
+        stroke: color,
+        strokeThickness: 2,
       });
       labelText.anchor.x = 0.5;
       labelText.anchor.y = 0.5;
       labelText.x = grid * idx;
       labelText.y = gHeight / 2;
-      container.addChild(labelText);
+      measureContainer.addChild(labelText);
     }
 
     //   // 外枠描画メソッド
@@ -587,45 +589,52 @@ const Measure = (param: any) => {
       counter++;
     });
 
+    justX = gWidth;
+    justY = gHeight;
+
     //Draw BPM
     var colorLine = schemes.default.bpmLine;
     var colorText = schemes.default.bpmText;
     var colorStroke = schemes.default.bpmTextStroke;
     var lineH = schemes.default.bpmLineH;
     // BPM, exBPM
-    var ch = ["03", "08"];
-    ch.forEach(function (aKey) {
+    var ch = ["03", "08", "99"];
+    ch.forEach((aKey: string) => {
       if (aKey in gScore) {
-        gScore[aKey].forEach(function (pos: number[]) {
-          g.lineStyle(lineH, colorLine, 1);
+        gScore[aKey].forEach((pos: [number, number]) => {
+          g.lineStyle(lineH, aKey === ch[2] ? mineRedLine : colorLine, 1);
           g.moveTo(lineStart, gHeight - gGridY * pos[0] - lineH);
           g.lineTo(
             gGridX * measureLeftLaneSize[7],
             gHeight - gGridY * pos[0] - lineH
           );
 
-          if (colorText != null) {
-            var fontSetting = "bold " + gGridX * 1.5 + "px Arial";
-            var labelText = new PIXI.Text(Math.round(pos[1] * 10) / 10, {
-              // font: fontSetting,
-              fontSize: gGridX * 1.5,
-              fontWeight: "bold",
-              fill: colorText,
-              stroke: colorStroke,
-              strokeThickness: colorStroke != null ? 2 : 0,
-            });
+          if (colorText !== null) {
+            const fontSetting: string = `bold ${gGridX * 1.5}px Arial`;
+            const labelText: PIXI.Text = new PIXI.Text(
+              aKey === ch[2]
+                ? pos[1].toString()
+                : (Math.round(pos[1] * 10) / 10).toString(),
+              {
+                fontSize: gGridX * 1.5,
+                fontWeight: "bold",
+                fill: aKey === ch[2] ? mineRedLine : colorText,
+                stroke: colorStroke,
+                strokeThickness: colorStroke !== null ? 2 : 0,
+              }
+            );
             labelText.anchor.x = 0.5;
             labelText.anchor.y = 0.5;
             labelText.x = gGridX * (measureLeftLaneSize[7] + 2);
             labelText.y = gHeight - gGridY * pos[0] - lineWidth;
-            container.addChild(labelText);
+            measureContainer.addChild(labelText);
           }
         });
       }
     });
   }
 
-  return container;
+  return measureContainer;
 };
 
 const Thumbnail = (
