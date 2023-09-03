@@ -241,8 +241,15 @@ const { data: ojn } = useAsyncData(
   "ojn",
   async () => {
     if (route.query.server && route.query.id) {
+      const msgBuffer = new TextEncoder().encode(`o2ma${route.query.id}.ojn`);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("")
+        .toUpperCase();
       const response: ArrayBuffer = await $fetch(
-        `/api/${route.query.server}/${route.query.id}`,
+        `/api/${route.query.server}/${hashHex}`,
         {
           method: "GET",
           headers: {
