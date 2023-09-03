@@ -70,3 +70,7 @@ interface CurrentPackage {
   channel: number;
   events: number;
 }
+
+interface DeathPoint {
+  [key: number]: string;
+}

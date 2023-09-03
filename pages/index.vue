@@ -244,6 +244,17 @@ const { data: ojn } = useAsyncData(
   "ojn",
   async () => {
     if (route.query.server && route.query.id) {
+      let death: DeathPoint = {};
+      if (route.query.note && route.query.player) {
+        let note: number = 0;
+        let player = route.query.player.toString();
+        if (typeof route.query.note === "string") {
+          note = parseInt(route.query.note, 10);
+        }
+        death = {
+          [note]: player,
+        };
+      }
       const msgBuffer = new TextEncoder().encode(`o2ma${route.query.id}.ojn`);
       const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -251,14 +262,17 @@ const { data: ojn } = useAsyncData(
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("")
         .toUpperCase();
-      const response: ArrayBuffer = await $fetch(`/o2ma785.ojn`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/octet-stream",
-        },
-        responseType: "arrayBuffer",
-      });
-      let output: ConvertedOJN = convert(response);
+      const response: ArrayBuffer = await $fetch(
+        `/api/${route.query.server}/${hashHex}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+          responseType: "arrayBuffer",
+        }
+      );
+      let output: ConvertedOJN = convert(response, death);
       jsonData.value = output.ribbit;
       headerData.value = output.header;
       renderNote();

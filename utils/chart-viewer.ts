@@ -25,9 +25,10 @@ const keyMapping = {
   8: "19",
 };
 
-export const convert: (ojn: ArrayBufferLike) => ConvertedOJN = (
-  ojn: ArrayBufferLike
-) => {
+export const convert: (
+  ojn: ArrayBufferLike,
+  death: DeathPoint
+) => ConvertedOJN = (ojn: ArrayBufferLike, death: DeathPoint) => {
   var header: OJNHeader = {
     song_id: 0,
     signature: 0,
@@ -206,6 +207,7 @@ export const convert: (ojn: ArrayBufferLike) => ConvertedOJN = (
   cursor = header.difficulty.hard.note_offset;
 
   // const set = new Set();
+  let note = 0;
   for (let i = 0; i < header.difficulty.hard.package_count; i++) {
     let current_package: CurrentPackage = {
       measure: 0,
@@ -339,6 +341,19 @@ export const convert: (ojn: ArrayBufferLike) => ConvertedOJN = (
               (j / current_package.events) * 192,
             ]);
             break;
+        }
+        note++;
+
+        if (!score[current_package.measure]["99"]) {
+          score[current_package.measure]["99"] = [];
+        }
+
+        if (Object.keys(death).includes(note.toString())) {
+          const output: [number, string] = [
+            j / current_package.events,
+            death[note],
+          ];
+          score[current_package.measure]["99"].push(output);
         }
       }
     }
