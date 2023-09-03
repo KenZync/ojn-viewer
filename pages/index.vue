@@ -200,7 +200,7 @@ const leftMargin = 20;
 
 const renderer = ref();
 const containerWidthShrinkRatio = ref();
-const jsonData = ref<RibbitScore>();
+const jsonData = ref<Ribbit>();
 const headerData = ref<OJNHeader>();
 const showPanel = ref(true);
 const seed = ref("1234567");
@@ -269,15 +269,7 @@ const { data: ojn } = useAsyncData(
 
 const renderNote = async () => {
   PIXI.settings.ROUND_PIXELS = true;
-  let json = jsonData.value;
-  var res = true;
-  //   if (json.notes > 100000) {
-  //     res = confirm(
-  //       "10万ノーツ以上の譜面を開こうとしています\n続行するとブラウザがクラッシュする可能性があります"
-  //     );
-  //   }
-
-  //   if (res) {
+  if(!jsonData.value) return
 
   thumbnailHeight.value = Math.max(window.innerHeight * 0.05, 25);
   headerHeight = 50; /* WORKAROUND */
@@ -303,23 +295,23 @@ const renderNote = async () => {
   var posYinit = renderer.value.height - thumbnailHeight.value - bottomMargin;
   var posX = -15;
   var posY = posYinit;
-  for (var x = 0; x < json.score.length; x++) {
+  for (var x = 0; x < jsonData.value.score.length; x++) {
     // console.log(x);
     // if (i >= measureFrom && i <= measureTo) {
     var measure;
     if (measures[x] == null || initStage) {
-      var expLen = (json.score[x].length || json.unit) * scaleH;
+      var expLen = (jsonData.value.score[x].length || jsonData.value.unit) * scaleH;
       measure = Measure({
         index: x,
-        score: json.score[x],
-        lnmap: json.lnmap,
+        score: jsonData.value.score[x],
+        lnmap: jsonData.value.lnmap,
         scaleW: scaleW,
         scaleH: scaleH,
-        length: json.score[x].length || json.unit,
+        length: jsonData.value.score[x].length || jsonData.value.unit,
         side: playSide,
         keys: 7,
         pattern: pattern.value,
-        unit: json.unit,
+        unit: jsonData.value.unit,
         exratio: expLen > posYinit ? (posYinit - 1) / expLen : 1,
       });
       measures[x] = measure;
