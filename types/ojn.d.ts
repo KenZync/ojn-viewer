@@ -49,22 +49,24 @@ interface Ribbit {
   obj: string;
   unit: number;
 }
-
-interface KeyHit {
-  [key: string]: [number, string | number][];
-}
-
-interface RibbitScore extends KeyHit {
+interface RibbitScore extends DataItem {
   length?: number;
 }
-
 interface ConvertedOJN {
   header: OJNHeader;
   ribbit: Ribbit;
 }
 
+interface DataItem {
+  [key: string]: Array<[number, string | number]>;
+}
+
+interface KeyHit {
+  [key: string]: Array<Array<[number, string|number]>>;
+}
+
 interface CurrentPackage {
-  measure: number;
+  measure: number | string;
   channel: number;
   events: number;
 }
