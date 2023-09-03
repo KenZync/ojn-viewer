@@ -83,10 +83,10 @@
           </label>
         </div>
       </DropZone>
-      <div>Image</div>
-      <img :src="headerData.image" alt="Image" />
       <div>BMP</div>
       <img :src="headerData.bmp" alt="BMP" />
+      <div>Image</div>
+      <img :src="headerData.image" alt="Image" />
       
     </div>
     <div ref="pixiContainer"></div>
