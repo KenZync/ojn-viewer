@@ -237,24 +237,28 @@ var playSide = 1;
 var measureFrom = 0;
 var measureTo = 0;
 
-const { data: ojn } = useAsyncData("ojn", async () => {
-  if (route.query.server && route.query.id) {
-    const response: ArrayBuffer = await $fetch(
-      `/api/${route.query.server}/${route.query.id}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/octet-stream",
-        },
-        responseType: "arrayBuffer",
-      }
-    );
-    let output: ConvertedOJN = convert(response);
-    jsonData.value = output.ribbit;
-    headerData.value = output.header;
-    renderNote();
-  }
-});
+const { data: ojn } = useAsyncData(
+  "ojn",
+  async () => {
+    if (route.query.server && route.query.id) {
+      const response: ArrayBuffer = await $fetch(
+        `/api/${route.query.server}/${route.query.id}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+          responseType: "arrayBuffer",
+        }
+      );
+      let output: ConvertedOJN = convert(response);
+      jsonData.value = output.ribbit;
+      headerData.value = output.header;
+      renderNote();
+    }
+  },
+  { server: false }
+);
 
 const renderNote = async () => {
   PIXI.settings.ROUND_PIXELS = true;
