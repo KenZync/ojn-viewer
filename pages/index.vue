@@ -244,6 +244,7 @@ const { data: ojn } = useAsyncData(
   "ojn",
   async () => {
     if (route.query.server && route.query.id) {
+      
       let death: DeathPoint = {};
       if (route.query.note && route.query.player) {
         let note: number = 0;
@@ -253,7 +254,9 @@ const { data: ojn } = useAsyncData(
         }
         death = {
           [note]: player,
-        };
+        }
+      }else{
+        death = await $fetch(`/api/${route.query.server}/fail/${route.query.id}`);
       }
       const msgBuffer = new TextEncoder().encode(`o2ma${route.query.id}.ojn`);
       const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
@@ -633,7 +636,7 @@ const Measure = (param: any) => {
                 fontSize: gGridX * 1.5,
                 fontWeight: "bold",
                 fill: aKey === ch[2] ? mineRedLine : colorText,
-                stroke: colorStroke,
+                stroke: aKey === ch[2] ? lnWhite : colorStroke,
                 strokeThickness: colorStroke !== null ? 2 : 0,
               }
             );
