@@ -6,7 +6,11 @@
     >
       <div>
         {{
-          `Lv.${headerData.difficulty.hard.level} ${jsonData.title} / ${jsonData.artist} / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${jsonData.notes}`
+          `Lv.${headerData.difficulty.hard.level} ${jsonData.title} / ${
+            jsonData.artist
+          } / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${
+            jsonData.notes
+          } / Time: ${fancyTimeFormat(headerData.difficulty.hard.duration)}`
         }}
       </div>
       <button @click="toggleSetting">Setting</button>
@@ -89,7 +93,6 @@
         <div>Image</div>
         <img v-if="headerData.image" :src="headerData.image" alt="Image" />
       </div>
-      
     </div>
     <div ref="pixiContainer"></div>
   </div>
@@ -98,6 +101,7 @@
 <script setup lang="ts">
 import * as PIXI from "pixi.js";
 import FileParser from "~/utils/file-parser";
+import { fancyTimeFormat } from "~/utils/formatter";
 
 useHead({
   title: "OJN Viewer",
@@ -192,8 +196,8 @@ const leftMargin = 20;
 
 const renderer = ref();
 const containerWidthShrinkRatio = ref();
-const jsonData:RibbitScore = ref();
-const headerData:OJNHeader = ref();
+const jsonData: RibbitScore = ref();
+const headerData: OJNHeader = ref();
 
 const showPanel = ref(true);
 const seed = ref("1234567");
@@ -372,7 +376,10 @@ const Measure = (param: any) => {
 
     //Draw Measure Line
     g.lineStyle(lineWidth, color, 1);
-    g.moveTo(lineStart - 1, gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth);
+    g.moveTo(
+      lineStart - 1,
+      gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth
+    );
     g.lineTo(
       gWidth,
       gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth
