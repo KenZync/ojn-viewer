@@ -1,6 +1,8 @@
-var getFileEntriesFromDirectory = async function (directory) {
+var getFileEntriesFromDirectory = async function (
+  directory: FileSystemDirectoryEntry
+) {
   var dirReader = directory.createReader();
-  var allEntries = [];
+  var allEntries: any[] = [];
   var numEntries = -1;
 
   while (numEntries != allEntries.length) {
@@ -11,16 +13,16 @@ var getFileEntriesFromDirectory = async function (directory) {
   return allEntries;
 };
 
-var readDirectory = async function (reader) {
+var readDirectory = async function (reader: FileSystemDirectoryReader) {
   return new Promise((resolve, reject) => {
     reader.readEntries(
-      (entries) => resolve(entries),
-      (e) => reject(e)
+      (entries: unknown) => resolve(entries),
+      (e: any) => reject(e)
     );
   });
 };
 
-var readAllFileEntries = async function (fileEntries) {
+var readAllFileEntries = async function (fileEntries: any): Promise<any> {
   let files = [];
   for (let fileEntry of fileEntries) {
     if (fileEntry.isFile) {
@@ -36,7 +38,9 @@ var readAllFileEntries = async function (fileEntries) {
   return files;
 };
 
-var readFileEntry = async function (fileEntry) {
+var readFileEntry = async function (fileEntry: {
+  file: (arg0: (file: any) => void, arg1: (e: any) => void) => void;
+}) {
   return new Promise((resolve, reject) => {
     fileEntry.file(
       (file) => resolve(file),
@@ -45,34 +49,31 @@ var readFileEntry = async function (fileEntry) {
   });
 };
 
-var readFileAsArrayBuffer = async function (file) {
+var readFileAsArrayBuffer = async function (file: Blob): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     let fileReader = new FileReader();
-    fileReader.onload = (e) => resolve(e.target.result);
-    fileReader.onerror = (e) => reject(e.target.error.message);
+    fileReader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+    fileReader.onerror = (e) => reject(e.target?.error?.message);
     fileReader.readAsArrayBuffer(file);
   });
 };
 
-var processO2jamFolderV2 = async function (files) {
+var processO2jamFolderV2 = async function (files: any) {
   let ojnFile;
   for (let file of files) {
     if (file.name.match(/\.ojn$/i) != null) {
       ojnFile = file;
     }
-    if (file.name.match(/\.ojm$/i) != null) {
-      ojmFile = file;
-    }
   }
-  let arrayBuffer = await readFileAsArrayBuffer(ojnFile)
+  let arrayBuffer: ArrayBuffer = await readFileAsArrayBuffer(ojnFile);
   return convert(arrayBuffer);
 };
 
 export default {
-  async parseFiles(items, drop) {
+  async parseFiles(items: any, drop: boolean): Promise<ConvertedOJN> {
     let files = [];
     if (drop) {
-      if (items.length == 0) return files;
+      if (items.length == 0) throw "NO FILE";
       if (items.length == 1 && items[0].isDirectory) {
         let fileEntries = await getFileEntriesFromDirectory(items[0]);
         files = await readAllFileEntries(fileEntries);
@@ -87,7 +88,7 @@ export default {
       if (extension == null) continue;
       switch (extension[1]) {
         case "ojn":
-          return processO2jamFolderV2(files);
+          return processO2jamFolderV2(files); // Make sure this function returns a ConvertedOJN[]
       }
     }
     throw "invalidformat";
