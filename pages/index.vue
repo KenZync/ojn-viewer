@@ -214,7 +214,7 @@ var stage: PIXI.Container<PIXI.DisplayObject> | null;
 var thumbnail: PIXI.Container<PIXI.DisplayObject>;
 var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
 var grayMask: PIXI.Graphics | null = null;
-var rightMargin = leftMargin;
+var rightMargin = 35;
 // グローバル変数
 var bottomMargin = 10;
 var headerHeight = 20;

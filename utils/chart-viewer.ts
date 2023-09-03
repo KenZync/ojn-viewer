@@ -350,7 +350,7 @@ export const convert: (
 
         if (Object.keys(death).includes(note.toString())) {
           const output: [number, string] = [
-            j / current_package.events,
+            (j / current_package.events)*192,
             death[note],
           ];
           score[current_package.measure]["99"].push(output);
