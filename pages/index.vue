@@ -1,99 +1,102 @@
 <template>
   <div>
-    <div
-      v-if="jsonData"
-      class="flex justify-between h-[50px] bg-black text-white text-xl font-bold p-4"
-    >
-      <div>
-        {{
-          `Lv.${headerData.difficulty.hard.level} ${jsonData.title} / ${
-            jsonData.artist
-          } / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${
-            jsonData.notes
-          } / Time: ${fancyTimeFormat(headerData.difficulty.hard.duration)}`
-        }}
-      </div>
-      <button @click="toggleSetting">Setting</button>
-    </div>
-    <div
-      v-else
-      class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold flex flex-col"
-    >
-      <div class="">OJN Viewer by KenZ</div>
-      <div class="flex flex-col text-center">
-        <div>Credits</div>
-        <a href="https://rodrig0v.github.io/webmania/#/"
-          >https://rodrig0v.github.io/webmania/#/</a
-        >
-        <a href="http://www.ribbit.xyz/bms/score/"
-          >http://www.ribbit.xyz/bms/score/</a
-        >
-        <div>Contributer</div>
-        <div>Lelloq</div>
-      </div>
-    </div>
-    <div
-      v-if="showPanel"
-      class="absolute top-0 right-0 bg-stone-700 px-5 w-48 h-screen flex flex-col text-white space-y-4"
-    >
-      <button
-        @click="toggleSetting"
-        class="text-xl font-bold pt-4 w-full text-right"
+    <ClientOnly>
+      <div
+        v-if="jsonData && headerData"
+        class="flex justify-between h-[50px] bg-black text-white text-xl font-bold p-4"
       >
-        Close
-      </button>
-      <div class="">Options</div>
-      <div class="flex w-full space-x-2">
-        <input v-model="seed" placeholder="seed" class="w-full text-black" />
-        <button
-          @click="random"
-          class="border w-8 h-8 rounded-full text-center font-bold bg-gray-700"
-        >
-          R
-        </button>
-      </div>
-
-      <button
-        @click="renderNote"
-        class="border rounded-lg text-center font-bold bg-gray-700 py-2"
-      >
-        OK
-      </button>
-
-      <DropZone
-        class="drop-area text-center"
-        @files-dropped="onInputChange"
-        #default="{ dropZoneActive }"
-      >
-        <div class="border-dashed border-2 h-28 flex items-center">
-          <label for="file-input" class="text-stone-200">
-            <span v-if="dropZoneActive">
-              <span>Drop Them Here</span>
-              <span>to add them</span>
-            </span>
-            <span v-else>
-              <span>Drag Your .ojn Here</span>
-              <span>
-                or <strong><em>click here</em></strong> to select file
-              </span>
-            </span>
-
-            <input
-              class="hidden"
-              type="file"
-              id="file-input"
-              @change="onInputChange"
-            />
-          </label>
+        <div>
+          {{
+            `Lv.${headerData.difficulty.hard.level} ${jsonData.title} / ${
+              jsonData.artist
+            } / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${
+              jsonData.notes
+            } / Time: ${fancyTimeFormat(headerData.difficulty.hard.duration)}`
+          }}
         </div>
-      </DropZone>
-      <div v-if="headerData">
-        <div>BMP</div>
-        <img v-if="headerData.bmp" :src="headerData.bmp" alt="BMP" />
-        <div>Image</div>
-        <img v-if="headerData.image" :src="headerData.image" alt="Image" />
+        <button @click="toggleSetting">Setting</button>
       </div>
-    </div>
+      <div
+        v-else
+        class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold flex flex-col"
+      >
+        <div class="">OJN Viewer by KenZ</div>
+        <div class="flex flex-col text-center">
+          <div>Credits</div>
+          <a href="https://rodrig0v.github.io/webmania/#/"
+            >https://rodrig0v.github.io/webmania/#/</a
+          >
+          <a href="http://www.ribbit.xyz/bms/score/"
+            >http://www.ribbit.xyz/bms/score/</a
+          >
+          <div>Contributer</div>
+          <div>Lelloq</div>
+        </div>
+      </div>
+      <div
+        v-if="showPanel"
+        class="absolute top-0 right-0 bg-stone-700 px-5 w-48 h-screen flex flex-col text-white space-y-4"
+      >
+        <button
+          @click="toggleSetting"
+          class="text-xl font-bold pt-4 w-full text-right"
+        >
+          Close
+        </button>
+        <div class="">Options</div>
+        <div class="flex w-full space-x-2">
+          <input v-model="seed" placeholder="seed" class="w-full text-black" />
+          <button
+            @click="random"
+            class="border w-8 h-8 rounded-full text-center font-bold bg-gray-700"
+          >
+            R
+          </button>
+        </div>
+
+        <button
+          @click="renderNote"
+          class="border rounded-lg text-center font-bold bg-gray-700 py-2"
+        >
+          OK
+        </button>
+
+        <DropZone
+          class="drop-area text-center"
+          @files-dropped="onInputChange"
+          #default="{ dropZoneActive }"
+        >
+          <div class="border-dashed border-2 h-28 flex items-center">
+            <label for="file-input" class="text-stone-200">
+              <span v-if="dropZoneActive">
+                <span>Drop Them Here</span>
+                <span>to add them</span>
+              </span>
+              <span v-else>
+                <span>Drag Your .ojn Here</span>
+                <span>
+                  or <strong><em>click here</em></strong> to select file
+                </span>
+              </span>
+
+              <input
+                class="hidden"
+                type="file"
+                id="file-input"
+                @change="onInputChange"
+              />
+            </label>
+          </div>
+        </DropZone>
+        <div v-if="headerData">
+          <div>ID : {{ headerData.song_id }}</div>
+          <div>BMP</div>
+          <img v-if="headerData.bmp" :src="headerData.bmp" alt="BMP" />
+          <div>Image</div>
+          <img v-if="headerData.image" :src="headerData.image" alt="Image" />
+        </div>
+      </div>
+    </ClientOnly>
     <div ref="pixiContainer"></div>
   </div>
 </template>
@@ -236,7 +239,7 @@ var measureTo = 0;
 
 const { data: ojn } = useAsyncData("ojn", async () => {
   if (route.query.server && route.query.id) {
-    const response:ArrayBuffer = await $fetch(
+    const response: ArrayBuffer = await $fetch(
       `/api/${route.query.server}/${route.query.id}`,
       {
         method: "GET",
@@ -246,10 +249,10 @@ const { data: ojn } = useAsyncData("ojn", async () => {
         responseType: "arrayBuffer",
       }
     );
-  let output:ConvertedOJN = convert(response)
-  jsonData.value = output.ribbit;
-  headerData.value = output.header;
-  renderNote();
+    let output: ConvertedOJN = convert(response);
+    jsonData.value = output.ribbit;
+    headerData.value = output.header;
+    renderNote();
   }
 });
 
