@@ -79,7 +79,7 @@ export const convert: (ojn: ArrayBufferLike) => ConvertedOJN = (
   };
 
   var score: RibbitScore[] = [];
-  var lnmap: KeyHit = {};
+  var lnmap: RibbitLNMap = {};
 
   var OJN_SIGNATURE = 0x006e6a6f;
   let dec = new TextDecoder("utf-8");

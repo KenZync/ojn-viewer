@@ -41,7 +41,7 @@ interface Ribbit {
   bpm: number;
   genre: string;
   keys: number;
-  lnmap: KeyHit;
+  lnmap: RibbitLNMap;
   notes: number;
   score: RibbitScore[];
   title: string;
@@ -49,7 +49,7 @@ interface Ribbit {
   obj: string;
   unit: number;
 }
-interface RibbitScore extends DataItem {
+interface RibbitScore extends RibbitNote {
   length?: number;
 }
 interface ConvertedOJN {
@@ -57,11 +57,11 @@ interface ConvertedOJN {
   ribbit: Ribbit;
 }
 
-interface DataItem {
+interface RibbitNote {
   [key: string]: Array<[number, string | number]>;
 }
 
-interface KeyHit {
+interface RibbitLNMap {
   [key: string]: Array<Array<[number, string|number]>>;
 }
 

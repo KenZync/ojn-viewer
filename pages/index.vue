@@ -47,7 +47,7 @@
         <div class="flex w-full space-x-2">
           <input v-model="seed" placeholder="seed" class="w-full text-black" />
           <button
-            @click="random"
+            @click="random(true)"
             class="border w-8 h-8 rounded-full text-center font-bold bg-gray-700"
           >
             R
@@ -55,7 +55,7 @@
         </div>
 
         <button
-          @click="renderNote"
+          @click="random(false)"
           class="border rounded-lg text-center font-bold bg-gray-700 py-2"
         >
           OK
@@ -269,7 +269,7 @@ const { data: ojn } = useAsyncData(
 
 const renderNote = async () => {
   PIXI.settings.ROUND_PIXELS = true;
-  if(!jsonData.value) return
+  if (!jsonData.value) return;
 
   thumbnailHeight.value = Math.max(window.innerHeight * 0.05, 25);
   headerHeight = 50; /* WORKAROUND */
@@ -300,7 +300,8 @@ const renderNote = async () => {
     // if (i >= measureFrom && i <= measureTo) {
     var measure;
     if (measures[x] == null || initStage) {
-      var expLen = (jsonData.value.score[x].length || jsonData.value.unit) * scaleH;
+      var expLen =
+        (jsonData.value.score[x].length || jsonData.value.unit) * scaleH;
       measure = Measure({
         index: x,
         score: jsonData.value.score[x],
@@ -827,9 +828,14 @@ const toggleSetting = () => {
   }
 };
 
-const random = () => {
-  seed.value = shuffle("1234567".split("")).join("");
-  renderNote();
+const random = (random: Boolean) => {
+  if (random) seed.value = shuffle("1234567".split("")).join("");
+  if (stage != null) {
+    let nowLocation = stage?.position.x;
+    renderNote();
+    stage.position.x = nowLocation;
+  }
+  updateDrawbox();
 };
 function validateKeyPattern(p: any, k: any) {
   var isValid = false;
