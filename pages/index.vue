@@ -330,7 +330,7 @@ const renderNote = async () => {
 // 小節オブジェクト
 const Measure = (param: any) => {
   var lineWidth = 1;
-  var lineStart = 35;
+  var lineStart = 20;
   var container = new PIXI.Container();
   var g = new PIXI.Graphics();
   container.addChild(g);
