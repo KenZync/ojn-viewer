@@ -1,4 +1,4 @@
-OJN Viewer
+## OJN Viewer
 
 A website to upload .ojn and see the chart made using Nuxt 3
 
