@@ -41,12 +41,12 @@ interface Ribbit {
   bpm: number;
   genre: string;
   keys: number;
-  lnmap: KeyHit; // You should replace 'any' with a more specific type if possible
+  lnmap: KeyHit;
   notes: number;
-  score: RibbitScore[]; // You should replace 'any' with a more specific type if possible
+  score: RibbitScore[];
   title: string;
   total: string;
-  obj: string; // You should replace 'string' with the actual type of header.noter
+  obj: string;
   unit: number;
 }
 

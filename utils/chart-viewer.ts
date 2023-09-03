@@ -372,7 +372,5 @@ export const convert: (ojn: ArrayBufferLike) => ConvertedOJN = (
 
   let output: ConvertedOJN = { header, ribbit };
 
-  console.log(ribbit);
-
   return output;
 };
