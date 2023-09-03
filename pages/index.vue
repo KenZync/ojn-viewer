@@ -6,7 +6,7 @@
     >
       <div>
         {{
-          `${jsonData.title} / ${jsonData.artist} / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${jsonData.notes}`
+          `Lv.${headerData.difficulty.hard.level} ${jsonData.title} / ${jsonData.artist} / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${jsonData.notes}`
         }}
       </div>
       <button @click="toggleSetting">Setting</button>
@@ -192,8 +192,8 @@ const leftMargin = 20;
 
 const renderer = ref();
 const containerWidthShrinkRatio = ref();
-const jsonData = ref();
-const headerData = ref();
+const jsonData:RibbitScore = ref();
+const headerData:OJNHeader = ref();
 
 const showPanel = ref(true);
 const seed = ref("1234567");
