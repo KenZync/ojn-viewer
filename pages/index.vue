@@ -108,8 +108,6 @@ useHead({
   meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
 });
 
-
-
 var schemes = {
   default: {
     backgroundFill: 0x000000,
@@ -203,14 +201,12 @@ const jsonData = ref<RibbitScore>();
 const headerData = ref<OJNHeader>();
 const showPanel = ref(true);
 const seed = ref("1234567");
-const server = ref(route.query.server);
-const id = ref(route.query.id);
+// const server = ref(route.query.server);
+// const id = ref(route.query.id);
 
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
 });
-
-
 
 var base: PIXI.Container<PIXI.DisplayObject>;
 var stage: PIXI.Container<PIXI.DisplayObject> | null;
@@ -240,53 +236,27 @@ var playSide = 1;
 var measureFrom = 0;
 var measureTo = 0;
 
-const preFetch = async() =>{
-  const { data: ojn } = await useFetch<any>(`/api/${server.value}/${id.value}`, {
-  server: false,
-  responseType: "arrayBuffer",
-  });
-
-  let output:ConvertedOJN = convert(ojn.value)
+const { data: ojn } = useAsyncData("ojn", async () => {
+  if (route.query.server && route.query.id) {
+    const response:ArrayBuffer = await $fetch(
+      `/api/${route.query.server}/${route.query.id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/octet-stream",
+        },
+        responseType: "arrayBuffer",
+      }
+    );
+  let output:ConvertedOJN = convert(response)
   jsonData.value = output.ribbit;
   headerData.value = output.header;
   renderNote();
-}
-
-watch(
-  () => route.query,
-  async() => {
-    if(server.value && id.value){
-      await preFetch()
-    }
-  },
-  { immediate: true }
-);
-
-
-
-
-// onMounted(async()=>{
-//   if(server.value && id.value){
-//     preFetch()
-
-//     // const { data: ojnRaw, error } = await useFetch<any>(`/api/${server.value}/${id.value}`, {
-//     //   server: false,
-//     //   responseType: "arrayBuffer",
-//     // });
-//     // if(error.value){
-//     //   alert("ERROR")
-//     // }else{
-//     //   console.log(ojnRaw.value)
-//     // }
-//   }
-
-// })
+  }
+});
 
 const renderNote = async () => {
   PIXI.settings.ROUND_PIXELS = true;
-  // var pattern = null
-  // const json: any = await $fetch("/test.json");
-  // jsonData.value = json;
   let json = jsonData.value;
   var res = true;
   //   if (json.notes > 100000) {
