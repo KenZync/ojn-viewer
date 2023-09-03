@@ -196,7 +196,7 @@ const route = useRoute();
 const pixiContainer = ref();
 
 const thumbnailHeight = ref(50);
-const leftMargin = 20;
+const leftMargin = 0;
 
 const renderer = ref();
 const containerWidthShrinkRatio = ref();
