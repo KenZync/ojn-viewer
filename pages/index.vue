@@ -18,7 +18,7 @@
       </div>
       <div
         v-else
-        class="min-h-screen bg-gray-500 flex justify-center items-center text-white font-bold flex flex-col"
+        class="min-h-screen bg-zinc-900 flex justify-center items-center text-white font-bold flex-col"
       >
         <div class="">OJN Viewer by KenZ</div>
         <div class="flex flex-col text-center">
@@ -35,7 +35,7 @@
       </div>
       <div
         v-if="showPanel"
-        class="absolute top-0 right-0 bg-stone-700 px-5 w-48 h-screen flex flex-col text-white space-y-4"
+        class="absolute bg-stone-700 top-0 right-0 px-5 w-48 h-screen flex flex-col text-white space-y-4 overflow-auto"
       >
         <button
           @click="toggleSetting"
@@ -43,20 +43,21 @@
         >
           Close
         </button>
-        <div class="">Options</div>
-        <div class="flex w-full space-x-2">
+        <div class="">Seed/Ringcon</div>
+        <form class="flex w-full space-x-2" @submit.prevent="random(false)">
           <input v-model="seed" placeholder="seed" class="w-full text-black" />
-          <button
+          <img
+            alt="random_ring"
+            src="/random_ring.jpg"
+            class="rounded-lg overflow-hidden cursor-pointer"
             @click="random(true)"
-            class="border w-8 h-8 rounded-full text-center font-bold bg-gray-700"
-          >
-            R
-          </button>
-        </div>
+          />
+        </form>
 
         <button
+          type="submit"
           @click="random(false)"
-          class="border rounded-lg text-center font-bold bg-gray-700 py-2"
+          class="border border-gray-400 rounded-lg text-center font-bold bg-zinc-700 py-2"
         >
           OK
         </button>
@@ -66,16 +67,19 @@
           @files-dropped="onInputChange"
           #default="{ dropZoneActive }"
         >
-          <div class="border-dashed border-2 h-28 flex items-center">
-            <label for="file-input" class="text-stone-200">
+          <div class="flex items-center">
+            <label
+              for="file-input"
+              class="text-stone-200 border-dashed border-2 cursor-pointer py-8 px-2"
+            >
               <span v-if="dropZoneActive">
                 <span>Drop Them Here</span>
                 <span>to add them</span>
               </span>
               <span v-else>
-                <span>Drag Your .ojn Here</span>
                 <span>
-                  or <strong><em>click here</em></strong> to select file
+                  Drag & Drop a .ojn file here or
+                  <span class="font-bold italic">click</span>
                 </span>
               </span>
 
@@ -88,7 +92,17 @@
             </label>
           </div>
         </DropZone>
-        <div v-if="headerData">
+        <div v-if="headerData" class="space-y-1">
+          <div
+            class="flex flex-col"
+            v-if="route.query.server && route.query.id"
+          >
+            <div class="flex justify-center">
+              <img alt="ohm" src="/ohm.png" class="w-16" />
+            </div>
+            <RadioGroup v-model="ohmMode" @update:model-value="toggleOhmMode" />
+          </div>
+          <div v-else></div>
           <div>ID : {{ headerData.song_id }}</div>
           <div>BMP</div>
           <img v-if="headerData.bmp" :src="headerData.bmp" alt="BMP" />
@@ -96,10 +110,11 @@
           <img v-if="headerData.image" :src="headerData.image" alt="Image" />
         </div>
       </div>
-      <div class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50" v-if="loading">
-        <div
-          class="flex h-screen items-center justify-center "
-        >
+      <div
+        class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
+        v-if="loading"
+      >
+        <div class="flex h-screen items-center justify-center">
           <LoadingSpinner />
         </div>
       </div>
@@ -112,93 +127,23 @@
 import * as PIXI from "pixi.js";
 import FileParser from "~/utils/file-parser";
 import { fancyTimeFormat } from "~/utils/formatter";
+import { searchDeathPlayer, searchStringInDeathPoint } from "~/utils/search";
+import {
+  schemes,
+  measureGridSize,
+  measureLeftLaneSize,
+  keypatInit,
+  keyCh,
+  rightMargin,
+  bottomMargin,
+} from "~/constants";
 
 useHead({
   title: "OJN Viewer",
   meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
 });
 
-var schemes = {
-  default: {
-    backgroundFill: 0x000000,
-    outerBound: 0xffffff,
-    quarterLine: 0x808080,
-    sixteenthLine: 0x404040,
-    laneLine: 0x404040,
-    labelFill: 0x808080,
-    labelText: 0xffffff,
-    bpmLine: 0x00ff00,
-    bpmText: 0x00ff00,
-    bpmTextStroke: 0x808080,
-    stopLine: 0xff0000,
-    stopText: null,
-    stopTextStroke: null,
-    noteBlueFill: 0x02ffff,
-    noteBlueLine: null,
-    noteWhiteFill: 0xffffff,
-    noteWhiteLine: null,
-    noteYellowFill: 0xe1c85b,
-    noteYellowLine: null,
-    lnoteBlueFill: 0x02ffff,
-    lnoteBlueLine: null,
-    lnoteWhiteFill: 0xffffff,
-    lnoteWhiteLine: null,
-    lnoteYellowFill: 0xe1c85b,
-    lnoteYellowLine: null,
-    mineRedFill: 0xff0000,
-    mineRedLine: 0xff0000,
-    lnWidthRatio: 0,
-    bpmLineH: 1,
-  },
-  mono: {
-    backgroundFill: 0xffffff,
-    outerBound: 0x000000,
-    quarterLine: 0x7f7f7f,
-    sixteenthLine: 0xbfbfbf,
-    laneLine: 0x7f7f7f,
-    labelFill: 0xffffff,
-    labelText: 0x000000,
-    bpmText: 0x000000,
-    bpmTextStroke: 0xffffff,
-    stopLine: 0x000000,
-    stopText: 0x000000,
-    stopTextStroke: 0xffffff,
-    noteBlueFill: 0x000000,
-    noteBlueLine: 0x000000,
-    noteWhiteFill: 0xffffff,
-    noteWhiteLine: 0x000000,
-    noteRedFill: 0x000000,
-    noteRedLine: 0x000000,
-    lnoteBlueFill: 0x000000,
-    lnoteBlueLine: 0x000000,
-    lnoteWhiteFill: 0xffffff,
-    lnoteWhiteLine: 0x000000,
-    lnoteRedFill: 0xffffff,
-    lnoteRedLine: 0x000000,
-    mineRedFill: 0x7f7f7f,
-    mineRedLine: 0x7f7f7f,
-    lnWidthRatio: 0.8,
-    bpmLineH: 2,
-  },
-};
-
-// 定数
-var measureGridSize = {
-  7: 23,
-};
-
-var measureLeftLaneSize = {
-  7: measureGridSize[7] - 4,
-};
-
-var keypatInit = {
-  7: "1234567",
-};
-
-var keyCh = {
-  7: ["11", "12", "13", "14", "15", "18", "19"],
-};
-
+const router = useRouter();
 const route = useRoute();
 const pixiContainer = ref();
 
@@ -211,9 +156,22 @@ const jsonData = ref<Ribbit>();
 const headerData = ref<OJNHeader>();
 const showPanel = ref(true);
 const seed = ref("1234567");
+const ohmMode = ref("all");
 
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
+});
+// const showDeathPoint = ref(true);
+// const showOnlyYou = ref(false);
+const loading = ref(false);
+
+const deathPoints = ref<DeathPoint>({});
+const deathPointPlayer = computed(() => {
+  if (deathPoints.value && route.query.player) {
+    return searchDeathPlayer(deathPoints.value, route.query.player?.toString());
+  } else {
+    return {};
+  }
 });
 
 var base: PIXI.Container<PIXI.DisplayObject>;
@@ -221,19 +179,12 @@ var stage: PIXI.Container<PIXI.DisplayObject> | null;
 var thumbnail: PIXI.Container<PIXI.DisplayObject>;
 var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
 var grayMask: PIXI.Graphics | null = null;
-var rightMargin = 35;
 // グローバル変数
-var bottomMargin = 10;
 var headerHeight = 20;
 
-// var renderer.value = null;
-
 var measures: any[] = [];
-var data = null;
-var md5 = "";
 
 // - レンダリングパラメータ
-var urlParam = {};
 var scaleW = 7;
 var minScaleW = 4;
 var maxScaleW = 10;
@@ -247,28 +198,18 @@ var measureTo = 0;
 var justX = 0;
 var justY = 0;
 
-const loading = ref(false);
+var measureNow = 0;
 
 const { data: ojn } = useAsyncData(
   "ojn",
   async () => {
     if (route.query.server && route.query.id) {
       loading.value = true;
-      let death: DeathPoint = {};
-      if (route.query.note && route.query.player) {
-        let note: number = 0;
-        let player = route.query.player.toString();
-        if (typeof route.query.note === "string") {
-          note = parseInt(route.query.note, 10);
-        }
-        death = {
-          [note]: player,
-        };
-      } else {
-        death = await $fetch(
-          `/api/${route.query.server}/fail/${route.query.id}`
-        );
-      }
+      const resDeath = await $fetch(
+        `/api/${route.query.server}/fail/${route.query.id}`
+      );
+      deathPoints.value = resDeath as DeathPoint;
+      // }
       const msgBuffer = new TextEncoder().encode(`o2ma${route.query.id}.ojn`);
       const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -276,7 +217,7 @@ const { data: ojn } = useAsyncData(
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("")
         .toUpperCase();
-      const response: ArrayBuffer = await $fetch(
+      const downloadedOjn = await $fetch(
         `/api/${route.query.server}/${hashHex}`,
         {
           method: "GET",
@@ -286,7 +227,8 @@ const { data: ojn } = useAsyncData(
           responseType: "arrayBuffer",
         }
       );
-      let output: ConvertedOJN = convert(response, death);
+      const response = downloadedOjn as ArrayBuffer;
+      let output: ConvertedOJN = convert(response, deathPoints.value);
       jsonData.value = output.ribbit;
       headerData.value = output.header;
       renderNote();
@@ -323,29 +265,29 @@ const renderNote = async () => {
   var posYinit = renderer.value.height - thumbnailHeight.value - bottomMargin;
   var posX = -15;
   var posY = posYinit;
-  for (var x = 0; x < jsonData.value.score.length; x++) {
-    // console.log(x);
+  for (measureNow = 0; measureNow < jsonData.value.score.length; measureNow++) {
     // if (i >= measureFrom && i <= measureTo) {
     var measure;
-    if (measures[x] == null || initStage) {
+    if (measures[measureNow] == null || initStage) {
       var expLen =
-        (jsonData.value.score[x].length || jsonData.value.unit) * scaleH;
+        (jsonData.value.score[measureNow].length || jsonData.value.unit) *
+        scaleH;
       measure = Measure({
-        index: x,
-        score: jsonData.value.score[x],
+        index: measureNow,
+        score: jsonData.value.score[measureNow],
         lnmap: jsonData.value.lnmap,
         scaleW: scaleW,
         scaleH: scaleH,
-        length: jsonData.value.score[x].length || jsonData.value.unit,
+        length: jsonData.value.score[measureNow].length || jsonData.value.unit,
         side: playSide,
         keys: 7,
         pattern: pattern.value,
         unit: jsonData.value.unit,
         exratio: expLen > posYinit ? (posYinit - 1) / expLen : 1,
       });
-      measures[x] = measure;
+      measures[measureNow] = measure;
     } else {
-      measure = measures[x];
+      measure = measures[measureNow];
     }
     if (posY == posYinit || posY - justY > 0) {
       posY -= justY - 1;
@@ -388,7 +330,7 @@ const renderNote = async () => {
   base.addChild(thumbnail);
   renderer.value.render(base);
   pixiContainer.value.appendChild(renderer.value.view);
-  loading.value = false
+  loading.value = false;
 };
 
 // 小節オブジェクト
@@ -416,10 +358,8 @@ const Measure = (param: any) => {
   var gGridY = gHeight / gLogicalLength;
   var gSide = param.side;
   var gPattern = param.pattern;
-  // console.log(param)
 
   //   // 小節線描画メソッド
-  //   g.drawMeasureLines = function () {
   var measureGrid = gHeight / gLogicalLength;
 
   for (var i = 1; (i * gUnitLength) / 16 < gLogicalLength; i++) {
@@ -445,7 +385,6 @@ const Measure = (param: any) => {
     var grid = gGridX;
     var color = schemes.default.laneLine;
     var idx = 5;
-    // console.log(idx)
     // SC
     g.lineStyle(lineWidth, color, 1);
     g.moveTo(grid * idx, 0);
@@ -453,7 +392,6 @@ const Measure = (param: any) => {
 
     // KEY
     if (gSide == 2) idx = 0;
-    // console.log(i,gSide,gKeys)
     for (var j = 0; j < gKeys; j++) {
       idx += 2;
       g.moveTo(grid * idx, 0);
@@ -488,19 +426,13 @@ const Measure = (param: any) => {
     }
 
     //   // 外枠描画メソッド
-    //   g.drawOuterBound = function () {
+    //   Draw outer bound
     g.lineStyle(lineWidth, schemes.default.outerBound, 1);
     g.moveTo(lineStart - 1, 0);
     g.lineTo(gWidth + lineWidth, 0);
     g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
     g.lineTo(lineStart - 1, gHeight - lineWidth);
     g.lineTo(lineStart - 1, 0);
-    //   };
-
-    // gPattern=['0','2','4,','1','3','5','6']
-    // gPattern=[0,2,4,1,3,5,6]
-
-    // console.log(gPattern)
 
     //Draw Notes
     var keych: string[] = [];
@@ -511,7 +443,7 @@ const Measure = (param: any) => {
     } else {
       keych = keyCh[7];
     }
-    // console.log(gPattern,keych)
+
     // ノート描画
     var noteThickness = 4;
     var blue = schemes.default.noteBlueFill;
@@ -629,8 +561,16 @@ const Measure = (param: any) => {
     // BPM, exBPM
     var ch = ["03", "08", "99"];
     ch.forEach((aKey: string) => {
-      if (aKey in gScore) {
+      if (aKey in gScore && !(ohmMode.value === "off" && aKey === ch[2])) {
         gScore[aKey].forEach((pos: [number, number]) => {
+          if (
+            aKey === ch[2] &&
+            ohmMode.value === "you" &&
+            !searchStringInDeathPoint(deathPointPlayer.value, pos[1].toString())
+          ) {
+            return;
+          }
+
           g.lineStyle(lineH, aKey === ch[2] ? mineRedLine : colorLine, 1);
           g.moveTo(lineStart, gHeight - gGridY * pos[0] - lineH);
           g.lineTo(
@@ -784,7 +724,6 @@ var curPosition: any;
 var dragging = false;
 
 function onClick(event: any) {
-  // console.log(event.target == thumbnail)
   if (event.target == grayMask && stage) {
     curPosition = event.data.getLocalPosition(thumbnail);
     var posX =
@@ -867,54 +806,19 @@ const toggleSetting = () => {
 };
 
 const random = (random: Boolean) => {
-  loading.value = true;
-  setTimeout(()=>{
-    if (random) seed.value = shuffle("1234567".split("")).join("");
-    if (stage != null) {
-      let nowLocation = stage?.position.x;
-      renderNote();
-      stage.position.x = nowLocation;
-    }
-    updateDrawbox();
-
-  },5)
-};
-function validateKeyPattern(p: any, k: any) {
-  var isValid = false;
-  var ret = [];
-  var str = "";
-
-  if (p == 0) {
-    str = String(p);
-    for (var i = 0; i < k; i++) {
-      ret.push(i);
-    }
-    isValid = true;
-  } else if (p == 1) {
-    str = String(p);
-    for (var i = 1; i <= k; i++) {
-      ret.push(k - i);
-    }
-    isValid = true;
-  } else {
-    var ar = p.split("");
-    if (ar.length == k) {
-      ar = ar.filter(function (x: any, i: any, self: any) {
-        return self.indexOf(x) === i && x >= 1 && x <= k;
-      });
-      if (ar.length == k) {
-        ret = [];
-        str = "";
-        for (var i = 0; i < k; i++) {
-          ret.push(ar[i] - 1);
-          str += ar[i];
-        }
-        isValid = true;
+  if (random) seed.value = shuffle("1234567".split("")).join("");
+  if (stage != null) {
+    loading.value = true;
+    setTimeout(() => {
+      if (stage != null) {
+        let nowLocation = stage?.position.x;
+        renderNote();
+        stage.position.x = nowLocation;
+        updateDrawbox();
       }
-    }
+    }, 5);
   }
-  return [isValid, ret, str];
-}
+};
 
 const onInputChange = async (e: any) => {
   let originalFiles;
@@ -937,15 +841,33 @@ const onInputChange = async (e: any) => {
       files = originalFiles;
     }
     let output: ConvertedOJN = await FileParser.parseFiles(files, drop);
-    loading.value = true
+    deathPoints.value = {}
+    loading.value = true;
     jsonData.value = output.ribbit;
     headerData.value = output.header;
-    setTimeout(()=>{
+    router.replace("/");
+    setTimeout(() => {
       renderNote();
-    },5)
+    }, 5);
   } catch (err) {
     alert("err" + err);
   } finally {
   }
+};
+
+const toggleOhmMode = (event:string) => {
+  if(event == "you" && Object.keys(deathPointPlayer.value).length === 0){
+    alert("NO DATA")
+    return
+  }
+  loading.value = true;
+  setTimeout(() => {
+    if (stage != null) {
+      let nowLocation = stage?.position.x;
+      renderNote();
+      stage.position.x = nowLocation;
+    }
+    updateDrawbox();
+  }, 200);
 };
 </script>

@@ -232,9 +232,6 @@ export const convert: (
     for (let j = 0; j < current_package.events; j++) {
       // let beat = (current_package.measure + j / current_package.events) * 4;
       if (current_package.channel == 0 || current_package.channel == 1) {
-        // if(current_package.channel == 0){
-        //   console.log("hey")
-        // }
         let bpm = dataview.getFloat32(cursor, true);
         cursor += 4;
         if (bpm !== 0) {
@@ -302,7 +299,6 @@ export const convert: (
         if (event.hitSound == 0) {
           continue;
         } else {
-          // console.log(event.hitSound);
         }
 
         // MIN 1 ~ 15 MAX, special 0 = MAX
