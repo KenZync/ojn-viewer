@@ -296,7 +296,6 @@ const { data: ojn } = useAsyncData(
 );
 
 const renderNote = async () => {
-  loading.value = true
   PIXI.settings.ROUND_PIXELS = true;
   if (!jsonData.value) return;
 
@@ -878,7 +877,7 @@ const random = (random: Boolean) => {
     }
     updateDrawbox();
 
-  },100)
+  },5)
 };
 function validateKeyPattern(p: any, k: any) {
   var isValid = false;
@@ -938,11 +937,14 @@ const onInputChange = async (e: any) => {
       files = originalFiles;
     }
     let output: ConvertedOJN = await FileParser.parseFiles(files, drop);
+    loading.value = true
     jsonData.value = output.ribbit;
     headerData.value = output.header;
-    renderNote();
+    setTimeout(()=>{
+      renderNote();
+    },5)
   } catch (err) {
-    console.log("err", err);
+    alert("err" + err);
   } finally {
   }
 };
