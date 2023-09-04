@@ -29,7 +29,7 @@
           <a href="http://www.ribbit.xyz/bms/score/"
             >http://www.ribbit.xyz/bms/score/</a
           >
-          <div>Contributer</div>
+          <div>Contributor</div>
           <div>Lelloq</div>
         </div>
       </div>
