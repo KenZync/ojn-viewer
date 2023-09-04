@@ -252,8 +252,8 @@ const loading = ref(false);
 const { data: ojn } = useAsyncData(
   "ojn",
   async () => {
-    loading.value = true;
     if (route.query.server && route.query.id) {
+      loading.value = true;
       let death: DeathPoint = {};
       if (route.query.note && route.query.player) {
         let note: number = 0;
