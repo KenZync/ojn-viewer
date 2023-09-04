@@ -28,10 +28,11 @@ export const searchDeathPlayer = (
 };
 
 export const searchStringInDeathPoint = (dp: DeathPoint, search: string) => {
+  search = search.toLowerCase(); // Convert search string to lowercase
   for (const key in dp) {
-    if (dp[key].includes(search)) {
-      return true // Convert the key back to a number
+    if (dp[key].toLowerCase().includes(search)) {
+      return true;
     }
   }
-  return false; // Return null if the string is not found
+  return false;
 };
