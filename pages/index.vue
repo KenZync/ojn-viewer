@@ -217,21 +217,26 @@ const { data: ojn } = useAsyncData(
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("")
         .toUpperCase();
-      const downloadedOjn = await $fetch(
-        `/api/${route.query.server}/${hashHex}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/octet-stream",
-          },
-          responseType: "arrayBuffer",
-        }
-      );
-      const response = downloadedOjn as ArrayBuffer;
-      let output: ConvertedOJN = convert(response, deathPoints.value);
-      jsonData.value = output.ribbit;
-      headerData.value = output.header;
-      renderNote();
+      try {
+        const downloadedOjn = await $fetch(
+          `/api/${route.query.server}/${hashHex}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/octet-stream",
+            },
+            responseType: "arrayBuffer",
+          }
+        );
+        const response = downloadedOjn as ArrayBuffer;
+        let output: ConvertedOJN = convert(response, deathPoints.value);
+        jsonData.value = output.ribbit;
+        headerData.value = output.header;
+        renderNote();
+      } catch (error) {
+        alert("OJN NOT FOUND");
+        loading.value = false
+      }
     }
   },
   { server: false }
@@ -841,7 +846,7 @@ const onInputChange = async (e: any) => {
       files = originalFiles;
     }
     let output: ConvertedOJN = await FileParser.parseFiles(files, drop);
-    deathPoints.value = {}
+    deathPoints.value = {};
     loading.value = true;
     jsonData.value = output.ribbit;
     headerData.value = output.header;
@@ -855,10 +860,10 @@ const onInputChange = async (e: any) => {
   }
 };
 
-const toggleOhmMode = (event:string) => {
-  if(event == "you" && Object.keys(deathPointPlayer.value).length === 0){
-    alert("NO DATA")
-    return
+const toggleOhmMode = (event: string) => {
+  if (event == "you" && Object.keys(deathPointPlayer.value).length === 0) {
+    alert("NO DATA");
+    return;
   }
   loading.value = true;
   setTimeout(() => {
