@@ -333,13 +333,14 @@ export const convert: (
             }
             lnmap[key].push([
               [current_package.measure, (j / current_package.events) * 192],
+              [current_package.measure, (j / current_package.events) * 192],
             ]);
             break;
           case 3:
-            lnmap[key][lnmap[key].length - 1].push([
+            lnmap[key][lnmap[key].length - 1][1] = [
               current_package.measure,
               (j / current_package.events) * 192,
-            ]);
+            ];
             break;
         }
         note++;
@@ -348,16 +349,15 @@ export const convert: (
           score[current_package.measure]["99"] = [];
         }
 
-        if(death){
+        if (death) {
           if (Object.keys(death).includes(note.toString())) {
             const output: [number, string] = [
-              (j / current_package.events)*192,
+              (j / current_package.events) * 192,
               death[note],
             ];
             score[current_package.measure]["99"].push(output);
           }
         }
-
       }
     }
   }
