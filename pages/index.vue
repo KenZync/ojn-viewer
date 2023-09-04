@@ -96,6 +96,13 @@
           <img v-if="headerData.image" :src="headerData.image" alt="Image" />
         </div>
       </div>
+      <div class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50" v-if="loading">
+        <div
+          class="flex h-screen items-center justify-center "
+        >
+          <LoadingSpinner />
+        </div>
+      </div>
     </ClientOnly>
     <div ref="pixiContainer"></div>
   </div>
@@ -240,11 +247,13 @@ var measureTo = 0;
 var justX = 0;
 var justY = 0;
 
+const loading = ref(false);
+
 const { data: ojn } = useAsyncData(
   "ojn",
   async () => {
+    loading.value = true;
     if (route.query.server && route.query.id) {
-      
       let death: DeathPoint = {};
       if (route.query.note && route.query.player) {
         let note: number = 0;
@@ -254,9 +263,11 @@ const { data: ojn } = useAsyncData(
         }
         death = {
           [note]: player,
-        }
-      }else{
-        death = await $fetch(`/api/${route.query.server}/fail/${route.query.id}`);
+        };
+      } else {
+        death = await $fetch(
+          `/api/${route.query.server}/fail/${route.query.id}`
+        );
       }
       const msgBuffer = new TextEncoder().encode(`o2ma${route.query.id}.ojn`);
       const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
@@ -285,6 +296,7 @@ const { data: ojn } = useAsyncData(
 );
 
 const renderNote = async () => {
+  loading.value = true
   PIXI.settings.ROUND_PIXELS = true;
   if (!jsonData.value) return;
 
@@ -377,6 +389,7 @@ const renderNote = async () => {
   base.addChild(thumbnail);
   renderer.value.render(base);
   pixiContainer.value.appendChild(renderer.value.view);
+  loading.value = false
 };
 
 // 小節オブジェクト
@@ -855,13 +868,17 @@ const toggleSetting = () => {
 };
 
 const random = (random: Boolean) => {
-  if (random) seed.value = shuffle("1234567".split("")).join("");
-  if (stage != null) {
-    let nowLocation = stage?.position.x;
-    renderNote();
-    stage.position.x = nowLocation;
-  }
-  updateDrawbox();
+  loading.value = true;
+  setTimeout(()=>{
+    if (random) seed.value = shuffle("1234567".split("")).join("");
+    if (stage != null) {
+      let nowLocation = stage?.position.x;
+      renderNote();
+      stage.position.x = nowLocation;
+    }
+    updateDrawbox();
+
+  },100)
 };
 function validateKeyPattern(p: any, k: any) {
   var isValid = false;
