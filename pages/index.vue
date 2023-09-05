@@ -191,7 +191,7 @@ var maxScaleW = 10;
 var scaleH = 2;
 var minScaleH = 0.5;
 var maxScaleH = 3.5;
-var playSide = 1;
+
 var measureFrom = 0;
 var measureTo = 0;
 
@@ -235,7 +235,7 @@ const { data: ojn } = useAsyncData(
         renderNote();
       } catch (error) {
         alert("OJN NOT FOUND");
-        loading.value = false
+        loading.value = false;
       }
     }
   },
@@ -284,8 +284,6 @@ const renderNote = async () => {
         scaleW: scaleW,
         scaleH: scaleH,
         length: jsonData.value.score[measureNow].length || jsonData.value.unit,
-        side: playSide,
-        keys: 7,
         pattern: pattern.value,
         unit: jsonData.value.unit,
         exratio: expLen > posYinit ? (posYinit - 1) / expLen : 1,
@@ -320,7 +318,7 @@ const renderNote = async () => {
       .on("touchmove", onDragMove);
   }
 
-  stage.hitArea = new PIXI.Rectangle(0, 0, stage.width, stage.height);
+  stage.hitArea = new PIXI.Rectangle(0, 0, stage.width, stage.height + 50);
   stage.position.x = 0;
   stage.position.y = 0;
   renderer.value.resize(window.innerWidth, window.innerHeight - headerHeight);
@@ -339,7 +337,17 @@ const renderNote = async () => {
 };
 
 // 小節オブジェクト
-const Measure = (param: any) => {
+const Measure = (param: {
+  index: number;
+  score: RibbitScore;
+  lnmap: RibbitLNMap;
+  scaleW: number;
+  scaleH: number;
+  length: number;
+  pattern: string[];
+  unit: number;
+  exratio: number;
+}) => {
   var lineWidth = 1;
   var lineStart = 35;
   var measureContainer = new PIXI.Container();
@@ -347,8 +355,6 @@ const Measure = (param: any) => {
   measureContainer.addChild(g);
 
   //   // コンテナサイズを決定
-  var cHeight = param.length * param.scaleH * param.exratio;
-  var cWidth = measureGridSize[7] * param.scaleW;
   var gHeight = param.length * param.scaleH * param.exratio;
   var gWidth = measureGridSize[7] * param.scaleW;
 
@@ -358,10 +364,9 @@ const Measure = (param: any) => {
   var gIndex = param.index;
   var gScore = param.score;
   var gLnmap = param.lnmap;
-  var gKeys = param.keys;
+  var gKeys = 7;
   var gGridX = param.scaleW;
   var gGridY = gHeight / gLogicalLength;
-  var gSide = param.side;
   var gPattern = param.pattern;
 
   //   // 小節線描画メソッド
@@ -396,7 +401,6 @@ const Measure = (param: any) => {
     g.lineTo(grid * idx, gHeight - lineWidth);
 
     // KEY
-    if (gSide == 2) idx = 0;
     for (var j = 0; j < gKeys; j++) {
       idx += 2;
       g.moveTo(grid * idx, 0);
@@ -414,7 +418,6 @@ const Measure = (param: any) => {
     g.endFill();
     if (gLogicalLength >= gUnitLength / 4 / param.scaleH) {
       idx += 2;
-      var fontSetting = "bold " + grid * 2 + "px Arial";
       var labelText = new PIXI.Text(gIndex, {
         fontSize: grid * 2,
         fontWeight: "bold",
@@ -531,7 +534,8 @@ const Measure = (param: any) => {
         var _colorLine = q[2];
         if (_key !== null) {
           if (_key in gScore) {
-            gScore[_key].forEach(function (pos: number[]) {
+            gScore[_key].forEach(function (value: [number, string | number]) {
+              const pos: number[] = value as number[];
               var noteLineWidth = _colorLine != null ? 1 : 0;
               var noteLineAlpha = _colorLine != null ? 1 : 0;
               g.beginFill(colScheme[counter]);
@@ -565,9 +569,10 @@ const Measure = (param: any) => {
     var lineH = schemes.default.bpmLineH;
     // BPM, exBPM
     var ch = ["03", "08", "99"];
+
     ch.forEach((aKey: string) => {
       if (aKey in gScore && !(ohmMode.value === "off" && aKey === ch[2])) {
-        gScore[aKey].forEach((pos: [number, number]) => {
+        gScore[aKey].forEach((pos) => {
           if (
             aKey === ch[2] &&
             ohmMode.value === "you" &&
@@ -583,26 +588,23 @@ const Measure = (param: any) => {
             gHeight - gGridY * pos[0] - lineH
           );
 
-          if (colorText !== null) {
-            const fontSetting: string = `bold ${gGridX * 1.5}px Arial`;
-            const labelText: PIXI.Text = new PIXI.Text(
-              aKey === ch[2]
-                ? pos[1].toString()
-                : (Math.round(pos[1] * 10) / 10).toString(),
-              {
-                fontSize: gGridX * 1.5,
-                fontWeight: "bold",
-                fill: aKey === ch[2] ? mineRedLine : colorText,
-                stroke: aKey === ch[2] ? lnWhite : colorStroke,
-                strokeThickness: colorStroke !== null ? 2 : 0,
-              }
-            );
-            labelText.anchor.x = 0.5;
-            labelText.anchor.y = 0.5;
-            labelText.x = gGridX * (measureLeftLaneSize[7] + 2);
-            labelText.y = gHeight - gGridY * pos[0] - lineWidth;
-            measureContainer.addChild(labelText);
-          }
+          const labelText: PIXI.Text = new PIXI.Text(
+            aKey === ch[2]
+              ? pos[1].toString()
+              : (Math.round(Number(pos[1]) * 10) / 10).toString(),
+            {
+              fontSize: gGridX * 1.5,
+              fontWeight: "bold",
+              fill: aKey === ch[2] ? mineRedLine : colorText,
+              stroke: aKey === ch[2] ? lnWhite : colorStroke,
+              strokeThickness: colorStroke !== null ? 2 : 0,
+            }
+          );
+          labelText.anchor.x = 0.5;
+          labelText.anchor.y = 0.5;
+          labelText.x = gGridX * (measureLeftLaneSize[7] + 2);
+          labelText.y = gHeight - gGridY * pos[0] - lineWidth;
+          measureContainer.addChild(labelText);
         });
       }
     });
@@ -745,21 +747,26 @@ function onClick(event: any) {
   }
 }
 
+let dragTarget: any = null;
+
 function onDragStart(this: any, event: any) {
+  dragTarget = this;
   dragging = true;
   curPosition = event.data.getLocalPosition(thumbnail);
+
 }
 
 function onDragEnd() {
   dragging = false;
   curPosition = null;
+  dragTarget= null
 }
 
 function onDragMove(this: any, event: any) {
   if (stage && dragging && curPosition != null) {
     var newPosition;
     var deltaX;
-    if (this.parent.parent == thumbnail) {
+    if (dragTarget.parent.parent == thumbnail) {
       newPosition = event.data.getLocalPosition(thumbnail);
       deltaX = -curPosition.x + newPosition.x;
       deltaX /= -containerWidthShrinkRatio.value;
