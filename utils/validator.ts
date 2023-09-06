@@ -1,5 +1,5 @@
 // NOTE: Not Used Yet
-function validateKeyPattern(p: any, k: any) {
+export function validateKeyPattern(p: any, k: any) {
   var isValid = false;
   var ret = [];
   var str = "";

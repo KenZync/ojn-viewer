@@ -49,12 +49,12 @@ interface Ribbit {
   obj: string;
   unit: number;
 }
-interface RibbitScore extends RibbitNote {
-  length?: number;
-}
 interface ConvertedOJN {
   header: OJNHeader;
   ribbit: Ribbit;
+}
+interface RibbitScore extends RibbitNote {
+  length?: number;
 }
 
 interface RibbitNote {
