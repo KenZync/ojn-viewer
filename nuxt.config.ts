@@ -1,6 +1,6 @@
 export default {
   nitro: {
-    preset: "vercel-edge",
+    preset: "netlify",
   },
   modules: ["@nuxtjs/tailwindcss",'nuxt-headlessui'],
 };
