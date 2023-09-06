@@ -1,71 +1,39 @@
-import LRU from "lru-cache";
-const cache = new LRU({
-  max: 200,
-  ttl: 1000 * 60 * 60 * 24, // One Day
-});
+import BoxSDK from "box-node-sdk";
 
 export default defineEventHandler(async (event) => {
-  let startTime;
-  let duration;
-
-  const abortController = new AbortController();
-  let timer = null;
-
   const id = getRouterParam(event, "id");
-  const url = `https://github.com/KenZync/O2Jam-Database/raw/main/dmjam/${id}`;
+  const filename = `o2ma${id}.ojn`
 
-  if (!cache.get(url)) {
-    const response = $fetch(url, {
-      retry: 10,
-      signal: abortController.signal,
+  const sdk = new BoxSDK({
+    clientID: process.env.NUXT_BOX_CLIENT_ID || "",
+    clientSecret: process.env.NUXT_BOX_CLIENT_SCRET || "",
+    appAuth: {
+      keyID: process.env.NUXT_BOX_JWT_KEY_ID || "",
+      privateKey: process.env.NUXT_BOX_PRIVATE_KEY?.replace(/\\n/g, "\n") || "",
+      passphrase: process.env.NUXT_BOX_PRIVATE_KEY_PASSPHRASE || "",
+    },
+  });
 
-      // Log request
-      async onRequest({ request, options }) {
-        timer = setTimeout(() => {
-          abortController.abort();
-          console.log(`Retrying request to: ${request}`);
-        }, 2500); // Abort request in 2.5s.
+  var client = sdk.getAppAuthClient(
+    "enterprise",
+    process.env.NUXT_BOX_ENTERPRISE_ID
+  );
 
-        startTime = new Date().getTime();
-        options.headers = new Headers(options.headers);
-        options.headers.set("starttime", `${new Date().getTime()}`);
-        await console.log(
-          `%c[${new Date().toLocaleTimeString()}] %cSSR-Request: %c${request}`,
-          "color: gray",
-          "color: orange",
-          "color: white"
-        );
-      },
+  const search = await client.search.query(filename, {
+    fields: "name",
+    ancestor_folder_ids: process.env.NUXT_BOX_PRIVATE_FOLDER_ID,
+    limit: 1,
+  })
 
-      // Log response
-      async onResponse({ request, response }) {
-        if (timer) {
-          clearTimeout(timer); // clear timer
-        }
-
-        const currentTime = new Date().getTime();
-        duration = currentTime - startTime;
-        await console.log(
-          `✔️%cSSR-Response: ${request} - ${response.status} %c(${duration}ms)`,
-          "color: orange",
-          "color: white"
-        );
-      },
-
-      // Log error
-      async onResponseError({ error }) {
-        await console.error('%cSSR-Error', error,
-          'color: white; background: red;',
-        );
-      },
-    });
-
-    // Set response to cache
-    cache.set(url, response);
-    return response;
+  if(search.entries.length != 1){
+    throw createError({ statusCode: 404, statusMessage: 'OJN Not Found' })
   }
 
-  // Log a cache hit to a given request URL
-  console.log(`%c[SSR] Cache hit: ${url}`, 'color: orange');
-  return cache.get(url);
+  const [firstEntry] = search.entries; // Destructure the first entry
+
+  if(firstEntry.name != filename){
+    throw createError({ statusCode: 404, statusMessage: 'OJN Not Found' })
+  }
+  const file = client.files.getReadStream(firstEntry.id);
+  return file;
 });

@@ -209,17 +209,9 @@ const { data: ojn } = useAsyncData(
         `/api/${route.query.server}/fail/${route.query.id}`
       );
       deathPoints.value = resDeath as DeathPoint;
-      // }
-      const msgBuffer = new TextEncoder().encode(`o2ma${route.query.id}.ojn`);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("")
-        .toUpperCase();
       try {
         const downloadedOjn = await $fetch(
-          `/api/${route.query.server}/${hashHex}`,
+          `/api/${route.query.server}/${route.query.id}`,
           {
             method: "GET",
             headers: {
