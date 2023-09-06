@@ -71,10 +71,6 @@ export const measureLeftLaneSize = {
   7: measureGridSize[7] - 4,
 };
 
-export const keypatInit = {
-  7: "1234567",
-};
-
 export const keyCh = {
   7: ["11", "12", "13", "14", "15", "18", "19"],
 };

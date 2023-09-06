@@ -132,7 +132,6 @@ import {
   schemes,
   measureGridSize,
   measureLeftLaneSize,
-  keypatInit,
   keyCh,
   rightMargin,
   bottomMargin,
@@ -161,8 +160,6 @@ const ohmMode = ref("all");
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
 });
-// const showDeathPoint = ref(true);
-// const showOnlyYou = ref(false);
 const loading = ref(false);
 
 const deathPoints = ref<DeathPoint>({});
@@ -263,7 +260,6 @@ const renderNote = async () => {
   var posX = -15;
   var posY = posYinit;
   for (measureNow = 0; measureNow < jsonData.value.score.length; measureNow++) {
-    // if (i >= measureFrom && i <= measureTo) {
     var measure;
     if (measures[measureNow] == null || initStage) {
       var expLen =
@@ -296,6 +292,7 @@ const renderNote = async () => {
     if (initStage) stage.addChild(measure);
     measure.cacheAsBitmap = true;
   }
+
   if (initStage) {
     stage.cursor = "pointer";
     stage.eventMode = "static";
@@ -361,12 +358,30 @@ const Measure = (param: {
   var gGridY = gHeight / gLogicalLength;
   var gPattern = param.pattern;
 
+  //Draw Note Lines
+  // ノート境界線を描画
+  // SC:5, KEY:2, LABEL:2
+  var grid = gGridX;
+  var color = schemes.default.laneLine;
+  var idx = 5;
+  // SC
+  g.lineStyle(lineWidth, color, 1);
+  g.moveTo(grid * idx, 0);
+  g.lineTo(grid * idx, gHeight - lineWidth);
+
+  // KEY
+  for (var j = 0; j < gKeys; j++) {
+    idx += 2;
+    g.moveTo(grid * idx, 0);
+    g.lineTo(grid * idx, gHeight - lineWidth);
+  }
+
   //   // 小節線描画メソッド
   var measureGrid = gHeight / gLogicalLength;
 
-  for (var i = 1; (i * gUnitLength) / 16 < gLogicalLength; i++) {
+  for (var beat = 1; (beat * gUnitLength) / 16 < gLogicalLength; beat++) {
     var color = schemes.default.sixteenthLine; //  16分音符
-    if (i % 4 == 0) {
+    if (beat % 4 == 0) {
       color = schemes.default.quarterLine;
     } // 4分音符
 
@@ -374,233 +389,214 @@ const Measure = (param: {
     g.lineStyle(lineWidth, color, 1);
     g.moveTo(
       lineStart - 1,
-      gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth
+      gHeight - (measureGrid * beat * gUnitLength) / 16 - lineWidth
     );
     g.lineTo(
       gWidth,
-      gHeight - (measureGrid * i * gUnitLength) / 16 - lineWidth
+      gHeight - (measureGrid * beat * gUnitLength) / 16 - lineWidth
     );
+  }
 
-    //Draw Note Lines
-    // ノート境界線を描画
-    // SC:5, KEY:2, LABEL:2
-    var grid = gGridX;
-    var color = schemes.default.laneLine;
-    var idx = 5;
-    // SC
-    g.lineStyle(lineWidth, color, 1);
-    g.moveTo(grid * idx, 0);
-    g.lineTo(grid * idx, gHeight - lineWidth);
+  // LABEL
+  idx = 2 * gKeys + 5;
+  color = schemes.default.labelFill;
+  g.beginFill(color);
+  g.lineStyle(0, undefined, 1);
+  g.moveTo(grid * idx, 0);
+  g.lineTo(grid * idx, gHeight - lineWidth);
+  g.lineTo(grid * (4 + idx), gHeight - lineWidth);
+  g.lineTo(grid * (4 + idx), 0);
+  g.endFill();
+  if (gLogicalLength >= gUnitLength / 4 / param.scaleH) {
+    idx += 2;
+    var labelText = new PIXI.Text(gIndex, {
+      fontSize: grid * 2,
+      fontWeight: "bold",
+      // font: fontSetting,
+      fill: schemes.default.labelText,
+      stroke: color,
+      strokeThickness: 2,
+    });
+    labelText.anchor.x = 0.5;
+    labelText.anchor.y = 0.5;
+    labelText.x = grid * idx;
+    labelText.y = gHeight / 2;
+    measureContainer.addChild(labelText);
+  }
 
-    // KEY
-    for (var j = 0; j < gKeys; j++) {
-      idx += 2;
-      g.moveTo(grid * idx, 0);
-      g.lineTo(grid * idx, gHeight - lineWidth);
+  //   // 外枠描画メソッド
+  //   Draw outer bound
+  g.lineStyle(lineWidth, schemes.default.outerBound, 1);
+  g.moveTo(lineStart - 1, 0);
+  g.lineTo(gWidth + lineWidth, 0);
+  g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
+  g.lineTo(lineStart - 1, gHeight - lineWidth);
+  g.lineTo(lineStart - 1, 0);
+
+  //Draw Notes
+  var keych: string[] = [];
+  if (gPattern != null && gPattern.length == gKeys) {
+    for (var c = 0; c < gKeys; c++) {
+      keych[c] = keyCh[7][parseInt(gPattern[c])];
     }
-    // LABEL
-    idx = 2 * gKeys + 5;
-    color = schemes.default.labelFill;
-    g.beginFill(color);
-    g.lineStyle(0, undefined, 1);
-    g.moveTo(grid * idx, 0);
-    g.lineTo(grid * idx, gHeight - lineWidth);
-    g.lineTo(grid * (4 + idx), gHeight - lineWidth);
-    g.lineTo(grid * (4 + idx), 0);
-    g.endFill();
-    if (gLogicalLength >= gUnitLength / 4 / param.scaleH) {
-      idx += 2;
-      var labelText = new PIXI.Text(gIndex, {
-        fontSize: grid * 2,
-        fontWeight: "bold",
-        // font: fontSetting,
-        fill: schemes.default.labelText,
-        stroke: color,
-        strokeThickness: 2,
+  } else {
+    keych = keyCh[7];
+  }
+
+  // ノート描画
+  var noteThickness = 4;
+  var blue = schemes.default.noteBlueFill;
+  var white = schemes.default.noteWhiteFill; // 0x8b8b8b
+  var yellow = schemes.default.noteYellowFill;
+  var blueLine = schemes.default.noteBlueLine;
+  var whiteLine = schemes.default.noteWhiteLine;
+  var yellowLine = schemes.default.noteYellowLine;
+  var lnWhite = schemes.default.lnoteWhiteFill;
+  var lnBlue = schemes.default.lnoteBlueFill;
+  var lnYellow = schemes.default.lnoteYellowFill;
+  var lnWhiteLine = schemes.default.lnoteWhiteLine;
+  var lnBlueLine = schemes.default.lnoteBlueLine;
+  var lnYellowLine = schemes.default.lnoteYellowLine;
+  var mineRed = schemes.default.mineRedFill;
+  var mineRedLine = schemes.default.mineRedLine;
+  var lnRatio = schemes.default.lnWidthRatio;
+
+  // KEY
+  var idx = 5;
+  var color = blue;
+  var colorBlueLine = blueLine;
+  var lnColor = lnBlue;
+  var lnColorLine = lnBlueLine;
+
+  var colScheme = [white, blue, white, yellow, white, blue, white];
+  var colSchemeLN = [
+    lnWhite,
+    lnBlue,
+    lnWhite,
+    lnYellow,
+    lnWhite,
+    lnBlue,
+    lnWhite,
+  ];
+  var counter = 0;
+  keych.forEach(function (key) {
+    if (key in gLnmap) {
+      gLnmap[key].forEach(function (area: any[][]) {
+        if (area[0][0] <= gIndex && area[1][0] >= gIndex) {
+          var lnBegin = 0;
+          var lnEnd = gLogicalLength;
+          if (area[0][0] == gIndex) {
+            lnBegin = area[0][1];
+          }
+          if (area[1][0] == gIndex) {
+            lnEnd = area[1][1];
+          }
+          var noteLineWidth = lnColorLine != null ? 1 : 0;
+          var noteLineAlpha = lnColorLine != null ? 1 : 0;
+          g.beginFill(colSchemeLN[counter]);
+          g.lineStyle(
+            noteLineWidth,
+            lnColorLine != null ? lnColorLine : 0,
+            noteLineAlpha
+          );
+          g.drawRect(
+            idx * gGridX - (idx == 0 ? lineWidth : 0) + (lnRatio * gGridX) / 2,
+            gHeight -
+              gGridY * lnEnd -
+              lineWidth +
+              (lnEnd == gLogicalLength ? noteLineWidth : 0),
+            2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
+            gGridY * (lnEnd - lnBegin) +
+              (lnBegin == 0 ? lineWidth : 0) -
+              lineWidth -
+              (lnEnd == gLogicalLength ? noteLineWidth : 0)
+          );
+          g.endFill();
+        }
       });
-      labelText.anchor.x = 0.5;
-      labelText.anchor.y = 0.5;
-      labelText.x = grid * idx;
-      labelText.y = gHeight / 2;
-      measureContainer.addChild(labelText);
     }
-
-    //   // 外枠描画メソッド
-    //   Draw outer bound
-    g.lineStyle(lineWidth, schemes.default.outerBound, 1);
-    g.moveTo(lineStart - 1, 0);
-    g.lineTo(gWidth + lineWidth, 0);
-    g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
-    g.lineTo(lineStart - 1, gHeight - lineWidth);
-    g.lineTo(lineStart - 1, 0);
-
-    //Draw Notes
-    var keych: string[] = [];
-    if (gPattern != null && gPattern.length == gKeys) {
-      for (var c = 0; c < gKeys; c++) {
-        keych[c] = keyCh[7][parseInt(gPattern[c])];
-      }
-    } else {
-      keych = keyCh[7];
-    }
-
-    // ノート描画
-    var noteThickness = 4;
-    var blue = schemes.default.noteBlueFill;
-    var white = schemes.default.noteWhiteFill; // 0x8b8b8b
-    var yellow = schemes.default.noteYellowFill;
-    var blueLine = schemes.default.noteBlueLine;
-    var whiteLine = schemes.default.noteWhiteLine;
-    var yellowLine = schemes.default.noteYellowLine;
-    var lnWhite = schemes.default.lnoteWhiteFill;
-    var lnBlue = schemes.default.lnoteBlueFill;
-    var lnYellow = schemes.default.lnoteYellowFill;
-    var lnWhiteLine = schemes.default.lnoteWhiteLine;
-    var lnBlueLine = schemes.default.lnoteBlueLine;
-    var lnYellowLine = schemes.default.lnoteYellowLine;
-    var mineRed = schemes.default.mineRedFill;
-    var mineRedLine = schemes.default.mineRedLine;
-    var lnRatio = schemes.default.lnWidthRatio;
-
-    // KEY
-    var idx = 5;
-    var color = blue;
-    var colorBlueLine = blueLine;
-    var lnColor = lnBlue;
-    var lnColorLine = lnBlueLine;
-
-    var colScheme = [white, blue, white, yellow, white, blue, white];
-    var colSchemeLN = [
-      lnWhite,
-      lnBlue,
-      lnWhite,
-      lnYellow,
-      lnWhite,
-      lnBlue,
-      lnWhite,
-    ];
-    var counter = 0;
-    keych.forEach(function (key) {
-      if (key in gLnmap) {
-        gLnmap[key].forEach(function (area: any[][]) {
-          if (area[0][0] <= gIndex && area[1][0] >= gIndex) {
-            var lnBegin = 0;
-            var lnEnd = gLogicalLength;
-            if (area[0][0] == gIndex) {
-              lnBegin = area[0][1];
-            }
-            if (area[1][0] == gIndex) {
-              lnEnd = area[1][1];
-            }
-            var noteLineWidth = lnColorLine != null ? 1 : 0;
-            var noteLineAlpha = lnColorLine != null ? 1 : 0;
-            g.beginFill(colSchemeLN[counter]);
+    [
+      ["D" + key.charAt(1), mineRed, mineRed],
+      [key, color, colorBlueLine],
+    ].forEach(function (q) {
+      var _key = q[0];
+      var _colorLine = q[2];
+      if (_key !== null) {
+        if (_key in gScore) {
+          gScore[_key].forEach(function (value: [number, string | number]) {
+            const pos: number[] = value as number[];
+            var noteLineWidth = _colorLine != null ? 1 : 0;
+            var noteLineAlpha = _colorLine != null ? 1 : 0;
+            g.beginFill(colScheme[counter]);
             g.lineStyle(
               noteLineWidth,
-              lnColorLine != null ? lnColorLine : 0,
+              _colorLine == null ? 0 : _colorLine,
               noteLineAlpha
             );
             g.drawRect(
-              idx * gGridX -
-                (idx == 0 ? lineWidth : 0) +
-                (lnRatio * gGridX) / 2,
-              gHeight -
-                gGridY * lnEnd -
-                lineWidth +
-                (lnEnd == gLogicalLength ? noteLineWidth : 0),
-              2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
-              gGridY * (lnEnd - lnBegin) +
-                (lnBegin == 0 ? lineWidth : 0) -
-                lineWidth -
-                (lnEnd == gLogicalLength ? noteLineWidth : 0)
+              idx * gGridX - (idx == 0 ? lineWidth : 0),
+              gHeight - (gGridY * pos[0] + noteThickness) - lineWidth,
+              2 * gGridX - (idx == 0 ? 0 : lineWidth) + noteLineWidth,
+              noteThickness
             );
             g.endFill();
-          }
-        });
-      }
-      [
-        ["D" + key.charAt(1), mineRed, mineRed],
-        [key, color, colorBlueLine],
-      ].forEach(function (q) {
-        var _key = q[0];
-        var _colorLine = q[2];
-        if (_key !== null) {
-          if (_key in gScore) {
-            gScore[_key].forEach(function (value: [number, string | number]) {
-              const pos: number[] = value as number[];
-              var noteLineWidth = _colorLine != null ? 1 : 0;
-              var noteLineAlpha = _colorLine != null ? 1 : 0;
-              g.beginFill(colScheme[counter]);
-              g.lineStyle(
-                noteLineWidth,
-                _colorLine == null ? 0 : _colorLine,
-                noteLineAlpha
-              );
-              g.drawRect(
-                idx * gGridX - (idx == 0 ? lineWidth : 0),
-                gHeight - (gGridY * pos[0] + noteThickness) - lineWidth,
-                2 * gGridX - (idx == 0 ? 0 : lineWidth) + noteLineWidth,
-                noteThickness
-              );
-              g.endFill();
-            });
-          }
+          });
         }
-      });
-      idx += 2;
-      counter++;
-    });
-
-    justX = gWidth;
-    justY = gHeight;
-
-    //Draw BPM
-    var colorLine = schemes.default.bpmLine;
-    var colorText = schemes.default.bpmText;
-    var colorStroke = schemes.default.bpmTextStroke;
-    var lineH = schemes.default.bpmLineH;
-    // BPM, exBPM
-    var ch = ["03", "08", "99"];
-
-    ch.forEach((aKey: string) => {
-      if (aKey in gScore && !(ohmMode.value === "off" && aKey === ch[2])) {
-        gScore[aKey].forEach((pos) => {
-          if (
-            aKey === ch[2] &&
-            ohmMode.value === "you" &&
-            !searchStringInDeathPoint(deathPointPlayer.value, pos[1].toString())
-          ) {
-            return;
-          }
-
-          g.lineStyle(lineH, aKey === ch[2] ? mineRedLine : colorLine, 1);
-          g.moveTo(lineStart, gHeight - gGridY * pos[0] - lineH);
-          g.lineTo(
-            gGridX * measureLeftLaneSize[7],
-            gHeight - gGridY * pos[0] - lineH
-          );
-
-          const labelText: PIXI.Text = new PIXI.Text(
-            aKey === ch[2]
-              ? pos[1].toString()
-              : (Math.round(Number(pos[1]) * 10) / 10).toString(),
-            {
-              fontSize: gGridX * 1.5,
-              fontWeight: "bold",
-              fill: aKey === ch[2] ? mineRedLine : colorText,
-              stroke: aKey === ch[2] ? lnWhite : colorStroke,
-              strokeThickness: colorStroke !== null ? 2 : 0,
-            }
-          );
-          labelText.anchor.x = 0.5;
-          labelText.anchor.y = 0.5;
-          labelText.x = gGridX * (measureLeftLaneSize[7] + 2);
-          labelText.y = gHeight - gGridY * pos[0] - lineWidth;
-          measureContainer.addChild(labelText);
-        });
       }
     });
-  }
+    idx += 2;
+    counter++;
+  });
+
+  justX = gWidth;
+  justY = gHeight;
+
+  //Draw BPM
+  var colorLine = schemes.default.bpmLine;
+  var colorText = schemes.default.bpmText;
+  var colorStroke = schemes.default.bpmTextStroke;
+  var lineH = schemes.default.bpmLineH;
+  // BPM, exBPM
+  var ch = ["03", "08", "99"];
+
+  ch.forEach((aKey: string) => {
+    if (aKey in gScore && !(ohmMode.value === "off" && aKey === ch[2])) {
+      gScore[aKey].forEach((pos) => {
+        if (
+          aKey === ch[2] &&
+          ohmMode.value === "you" &&
+          !searchStringInDeathPoint(deathPointPlayer.value, pos[1].toString())
+        ) {
+          return;
+        }
+
+        g.lineStyle(lineH, aKey === ch[2] ? mineRedLine : colorLine, 1);
+        g.moveTo(lineStart, gHeight - gGridY * pos[0] - lineH);
+        g.lineTo(
+          gGridX * measureLeftLaneSize[7],
+          gHeight - gGridY * pos[0] - lineH
+        );
+
+        const labelText: PIXI.Text = new PIXI.Text(
+          aKey === ch[2]
+            ? pos[1].toString()
+            : (Math.round(Number(pos[1]) * 10) / 10).toString(),
+          {
+            fontSize: gGridX * 1.5,
+            fontWeight: "bold",
+            fill: aKey === ch[2] ? mineRedLine : colorText,
+            stroke: aKey === ch[2] ? lnWhite : colorStroke,
+            strokeThickness: colorStroke !== null ? 2 : 0,
+          }
+        );
+        labelText.anchor.x = 0.5;
+        labelText.anchor.y = 0.5;
+        labelText.x = gGridX * (measureLeftLaneSize[7] + 2);
+        labelText.y = gHeight - gGridY * pos[0] - lineWidth;
+        measureContainer.addChild(labelText);
+      });
+    }
+  });
 
   return measureContainer;
 };
@@ -745,13 +741,12 @@ function onDragStart(this: any, event: any) {
   dragTarget = this;
   dragging = true;
   curPosition = event.data.getLocalPosition(thumbnail);
-
 }
 
 function onDragEnd() {
   dragging = false;
   curPosition = null;
-  dragTarget= null
+  dragTarget = null;
 }
 
 function onDragMove(this: any, event: any) {
