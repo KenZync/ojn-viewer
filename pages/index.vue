@@ -73,12 +73,12 @@
               class="text-stone-200 border-dashed border-2 cursor-pointer py-8 px-2"
             >
               <span v-if="dropZoneActive">
-                <span>Drop Them Here</span>
+                <span>Drop Them Here </span>
                 <span>to add them</span>
               </span>
               <span v-else>
                 <span>
-                  Drag & Drop a .ojn file here or
+                  Drag & Drop a .ojn & ojm files here or
                   <span class="font-bold italic">click</span>
                 </span>
               </span>
