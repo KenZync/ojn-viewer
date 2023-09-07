@@ -237,14 +237,21 @@ const { data: ojn } = useAsyncData(
   async () => {
     if (route.query.server && route.query.id) {
       loading.value = true;
+      const resDeath = await $fetch(
+        `/api/${route.query.server}/fail/${route.query.id}`
+      );
+      deathPoints.value = resDeath as DeathPoint;
       try {
-        const downloadedOjn = await $fetch(`/o2ma2703.ojn`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/octet-stream",
-          },
-          responseType: "arrayBuffer",
-        });
+        const downloadedOjn = await $fetch(
+          `/api/${route.query.server}/${route.query.id}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/octet-stream",
+            },
+            responseType: "arrayBuffer",
+          }
+        );
         const response = downloadedOjn as ArrayBuffer;
         let output: ConvertedOJN = convert(response, deathPoints.value, {});
         jsonData.value = output.ribbit;
