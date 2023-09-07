@@ -77,8 +77,9 @@
                 <span>to add them</span>
               </span>
               <span v-else>
+                <div>Drag & Drop</div>
                 <span>
-                  Drag & Drop a .ojn & ojm files here or
+                   .ojn & ojm files here or
                   <span class="font-bold italic">click</span>
                 </span>
               </span>
