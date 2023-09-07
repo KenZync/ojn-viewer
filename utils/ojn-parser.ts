@@ -1,6 +1,10 @@
 import { Buffer } from "buffer";
 import iconv from "iconv-lite";
 
+const OJN_SIGNATURE = 0x006e6a6f;
+const dec = new TextDecoder("utf-8");
+
+
 const genreMap = [
   "Ballad",
   "Rock",
@@ -27,8 +31,9 @@ const keyMapping = {
 
 export const convert: (
   ojn: ArrayBufferLike,
-  death: DeathPoint
-) => ConvertedOJN = (ojn: ArrayBufferLike, death: DeathPoint) => {
+  death: DeathPoint,
+  hitSounds: HitSound,
+) => ConvertedOJN = (ojn: ArrayBufferLike, death: DeathPoint, hitSounds: HitSound) => {
   var header: OJNHeader = {
     song_id: 0,
     signature: 0,
@@ -79,11 +84,172 @@ export const convert: (
     bmp: "",
   };
 
+  var hard: HardType = {
+    nbNotes: 0,
+    nbLns: 0,
+    timingLines: [],
+    timingPoints: [],
+    noteLines: [],
+    notes: [],
+    timeSounds: [],
+  };
+
+  var parseTimingPoint = function (beat: number, bpm: number) {
+    if(bpm == 0)
+      return
+    hard.timingLines.push({ beat, bpm })
+  };
+
+  function parseCommon(event: { hitSound: number; volumePan: number; type: number; }) {
+    if (event.hitSound === 0) return;
+  
+    // MIN 1 ~ 15 MAX, special 0 = MAX
+    let volume = ((event.volumePan >> 4) & 0x0F) / 16;
+    if (volume === 0) volume = 1;
+  
+    // LEFT 1 ~ 8 CENTER 8 ~ 15 RIGHT, special: 0 = 8
+    let pan = (event.volumePan & 0x0F);
+    if (pan === 0) pan = 8;
+    pan -= 8;
+    pan /= 7;
+  
+    event.hitSound--;
+  
+    if (event.type % 8 > 3) event.hitSound += 1000;
+  
+    return <Common>{ volume, pan, hitSound: event.hitSound };
+  }
+
+  var getTiming = function(beat: number, size: number) {
+    var divs = 3 * 128;
+    var val = beat * divs / size;
+    if (val % (divs / 4) === 0) {
+        return 1;
+    } else if (val % (divs / 8) === 0) {
+        return 2;
+    } else if (val % (divs / 12) === 0) {
+        return 3;
+    } else if (val % (divs / 16) === 0) {
+        return 4;
+    } else if (val % (divs / 24) === 0) {
+        return 6;
+    } else if (val % (divs / 32) === 0) {
+        return 8;
+    } else if (val % (divs / 48) === 0) {
+        return 12;
+    } else if (val % (divs / 64) === 0) {
+        return 16;
+    }
+    return 16;
+  }
+
+  var processTimingPoints = function () {
+    hard.timingLines.sort((a,b) => a.beat == b.beat ? a.time ? 1 : -1 : a.beat - b.beat)
+    for(let i = 1; i < hard.timingLines.length ; i++) {
+      if(hard.timingLines[i].beat == hard.timingLines[i - 1].beat && hard.timingLines[i].bpm == hard.timingLines[i - 1].bpm && hard.timingLines[i].time == hard.timingLines[i - 1].time) {
+        hard.timingLines.splice(i, 1)
+        i--
+      }
+    }
+
+    let currentBPM = header.bpm
+    let currentBeat = 0
+    let currentTime = 0
+    hard.timingPoints.push({
+      t: currentTime,
+      x: currentBeat,
+      dx: currentBPM / 60000,
+      bpm: currentBPM,
+      inclusive: true,
+    })
+    for(let timing of hard.timingLines) {
+      let beat = timing.beat
+      let time = currentTime + (beat - currentBeat) * 60000 / currentBPM
+      if(timing.bpm) {
+        currentBPM = timing.bpm
+        hard.timingPoints.push({
+          t: time,
+          x: beat,
+          dx: currentBPM / 60000,
+          bpm: currentBPM,
+          inclusive: true,
+        })
+      } else {
+        // i dont know what to doooo
+      }
+      currentBeat = beat
+      currentTime = time
+    }
+  }
+
+  var processNotes = function() {
+    hard.noteLines.sort((a,b) => a.beat - b.beat)
+    for(let i = 1; i < hard.noteLines.length ; i++) {
+      if(hard.noteLines[i].beat == hard.noteLines[i - 1].beat && hard.noteLines[i].key == hard.noteLines[i - 1].key) {
+        hard.noteLines.splice(i, 1)
+        i--
+      }
+    }
+
+    let pendingLns: any[] = [];
+    for(let note of hard.noteLines) {
+      if(note.objectName == 'note' && pendingLns.find((ln) => ln.key == note.key) == null) {
+        note.startTime = getTime(note.beat)
+        hard.nbNotes++
+        hard.notes.push(note)
+      } else if(note.objectName == 'longnote' && note.start && pendingLns.find((ln) => ln.key == note.key) == null) {
+        note.startTime = getTime(note.beat)
+        hard.nbLns++
+        hard.notes.push(note)
+        pendingLns.push(note)
+      } else {
+        let ln = pendingLns.find((ln) => ln.key == note.key)
+        if(ln == null) continue
+        pendingLns = pendingLns.filter((ln) => ln.key != note.key)
+        ln.endTime = getTime(note.beat)
+        ln.endHitSound = note.hitSound
+      }
+    }
+  }
+
+  var processTimeSounds = function() {
+    hard.timeSounds.sort((a,b) => a.beat - b.beat)
+    for(let i = 1; i < hard.timeSounds.length ; i++) {
+      if(hard.timeSounds[i].beat == hard.timeSounds[i - 1].beat && hard.timeSounds[i].name == hard.timeSounds[i - 1].name) {
+        hard.timeSounds.splice(i, 1)
+        i--
+      }
+    }
+
+    for(let timeSound of hard.timeSounds) {
+      timeSound.startTime = getTime(timeSound.beat)
+    }
+  }
+
+  var getTime = function (beat: number) {
+    let timingPoint = getTimingPoint(beat)
+    return (beat - timingPoint.x) / (timingPoint.dx || 1) + timingPoint.t
+  }
+
+  var getTimingPoint = function (beat: number) {
+    for(let i = 0; i < hard.timingPoints.length; i++) {
+      if(hard.timingPoints[i + 1]) {
+        if(hard.timingPoints[i + 1].inclusive && beat <= hard.timingPoints[i + 1].x) {
+          return hard.timingPoints[i]
+        } else if(!hard.timingPoints[i + 1].inclusive && beat < hard.timingPoints[i + 1].x) {
+          return hard.timingPoints[i]
+        }
+      } else {
+        return hard.timingPoints[i]
+      }
+    }
+  }
+
+
+
   var score: RibbitScore[] = [];
   var lnmap: RibbitLNMap = {};
 
-  var OJN_SIGNATURE = 0x006e6a6f;
-  let dec = new TextDecoder("utf-8");
   let dataview = new DataView(ojn);
   let cursor = 0;
 
@@ -206,7 +372,6 @@ export const convert: (
   // for (let current_diff of ["easy", "normal", "hard"]) {
   cursor = header.difficulty.hard.note_offset;
 
-  // const set = new Set();
   let note = 0;
   for (let i = 0; i < header.difficulty.hard.package_count; i++) {
     let current_package: CurrentPackage = {
@@ -230,7 +395,7 @@ export const convert: (
     // score[current_package.measure]["length"] = current_package.events;
 
     for (let j = 0; j < current_package.events; j++) {
-      // let beat = (current_package.measure + j / current_package.events) * 4;
+      let beat = (current_package.measure + j / current_package.events) * 4;
       if (current_package.channel == 0 || current_package.channel == 1) {
         let bpm = dataview.getFloat32(cursor, true);
         cursor += 4;
@@ -266,8 +431,8 @@ export const convert: (
           // set.add([current_package.measure,j,bpm])
 
           // score[current_package.measure] = {"03":[...set]}
+          parseTimingPoint(beat, bpm)
         }
-        // parseTimingPoint(beat, bpm)
       } else if (current_package.channel > 8) {
         let event: any = {};
         event.hitSound = dataview.getInt16(cursor, true);
@@ -276,7 +441,13 @@ export const convert: (
         cursor += 1;
         event.type = dataview.getInt8(cursor);
         cursor += 1;
-        // parseTimeSound(beat, event)
+
+        const commonData = parseCommon(event);
+  
+        if (commonData) {
+          hard.timeSounds.push({ beat, name: commonData.hitSound, ...commonData });
+        }
+
       } else {
         let event: any = {};
         event.hitSound = dataview.getInt16(cursor, true);
@@ -286,59 +457,56 @@ export const convert: (
         event.type = dataview.getInt8(cursor);
         cursor += 1;
 
-        let key =
-          keyMapping[current_package.channel as keyof typeof keyMapping];
-
-        // if (!score[current_package.measure]) {
-        //   score[current_package.measure] = {};
-        // }
-        if (!score[current_package.measure][key]) {
-          score[current_package.measure][key] = [];
-        }
-
         if (event.hitSound == 0) {
           continue;
-        } else {
         }
 
-        // MIN 1 ~ 15 MAX, special 0 = MAX
-        let volume = ((event.volumePan >> 4) & 0x0f) / 16;
-        if (volume == 0) volume = 1;
-
-        // LEFT 1 ~ 8 CENTER 8 ~ 15 RIGHT, special: 0 = 8
-        let pan = event.volumePan & 0x0f;
-        if (pan == 0) pan = 8;
-        pan -= 8;
-        pan /= 7;
-
-        event.hitSound--;
-
-        if (event.type % 8 > 3) event.hitSound += 1000;
-        event.type %= 4;
-
-        switch (event.type) {
-          case 0:
-            score[current_package.measure][key].push([
-              (j / current_package.events) * 192,
-              "00",
-            ]);
-            break;
-          case 2:
-            if (!lnmap[key]) {
-              lnmap[key] = [];
-            }
-            lnmap[key].push([
-              [current_package.measure, (j / current_package.events) * 192],
-              [current_package.measure, (j / current_package.events) * 192],
-            ]);
-            break;
-          case 3:
-            lnmap[key][lnmap[key].length - 1][1] = [
-              current_package.measure,
-              (j / current_package.events) * 192,
-            ];
-            break;
+        let ribbit_key =
+        keyMapping[current_package.channel as keyof typeof keyMapping];
+        
+        if (!score[current_package.measure][ribbit_key]) {
+          score[current_package.measure][ribbit_key] = [];
         }
+
+        const commonData = parseCommon(event);
+        if (commonData) {
+          event.type %= 4;
+      
+          let objectName;
+          switch (event.type) {
+            case 0:
+              score[current_package.measure][ribbit_key].push([
+                (j / current_package.events) * 192,
+                "00",
+              ]);
+              objectName = 'note';
+              break;
+            case 2:
+              if (!lnmap[ribbit_key]) {
+                lnmap[ribbit_key] = [];
+              }
+              lnmap[ribbit_key].push([
+                [current_package.measure, (j / current_package.events) * 192],
+                [current_package.measure, (j / current_package.events) * 192],
+              ]);
+              objectName = 'longnote';
+              commonData.start = true;
+              break;
+            case 3:
+              lnmap[ribbit_key][lnmap[ribbit_key].length - 1][1] = [
+                current_package.measure,
+                (j / current_package.events) * 192,
+              ];
+              objectName = 'longnote';
+              commonData.start = false;
+              break;
+          }
+
+          let key = current_package.channel - 2
+          let timing = getTiming(j, current_package.events)
+          hard.noteLines.push({beat,key, timing, objectName, ...commonData, soundTypes: []})
+        }
+
         note++;
 
         if (!score[current_package.measure]["99"]) {
@@ -384,7 +552,13 @@ export const convert: (
     unit: 192,
   };
 
-  let output: ConvertedOJN = { header, ribbit };
+  let output: ConvertedOJN = { header, ribbit, hard , hitSounds };
+
+  processTimingPoints()
+
+  processNotes()
+
+  processTimeSounds()
 
   return output;
 };

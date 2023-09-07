@@ -52,9 +52,15 @@ interface Ribbit {
 interface ConvertedOJN {
   header: OJNHeader;
   ribbit: Ribbit;
+  hard: HardType
+  hitSounds?: HitSound; 
 }
 interface RibbitScore extends RibbitNote {
   length?: number;
+}
+
+interface HitSound {
+  [key: string]: string;
 }
 
 interface RibbitNote {
@@ -62,7 +68,7 @@ interface RibbitNote {
 }
 
 interface RibbitLNMap {
-  [key: string]: Array<Array<[number, string|number]>>;
+  [key: string]: Array<Array<[number, string | number]>>;
 }
 
 interface CurrentPackage {
@@ -73,4 +79,36 @@ interface CurrentPackage {
 
 interface DeathPoint {
   [key: number]: string;
+}
+
+interface Common {
+  volume: any;
+  pan: any;
+  hitSound: any;
+  start?: boolean;
+}
+
+interface HardType {
+  nbNotes: number;
+  nbLns: number;
+  timingLines: any[]; // You can specify the actual type of the elements in the array
+  timingPoints: any[]; // You can specify the actual type of the elements in the array
+  noteLines: any[]; // You can specify the actual type of the elements in the array
+  notes: Notes[]; // You can specify the actual type of the elements in the array
+  timeSounds: any[]; // You can specify the actual type of the elements in the array
+}
+
+interface Notes {
+  beat: number;
+  endHitSound: number;
+  endTime: number;
+  hitSound: number;
+  key: number;
+  objectName: string;
+  pan: number;
+  soundTypes: string[]; // Assuming soundTypes is an array of strings
+  start: boolean;
+  startTime: number;
+  timing: number;
+  volume: number;
 }

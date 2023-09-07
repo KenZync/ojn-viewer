@@ -88,6 +88,7 @@
                 type="file"
                 id="file-input"
                 @change="onInputChange"
+                multiple
               />
             </label>
           </div>
@@ -109,6 +110,13 @@
           <div>Image</div>
           <img v-if="headerData.image" :src="headerData.image" alt="Image" />
         </div>
+        <button
+          v-if="hitSounds && Object.keys(hitSounds).length !== 0"
+          @click="playSong"
+          class="border border-gray-400 rounded-lg text-center font-bold bg-zinc-700 py-2"
+        >
+          Play Song (W.I.P)
+        </button>
       </div>
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
@@ -137,6 +145,29 @@ import {
   bottomMargin,
 } from "~/constants";
 
+const playSong = async () => {
+  const audioContext = new AudioContext();
+  function scheduleSounds() {
+    const currentTime = audioContext.currentTime * 1000; // Convert to milliseconds
+
+    function scheduleNotes(notesArray: any[]) {
+      for (const { hitSound, startTime } of notesArray) {
+        if (hitSound === 0) continue;
+        if (startTime >= currentTime) {
+          const delay = (startTime - currentTime) / 1000; // Convert to seconds
+          setTimeout(() => {
+            new Audio(hitSounds.value[hitSound]).play();
+          }, delay * 1000); // Convert back to milliseconds
+        }
+      }
+    }
+    scheduleNotes(hard.value.notes); // Schedule sounds from hard.value.notes
+    scheduleNotes(hard.value.timeSounds); // Schedule sounds from hard.value.timeSounds
+  }
+
+  scheduleSounds();
+};
+
 useHead({
   title: "OJN Viewer",
   meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
@@ -156,6 +187,9 @@ const headerData = ref<OJNHeader>();
 const showPanel = ref(true);
 const seed = ref("1234567");
 const ohmMode = ref("all");
+
+const hard = ref<any>();
+const hitSounds = ref<any>();
 
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
@@ -202,23 +236,16 @@ const { data: ojn } = useAsyncData(
   async () => {
     if (route.query.server && route.query.id) {
       loading.value = true;
-      const resDeath = await $fetch(
-        `/api/${route.query.server}/fail/${route.query.id}`
-      );
-      deathPoints.value = resDeath as DeathPoint;
       try {
-        const downloadedOjn = await $fetch(
-          `/api/${route.query.server}/${route.query.id}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/octet-stream",
-            },
-            responseType: "arrayBuffer",
-          }
-        );
+        const downloadedOjn = await $fetch(`/o2ma2703.ojn`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+          responseType: "arrayBuffer",
+        });
         const response = downloadedOjn as ArrayBuffer;
-        let output: ConvertedOJN = convert(response, deathPoints.value);
+        let output: ConvertedOJN = convert(response, deathPoints.value, {});
         jsonData.value = output.ribbit;
         headerData.value = output.header;
         renderNote();
@@ -821,6 +848,8 @@ const onInputChange = async (e: any) => {
     loading.value = true;
     jsonData.value = output.ribbit;
     headerData.value = output.header;
+    hard.value = output.hard;
+    hitSounds.value = output.hitSounds;
     router.replace("/");
     setTimeout(() => {
       renderNote();

@@ -1,3 +1,4 @@
+import OJMParser from '~/utils/ojm-parser'
 var getFileEntriesFromDirectory = async function (
   directory: FileSystemDirectoryEntry
 ) {
@@ -60,13 +61,22 @@ var readFileAsArrayBuffer = async function (file: Blob): Promise<ArrayBuffer> {
 
 var processO2jamFolderV2 = async function (files: any) {
   let ojnFile;
+  let ojmFile;
+  let hitSounds = {}
   for (let file of files) {
     if (file.name.match(/\.ojn$/i) != null) {
       ojnFile = file;
     }
+    if (file.name.match(/\.ojm$/i) != null) {
+      ojmFile = file;
+    }
   }
   let arrayBuffer: ArrayBuffer = await readFileAsArrayBuffer(ojnFile);
-  return convert(arrayBuffer);
+  if(ojmFile){
+    hitSounds = OJMParser.parseContent(await readFileAsArrayBuffer(ojmFile))
+  }
+  let output = convert(arrayBuffer, {}, hitSounds)
+  return output;
 };
 
 export default {
