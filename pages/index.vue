@@ -302,7 +302,7 @@ const onInputChange = async (e: any) => {
     hard.value = output.hard;
     hitSounds.value = output.hitSounds;
     console.log(jsonData.value);
-    // router.replace("/");
+    router.replace("/");
     setTimeout(() => {
       renderNote();
     }, 5);
