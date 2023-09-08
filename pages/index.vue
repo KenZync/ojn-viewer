@@ -79,7 +79,7 @@
               <span v-else>
                 <div>Drag & Drop</div>
                 <span>
-                   .ojn & ojm files here or
+                  .ojn & ojm files here or
                   <span class="font-bold italic">click</span>
                 </span>
               </span>
@@ -145,34 +145,7 @@ import {
   rightMargin,
   bottomMargin,
 } from "~/constants";
-
-const playSong = async () => {
-  const audioContext = new AudioContext();
-  function scheduleSounds() {
-    const currentTime = audioContext.currentTime * 1000; // Convert to milliseconds
-
-    function scheduleNotes(notesArray: any[]) {
-      for (const { hitSound, startTime } of notesArray) {
-        if (hitSound === 0) continue;
-        if (startTime >= currentTime) {
-          const delay = (startTime - currentTime) / 1000; // Convert to seconds
-          setTimeout(() => {
-            new Audio(hitSounds.value[hitSound]).play();
-          }, delay * 1000); // Convert back to milliseconds
-        }
-      }
-    }
-    scheduleNotes(hard.value.notes); // Schedule sounds from hard.value.notes
-    scheduleNotes(hard.value.timeSounds); // Schedule sounds from hard.value.timeSounds
-  }
-
-  scheduleSounds();
-};
-
-useHead({
-  title: "OJN Viewer",
-  meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
-});
+PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 
 const router = useRouter();
 const route = useRoute();
@@ -181,7 +154,7 @@ const pixiContainer = ref();
 const thumbnailHeight = ref(50);
 const leftMargin = 0;
 
-const renderer = ref();
+// const renderer = ref();
 const containerWidthShrinkRatio = ref();
 const jsonData = ref<Ribbit>();
 const headerData = ref<OJNHeader>();
@@ -192,27 +165,17 @@ const ohmMode = ref("all");
 const hard = ref<any>();
 const hitSounds = ref<any>();
 
-const pattern = computed(() => {
-  return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
-});
-const loading = ref(false);
+let testing = 0;
 
-const deathPoints = ref<DeathPoint>({});
-const deathPointPlayer = computed(() => {
-  if (deathPoints.value && route.query.player) {
-    return searchDeathPlayer(deathPoints.value, route.query.player?.toString());
-  } else {
-    return {};
-  }
-});
+var app: PIXI.Application<PIXI.ICanvas>;
 
-var base: PIXI.Container<PIXI.DisplayObject>;
-var stage: PIXI.Container<PIXI.DisplayObject> | null;
+var main: PIXI.Container<PIXI.DisplayObject> | null;
+// var stage: PIXI.Container<PIXI.DisplayObject> | null;
 var thumbnail: PIXI.Container<PIXI.DisplayObject>;
 var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
 var grayMask: PIXI.Graphics | null = null;
 // グローバル変数
-var headerHeight = 20;
+var headerHeight = 50;
 
 var measures: any[] = [];
 
@@ -231,6 +194,25 @@ var justX = 0;
 var justY = 0;
 
 var measureNow = 0;
+
+useHead({
+  title: "OJN Viewer",
+  meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
+});
+
+const pattern = computed(() => {
+  return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
+});
+const loading = ref(false);
+
+const deathPoints = ref<DeathPoint>({});
+const deathPointPlayer = computed(() => {
+  if (deathPoints.value && route.query.player) {
+    return searchDeathPlayer(deathPoints.value, route.query.player?.toString());
+  } else {
+    return {};
+  }
+});
 
 const { data: ojn } = useAsyncData(
   "ojn",
@@ -266,37 +248,111 @@ const { data: ojn } = useAsyncData(
   { server: false }
 );
 
-const renderNote = async () => {
+const playSong = async () => {
+  const audioContext = new AudioContext();
+  function scheduleSounds() {
+    const currentTime = audioContext.currentTime * 1000; // Convert to milliseconds
+
+    function scheduleNotes(notesArray: any[]) {
+      for (const { hitSound, startTime } of notesArray) {
+        if (hitSound === 0) continue;
+        if (startTime >= currentTime) {
+          const delay = (startTime - currentTime) / 1000; // Convert to seconds
+          setTimeout(() => {
+            new Audio(hitSounds.value[hitSound]).play();
+          }, delay * 1000); // Convert back to milliseconds
+        }
+      }
+    }
+    scheduleNotes(hard.value.notes); // Schedule sounds from hard.value.notes
+    scheduleNotes(hard.value.timeSounds); // Schedule sounds from hard.value.timeSounds
+  }
+
+  scheduleSounds();
+};
+
+const toggleSetting = () => {
+  if (jsonData.value) {
+    showPanel.value = !showPanel.value;
+  }
+};
+
+const onInputChange = async (e: any) => {
+  let originalFiles;
+  let drop = false;
+  if (e.target.files) {
+    originalFiles = e.target.files;
+  } else {
+    originalFiles = e.dataTransfer.items;
+    drop = true;
+  }
+
+  try {
+    let files = [];
+    if (drop) {
+      for (let item of originalFiles) {
+        if (item != null && item.kind == "file")
+          files.push(item.webkitGetAsEntry());
+      }
+    } else {
+      files = originalFiles;
+    }
+    let output: ConvertedOJN = await FileParser.parseFiles(files, drop);
+    deathPoints.value = {};
+    loading.value = true;
+    jsonData.value = output.ribbit;
+    headerData.value = output.header;
+    hard.value = output.hard;
+    hitSounds.value = output.hitSounds;
+    console.log(jsonData.value);
+    // router.replace("/");
+    setTimeout(() => {
+      renderNote();
+    }, 5);
+  } catch (err) {
+    alert("err" + err);
+  } finally {
+  }
+};
+
+const renderNote = () => {
   PIXI.settings.ROUND_PIXELS = true;
   if (!jsonData.value) return;
 
   thumbnailHeight.value = Math.max(window.innerHeight * 0.05, 25);
-  headerHeight = 50; /* WORKAROUND */
 
-  if (renderer.value != null) {
-    stage = null;
-    containerViewBox = null;
-    renderer.value.destroy(true); // GPU メモリリーク対策
+  if (app == null) {
+    app = new PIXI.Application({
+      backgroundColor: schemes.default.backgroundFill,
+      height: window.innerHeight - headerHeight,
+      width: window.innerWidth,
+    });
+    pixiContainer.value.appendChild(app.view);
   }
 
-  renderer.value = PIXI.autoDetectRenderer({
-    width: window.innerHeight,
-    height: window.innerHeight - headerHeight,
-    backgroundColor: schemes.default.backgroundFill,
-  });
-
-  var initStage = false;
-  if (stage == null) {
-    initStage = true;
-    stage = new PIXI.Container();
+  if (main != null) {
+    main.destroy(true);
+    main = null;
   }
+  //   app.stage.removeChildren()
+
+  //   if (main != null) {
+  //     main = null;
+  //   }
+  var initMain = false;
+  if (main == null) {
+    initMain = true;
+    main = new PIXI.Container();
+  }
+
   var posXinit = leftMargin;
-  var posYinit = renderer.value.height - thumbnailHeight.value - bottomMargin;
+  var posYinit = app.renderer.height - thumbnailHeight.value - bottomMargin;
   var posX = -15;
   var posY = posYinit;
+
   for (measureNow = 0; measureNow < jsonData.value.score.length; measureNow++) {
     var measure;
-    if (measures[measureNow] == null || initStage) {
+    if (measures[measureNow] == null || initMain) {
       var expLen =
         (jsonData.value.score[measureNow].length || jsonData.value.unit) *
         scaleH;
@@ -324,14 +380,14 @@ const renderNote = async () => {
     measure.cacheAsBitmap = false;
     measure.position.x = posX;
     measure.position.y = posY;
-    if (initStage) stage.addChild(measure);
+    if (initMain) main.addChild(measure);
     measure.cacheAsBitmap = true;
   }
 
-  if (initStage) {
-    stage.cursor = "pointer";
-    stage.eventMode = "static";
-    stage
+  if (initMain) {
+    main.cursor = "pointer";
+    main.eventMode = "static";
+    main
       .on("mousedown", onDragStart)
       .on("touchstart", onDragStart)
       .on("mouseup", onDragEnd)
@@ -342,21 +398,18 @@ const renderNote = async () => {
       .on("touchmove", onDragMove);
   }
 
-  stage.hitArea = new PIXI.Rectangle(0, 0, stage.width, stage.height + 50);
-  stage.position.x = 0;
-  stage.position.y = 0;
-  renderer.value.resize(window.innerWidth, window.innerHeight - headerHeight);
+  main.hitArea = new PIXI.Rectangle(0, 0, main.width, main.height + 50);
+  main.position.x = 0;
+  main.position.y = 0;
 
-  thumbnail = Thumbnail(renderer.value, stage);
+  thumbnail = Thumbnail(app.renderer, main);
 
   thumbnail.position.x = 0;
   thumbnail.position.y = posYinit + bottomMargin;
 
-  base = new PIXI.Container();
-  base.addChild(stage);
-  base.addChild(thumbnail);
-  renderer.value.render(base);
-  pixiContainer.value.appendChild(renderer.value.view);
+  app.stage.addChild(main);
+  app.stage.addChild(thumbnail);
+
   loading.value = false;
 };
 
@@ -639,90 +692,89 @@ const Thumbnail = (
 
   // 表示中領域の白枠を作成
 
-  if (containerViewBox == null) {
-    containerViewBox = new PIXI.Container();
+  containerViewBox = new PIXI.Container();
 
-    // グレーボックス
-    grayMask = new PIXI.Graphics();
-    //左
-    grayMask.beginFill(0xffffff);
-    grayMask.lineStyle(lineWidth, 0x404040, 1);
-    grayMask.moveTo(0, 0);
-    grayMask.lineTo(-inputRenderer.width, 0);
-    grayMask.lineTo(-inputRenderer.width, thumbnailHeight.value);
-    grayMask.lineTo(0, thumbnailHeight.value);
-    grayMask.lineTo(0, 0);
-    // 右
-    grayMask.moveTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
-    grayMask.lineTo(inputRenderer.width, 0);
-    grayMask.lineTo(inputRenderer.width, thumbnailHeight.value);
-    grayMask.lineTo(
-      inputRenderer.width * containerWidthShrinkRatio.value,
-      thumbnailHeight.value
-    );
-    grayMask.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
-    grayMask.endFill();
-    // アルファ
-    grayMask.alpha = 0.4;
-    // クリック可能にする
-    grayMask.cursor = "pointer";
-    grayMask.eventMode = "static";
-    grayMask.hitArea = new PIXI.Rectangle(
-      -inputRenderer.width,
-      0,
-      2 * inputRenderer.width,
-      thumbnailHeight.value + 50
-    ); // +50: はみ出しクリック可能領域
-    grayMask
-      .on("mousedown", onClick)
-      .on("touchstart", onClick)
-      .on("mousedown", onDragStart)
-      .on("touchstart", onDragStart)
-      .on("mousemove", onDragMove)
-      .on("touchmove", onDragMove)
-      .on("mouseup", onDragEnd)
-      .on("mouseupoutside", onDragEnd)
-      .on("touchend", onDragEnd)
-      .on("touchendoutside", onDragEnd);
+  // グレーボックス
+  grayMask = new PIXI.Graphics();
+  //左
+  grayMask.beginFill(0xffffff);
+  grayMask.lineStyle(lineWidth, 0x404040, 1);
+  grayMask.moveTo(0, 0);
+  grayMask.lineTo(-inputRenderer.width, 0);
+  grayMask.lineTo(-inputRenderer.width, thumbnailHeight.value);
+  grayMask.lineTo(0, thumbnailHeight.value);
+  grayMask.lineTo(0, 0);
+  // 右
+  grayMask.moveTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
+  grayMask.lineTo(inputRenderer.width, 0);
+  grayMask.lineTo(inputRenderer.width, thumbnailHeight.value);
+  grayMask.lineTo(
+    inputRenderer.width * containerWidthShrinkRatio.value,
+    thumbnailHeight.value
+  );
+  grayMask.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
+  grayMask.endFill();
+  // アルファ
+  grayMask.alpha = 0.4;
+  // クリック可能にする
+  grayMask.cursor = "pointer";
+  grayMask.eventMode = "static";
+  grayMask.hitArea = new PIXI.Rectangle(
+    -inputRenderer.width,
+    0,
+    2 * inputRenderer.width,
+    thumbnailHeight.value + 50
+  ); // +50: はみ出しクリック可能領域
+  grayMask
+    .on("mousedown", onClick)
+    .on("touchstart", onClick)
+    .on("mousedown", onDragStart)
+    .on("touchstart", onDragStart)
+    .on("mousemove", onDragMove)
+    .on("touchmove", onDragMove)
+    .on("mouseup", onDragEnd)
+    .on("mouseupoutside", onDragEnd)
+    .on("touchend", onDragEnd)
+    .on("touchendoutside", onDragEnd);
 
-    containerViewBox.addChild(grayMask);
+  containerViewBox.addChild(grayMask);
 
-    var frame = new PIXI.Graphics();
-    frame.lineStyle(lineWidth, 0xffffff, 1);
-    //枠の描画
-    frame.moveTo(lineWidth, 0);
-    frame.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
-    frame.lineTo(
-      inputRenderer.width * containerWidthShrinkRatio.value,
-      thumbnailHeight.value
-    );
-    frame.lineTo(lineWidth, thumbnailHeight.value);
-    frame.lineTo(lineWidth, 0);
-    // ドラッグ可能にする
-    frame.cursor = "pointer";
-    frame.eventMode = "static";
-    frame.hitArea = new PIXI.Rectangle(
-      lineWidth,
-      0,
-      inputRenderer.width * containerWidthShrinkRatio.value - lineWidth,
-      thumbnailHeight.value + 50
-    ); // +50: はみ出しクリック可能領域
+  var frame = new PIXI.Graphics();
+  frame.lineStyle(lineWidth, 0xffffff, 1);
+  //枠の描画
+  frame.moveTo(lineWidth, 0);
+  frame.lineTo(inputRenderer.width * containerWidthShrinkRatio.value, 0);
+  frame.lineTo(
+    inputRenderer.width * containerWidthShrinkRatio.value,
+    thumbnailHeight.value
+  );
+  frame.lineTo(lineWidth, thumbnailHeight.value);
+  frame.lineTo(lineWidth, 0);
+  // ドラッグ可能にする
+  frame.cursor = "pointer";
+  frame.eventMode = "static";
+  frame.hitArea = new PIXI.Rectangle(
+    lineWidth,
+    0,
+    inputRenderer.width * containerWidthShrinkRatio.value - lineWidth,
+    thumbnailHeight.value + 50
+  ); // +50: はみ出しクリック可能領域
 
-    frame
-      .on("mousedown", onDragStart)
-      .on("touchstart", onDragStart)
-      .on("mouseup", onDragEnd)
-      .on("mouseupoutside", onDragEnd)
-      .on("touchend", onDragEnd)
-      .on("touchendoutside", onDragEnd)
-      .on("mousemove", onDragMove)
-      .on("touchmove", onDragMove);
-    // frame.on('mousedown', onClick)
+  frame
+    .on("mousedown", onDragStart)
+    .on("touchstart", onDragStart)
+    .on("mouseup", onDragEnd)
+    .on("mouseupoutside", onDragEnd)
+    .on("touchend", onDragEnd)
+    .on("touchendoutside", onDragEnd)
+    .on("mousemove", onDragMove)
+    .on("touchmove", onDragMove);
 
-    containerViewBox.addChild(frame);
+  // frame.on('mousedown', onClick)
 
-    container.addChild(containerViewBox);
-  }
+  containerViewBox.addChild(frame);
+
+  container.addChild(containerViewBox);
 
   return container;
 };
@@ -731,15 +783,15 @@ var curPosition: any;
 var dragging = false;
 
 function onClick(event: any) {
-  if (event.target == grayMask && stage) {
+  if (event.target == grayMask && main) {
     curPosition = event.data.getLocalPosition(thumbnail);
     var posX =
       curPosition.x -
-      (renderer.value.width * containerWidthShrinkRatio.value) / 2;
-    stage.position.x = Math.min(
+      (app.renderer.width * containerWidthShrinkRatio.value) / 2;
+    main.position.x = Math.min(
       Math.max(
         -posX / containerWidthShrinkRatio.value,
-        renderer.value.width - stage.width - leftMargin - rightMargin
+        app.renderer.width - main.width - leftMargin - rightMargin
       ),
       0
     );
@@ -762,7 +814,7 @@ function onDragEnd() {
 }
 
 function onDragMove(this: any, event: any) {
-  if (stage && dragging && curPosition != null) {
+  if (main && dragging && curPosition != null) {
     var newPosition;
     var deltaX;
     if (dragTarget.parent.parent == thumbnail) {
@@ -774,10 +826,10 @@ function onDragMove(this: any, event: any) {
       deltaX = -curPosition.x + newPosition.x;
     }
 
-    stage.position.x = Math.min(
+    main.position.x = Math.min(
       Math.max(
-        stage.position.x + deltaX,
-        renderer.value.width - stage.width - leftMargin - rightMargin
+        main.position.x + deltaX,
+        app.renderer.width - main.width - leftMargin - rightMargin
       ),
       0
     );
@@ -787,16 +839,26 @@ function onDragMove(this: any, event: any) {
 }
 
 const updateDrawbox = () => {
-  if (containerViewBox && stage) {
+  if (containerViewBox && main) {
     containerViewBox.position.x =
-      (-leftMargin - stage.position.x) * containerWidthShrinkRatio.value;
+      (-leftMargin - main.position.x) * containerWidthShrinkRatio.value;
     containerViewBox.position.y = 0;
   }
-  requestAnimationFrame(refresh);
 };
 
-var refresh = function () {
-  renderer.value.render(base);
+const random = (random: Boolean) => {
+  if (random) seed.value = shuffle("1234567".split("")).join("");
+  if (main != null) {
+    loading.value = true;
+    setTimeout(() => {
+      if (main != null) {
+        let nowLocation = main?.position.x;
+        renderNote();
+        main.position.x = nowLocation;
+        updateDrawbox();
+      }
+    }, 5);
+  }
 };
 
 function shuffle(arr: string[]) {
@@ -810,64 +872,6 @@ function shuffle(arr: string[]) {
   return arr;
 }
 
-const toggleSetting = () => {
-  if (jsonData.value) {
-    showPanel.value = !showPanel.value;
-  }
-};
-
-const random = (random: Boolean) => {
-  if (random) seed.value = shuffle("1234567".split("")).join("");
-  if (stage != null) {
-    loading.value = true;
-    setTimeout(() => {
-      if (stage != null) {
-        let nowLocation = stage?.position.x;
-        renderNote();
-        stage.position.x = nowLocation;
-        updateDrawbox();
-      }
-    }, 5);
-  }
-};
-
-const onInputChange = async (e: any) => {
-  let originalFiles;
-  let drop = false;
-  if (e.target.files) {
-    originalFiles = e.target.files;
-  } else {
-    originalFiles = e.dataTransfer.items;
-    drop = true;
-  }
-
-  try {
-    let files = [];
-    if (drop) {
-      for (let item of originalFiles) {
-        if (item != null && item.kind == "file")
-          files.push(item.webkitGetAsEntry());
-      }
-    } else {
-      files = originalFiles;
-    }
-    let output: ConvertedOJN = await FileParser.parseFiles(files, drop);
-    deathPoints.value = {};
-    loading.value = true;
-    jsonData.value = output.ribbit;
-    headerData.value = output.header;
-    hard.value = output.hard;
-    hitSounds.value = output.hitSounds;
-    router.replace("/");
-    setTimeout(() => {
-      renderNote();
-    }, 5);
-  } catch (err) {
-    alert("err" + err);
-  } finally {
-  }
-};
-
 const toggleOhmMode = (event: string) => {
   if (event == "you" && Object.keys(deathPointPlayer.value).length === 0) {
     alert("NO DATA");
@@ -875,10 +879,10 @@ const toggleOhmMode = (event: string) => {
   }
   loading.value = true;
   setTimeout(() => {
-    if (stage != null) {
-      let nowLocation = stage?.position.x;
+    if (main != null) {
+      let nowLocation = main?.position.x;
       renderNote();
-      stage.position.x = nowLocation;
+      main.position.x = nowLocation;
     }
     updateDrawbox();
   }, 200);
