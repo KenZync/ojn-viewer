@@ -165,8 +165,6 @@ const ohmMode = ref("all");
 const hard = ref<any>();
 const hitSounds = ref<any>();
 
-let testing = 0;
-
 var app: PIXI.Application<PIXI.ICanvas>;
 
 var main: PIXI.Container<PIXI.DisplayObject> | null;
