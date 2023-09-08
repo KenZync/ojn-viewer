@@ -170,8 +170,7 @@ let testing = 0;
 var app: PIXI.Application<PIXI.ICanvas>;
 
 var main: PIXI.Container<PIXI.DisplayObject> | null;
-// var stage: PIXI.Container<PIXI.DisplayObject> | null;
-var thumbnail: PIXI.Container<PIXI.DisplayObject>;
+var thumbnail: PIXI.Container<PIXI.DisplayObject> | null;
 var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
 var grayMask: PIXI.Graphics | null = null;
 // グローバル変数
@@ -330,9 +329,11 @@ const renderNote = () => {
     pixiContainer.value.appendChild(app.view);
   }
 
-  if (main != null) {
+  if (main != null && thumbnail != null) {
+    thumbnail.destroy(true);
     main.destroy(true);
     main = null;
+    thumbnail = null;
   }
   //   app.stage.removeChildren()
 
@@ -885,6 +886,18 @@ const toggleOhmMode = (event: string) => {
       main.position.x = nowLocation;
     }
     updateDrawbox();
+  }, 200);
+};
+
+onMounted(async () => {
+  window.addEventListener("resize", onResize);
+});
+
+const onResize = async () => {
+  loading.value = true
+  app.renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
+  setTimeout(() => {
+    renderNote()
   }, 200);
 };
 </script>
