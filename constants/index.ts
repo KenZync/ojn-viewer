@@ -29,6 +29,7 @@ export const schemes = {
     mineRedLine: 0xff0000,
     lnWidthRatio: 0,
     bpmLineH: 1,
+    previewLine: 0xFFFF00,
   },
   mono: {
     backgroundFill: 0xffffff,
@@ -59,6 +60,7 @@ export const schemes = {
     mineRedLine: 0x7f7f7f,
     lnWidthRatio: 0.8,
     bpmLineH: 2,
+    previewLine: 0xFFFF00,
   },
 };
 

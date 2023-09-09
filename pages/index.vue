@@ -35,7 +35,7 @@
       </div>
       <div
         v-if="showPanel"
-        class="absolute bg-stone-700 top-0 right-0 px-5 w-48 h-screen flex flex-col text-white space-y-4 overflow-auto"
+        class="absolute bg-stone-700 top-0 right-0 px-5 w-48 h-screen flex flex-col text-white space-y-3 overflow-auto"
       >
         <button
           @click="toggleSetting"
@@ -61,7 +61,6 @@
         >
           OK
         </button>
-
         <DropZone
           class="drop-area text-center"
           @files-dropped="onInputChange"
@@ -118,6 +117,7 @@
         >
           Play Song (W.I.P)
         </button>
+        <div class="">{{ hard.timingPoints}}</div>
       </div>
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
@@ -147,6 +147,8 @@ import {
 } from "~/constants";
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 
+const { $anime } = useNuxtApp();
+
 const router = useRouter();
 const route = useRoute();
 const pixiContainer = ref();
@@ -170,6 +172,7 @@ var app: PIXI.Application<PIXI.ICanvas>;
 var main: PIXI.Container<PIXI.DisplayObject> | null;
 var thumbnail: PIXI.Container<PIXI.DisplayObject> | null;
 var containerViewBox: PIXI.Container<PIXI.DisplayObject> | null = null;
+var preview: PIXI.Graphics | null = null;
 var grayMask: PIXI.Graphics | null = null;
 // グローバル変数
 var headerHeight = 50;
@@ -191,6 +194,9 @@ var justX = 0;
 var justY = 0;
 
 var measureNow = 0;
+
+let pHeight = 0;
+let greenLine: any = {};
 
 useHead({
   title: "OJN Viewer",
@@ -237,7 +243,7 @@ const { data: ojn } = useAsyncData(
         headerData.value = output.header;
         renderNote();
       } catch (error) {
-        alert("OJN NOT FOUND");
+        alert("OJN NOT FOUND " + error);
         loading.value = false;
       }
     }
@@ -264,8 +270,8 @@ const playSong = async () => {
     scheduleNotes(hard.value.notes); // Schedule sounds from hard.value.notes
     scheduleNotes(hard.value.timeSounds); // Schedule sounds from hard.value.timeSounds
   }
-
   scheduleSounds();
+  runPreviewLine();
 };
 
 const toggleSetting = () => {
@@ -312,6 +318,25 @@ const onInputChange = async (e: any) => {
   }
 };
 
+const measureLocation = computed(() => {
+  if (main) {
+    const positions = [];
+
+    for (let i = 0; i < main.children.length - 1; i++) {
+      const measure = main.children[i];
+      const position = {
+        x: measure.position.x,
+        y: measure.position.y,
+      };
+      positions.push(position);
+    }
+
+    return positions;
+  }
+
+  return [];
+});
+
 const renderNote = () => {
   PIXI.settings.ROUND_PIXELS = true;
   if (!jsonData.value) return;
@@ -326,18 +351,16 @@ const renderNote = () => {
     });
     pixiContainer.value.appendChild(app.view);
   }
+  app.renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
 
   if (main != null && thumbnail != null) {
     thumbnail.destroy(true);
     main.destroy(true);
     main = null;
     thumbnail = null;
+    greenLine = [];
   }
-  //   app.stage.removeChildren()
 
-  //   if (main != null) {
-  //     main = null;
-  //   }
   var initMain = false;
   if (main == null) {
     initMain = true;
@@ -381,6 +404,8 @@ const renderNote = () => {
     measure.position.y = posY;
     if (initMain) main.addChild(measure);
     measure.cacheAsBitmap = true;
+
+    // console.log(posX,posY)
   }
 
   if (initMain) {
@@ -406,10 +431,60 @@ const renderNote = () => {
   thumbnail.position.x = 0;
   thumbnail.position.y = posYinit + bottomMargin;
 
+  var previewLineWidth = 1;
+
+  pHeight = jsonData.value.unit * scaleH * 1;
+  var pWidth = measureGridSize[7] * scaleW;
+
+  var previewWidth = 1;
+  var previewStart = 35;
+  //   // コンテナサイズを決定
+
+  preview = new PIXI.Graphics();
+  preview.lineStyle(previewLineWidth, schemes.default.previewLine, 1);
+  preview.moveTo(pWidth - previewWidth, pHeight - previewLineWidth);
+  preview.lineTo(previewStart - 1, pHeight - previewLineWidth);
+  preview.x = main.children[0].x;
+  preview.y = main.children[0].y;
+
+  main.addChild(preview);
+
   app.stage.addChild(main);
   app.stage.addChild(thumbnail);
 
   loading.value = false;
+};
+
+let mini = 0;
+let measure = 0;
+let initMeasure = false;
+let offset = 0;
+
+const runPreviewLine = () => {
+  if(!initMeasure &&preview){
+    offset = preview.position.y - pHeight
+    initMeasure = true
+  }
+  console.log("PLAYING",measure,mini,greenLine[measure][mini].duration)
+  if (preview) {
+    $anime({
+      targets: preview.position,
+      y: greenLine[measure][mini].to + offset + 1,
+      easing: "linear",
+      duration: greenLine[measure][mini].duration,
+      complete: function (anim) {
+        mini++;
+        if(typeof greenLine[measure][mini] === "undefined" && preview){
+          console.log("End of measure");
+          measure++;
+          mini = 0;
+          preview.position = measureLocation.value[measure];
+          offset = preview.position.y - pHeight + 1;
+        }
+        runPreviewLine()
+      },
+    });
+  }
 };
 
 // 小節オブジェクト
@@ -519,6 +594,8 @@ const Measure = (param: {
   g.lineTo(lineStart - 1, gHeight - lineWidth);
   g.lineTo(lineStart - 1, 0);
 
+  // console.log(gWidth + lineWidth, 0, gWidth + lineWidth, gHeight - lineWidth, lineStart - 1, gHeight - lineWidth, lineStart - 1, 0)
+
   // ノート描画
   var noteThickness = 4;
   var blue = schemes.default.noteBlueFill;
@@ -584,7 +661,7 @@ const Measure = (param: {
     }
 
     if (key in gScore) {
-      gScore[key].forEach(function (value: [number, string | number]) {
+      gScore[key].forEach(function (value: [number, string | number, number?, number?]) {
         const pos: number[] = value as number[];
         g.beginFill(colScheme[counter]);
         g.lineStyle(0, 0, 0);
@@ -611,11 +688,24 @@ const Measure = (param: {
   var colorStroke = schemes.default.bpmTextStroke;
   var lineH = schemes.default.bpmLineH;
   // BPM, exBPM
-  var ch = ["03", "08", "99"];
+  var ch = ["03", "08", "99", "88"];
 
   ch.forEach((aKey: string) => {
     if (aKey in gScore && !(ohmMode.value === "off" && aKey === ch[2])) {
       gScore[aKey].forEach((pos) => {
+        if(aKey==ch[3]){
+          // console.log(pos)
+        if (!greenLine[measureNow]) {
+          greenLine[measureNow] = [];
+        }
+        greenLine[measureNow].push({
+          y: gHeight - gGridY * pos[0] - lineH,
+          to: gHeight - gGridY * pos[2] - lineH,
+          translate: (gHeight - gGridY * pos[0] - lineH) - (gHeight - gGridY * pos[2] - lineH),
+          duration: pos[3]
+        });
+          return
+        }
         if (
           aKey === ch[2] &&
           ohmMode.value === "you" &&
@@ -630,6 +720,14 @@ const Measure = (param: {
           gGridX * measureLeftLaneSize[7],
           gHeight - gGridY * pos[0] - lineH
         );
+
+        // if (!greenLine[measureNow]) {
+        //   greenLine[measureNow] = [];
+        // }
+        // greenLine[measureNow].push({
+        //   x: lineStart,
+        //   y: gHeight - gGridY * pos[0] - lineH,
+        // });
 
         const labelText: PIXI.Text = new PIXI.Text(
           aKey === ch[2]
@@ -892,10 +990,8 @@ onMounted(async () => {
 });
 
 const onResize = async () => {
-  loading.value = true
-  app.renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
   setTimeout(() => {
-    renderNote()
+    renderNote();
   }, 200);
 };
 </script>

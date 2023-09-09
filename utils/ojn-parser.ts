@@ -4,7 +4,6 @@ import iconv from "iconv-lite";
 const OJN_SIGNATURE = 0x006e6a6f;
 const dec = new TextDecoder("utf-8");
 
-
 const genreMap = [
   "Ballad",
   "Rock",
@@ -32,8 +31,12 @@ const keyMapping = {
 export const convert: (
   ojn: ArrayBufferLike,
   death: DeathPoint,
-  hitSounds: HitSound,
-) => ConvertedOJN = (ojn: ArrayBufferLike, death: DeathPoint, hitSounds: HitSound) => {
+  hitSounds: HitSound
+) => ConvertedOJN = (
+  ojn: ArrayBufferLike,
+  death: DeathPoint,
+  hitSounds: HitSound
+) => {
   var header: OJNHeader = {
     song_id: 0,
     signature: 0,
@@ -95,157 +98,184 @@ export const convert: (
   };
 
   var parseTimingPoint = function (beat: number, bpm: number) {
-    if(bpm == 0)
-      return
-    hard.timingLines.push({ beat, bpm })
+    if (bpm == 0) return;
+    hard.timingLines.push({ beat, bpm });
   };
 
-  function parseCommon(event: { hitSound: number; volumePan: number; type: number; }) {
+  function parseCommon(event: {
+    hitSound: number;
+    volumePan: number;
+    type: number;
+  }) {
     if (event.hitSound === 0) return;
-  
+
     // MIN 1 ~ 15 MAX, special 0 = MAX
-    let volume = ((event.volumePan >> 4) & 0x0F) / 16;
+    let volume = ((event.volumePan >> 4) & 0x0f) / 16;
     if (volume === 0) volume = 1;
-  
+
     // LEFT 1 ~ 8 CENTER 8 ~ 15 RIGHT, special: 0 = 8
-    let pan = (event.volumePan & 0x0F);
+    let pan = event.volumePan & 0x0f;
     if (pan === 0) pan = 8;
     pan -= 8;
     pan /= 7;
-  
+
     event.hitSound--;
-  
+
     if (event.type % 8 > 3) event.hitSound += 1000;
-  
+
     return <Common>{ volume, pan, hitSound: event.hitSound };
   }
 
-  var getTiming = function(beat: number, size: number) {
+  var getTiming = function (beat: number, size: number) {
     var divs = 3 * 128;
-    var val = beat * divs / size;
+    var val = (beat * divs) / size;
     if (val % (divs / 4) === 0) {
-        return 1;
+      return 1;
     } else if (val % (divs / 8) === 0) {
-        return 2;
+      return 2;
     } else if (val % (divs / 12) === 0) {
-        return 3;
+      return 3;
     } else if (val % (divs / 16) === 0) {
-        return 4;
+      return 4;
     } else if (val % (divs / 24) === 0) {
-        return 6;
+      return 6;
     } else if (val % (divs / 32) === 0) {
-        return 8;
+      return 8;
     } else if (val % (divs / 48) === 0) {
-        return 12;
+      return 12;
     } else if (val % (divs / 64) === 0) {
-        return 16;
+      return 16;
     }
     return 16;
-  }
+  };
 
   var processTimingPoints = function () {
-    hard.timingLines.sort((a,b) => a.beat == b.beat ? a.time ? 1 : -1 : a.beat - b.beat)
-    for(let i = 1; i < hard.timingLines.length ; i++) {
-      if(hard.timingLines[i].beat == hard.timingLines[i - 1].beat && hard.timingLines[i].bpm == hard.timingLines[i - 1].bpm && hard.timingLines[i].time == hard.timingLines[i - 1].time) {
-        hard.timingLines.splice(i, 1)
-        i--
+    hard.timingLines.sort((a, b) =>
+      a.beat == b.beat ? (a.time ? 1 : -1) : a.beat - b.beat
+    );
+    for (let i = 1; i < hard.timingLines.length; i++) {
+      if (
+        hard.timingLines[i].beat == hard.timingLines[i - 1].beat &&
+        hard.timingLines[i].bpm == hard.timingLines[i - 1].bpm &&
+        hard.timingLines[i].time == hard.timingLines[i - 1].time
+      ) {
+        hard.timingLines.splice(i, 1);
+        i--;
       }
     }
 
-    let currentBPM = header.bpm
-    let currentBeat = 0
-    let currentTime = 0
+    let currentBPM = header.bpm;
+    let currentBeat = 0;
+    let currentTime = 0;
     hard.timingPoints.push({
       t: currentTime,
       x: currentBeat,
       dx: currentBPM / 60000,
       bpm: currentBPM,
       inclusive: true,
-    })
-    for(let timing of hard.timingLines) {
-      let beat = timing.beat
-      let time = currentTime + (beat - currentBeat) * 60000 / currentBPM
-      if(timing.bpm) {
-        currentBPM = timing.bpm
+    });
+    for (let timing of hard.timingLines) {
+      let beat = timing.beat;
+      let time = currentTime + ((beat - currentBeat) * 60000) / currentBPM;
+      // console.log(currentTime,beat,currentBeat,currentBPM)
+      if (timing.bpm) {
+        currentBPM = timing.bpm;
         hard.timingPoints.push({
           t: time,
           x: beat,
           dx: currentBPM / 60000,
           bpm: currentBPM,
           inclusive: true,
-        })
+        });
       } else {
         // i dont know what to doooo
       }
-      currentBeat = beat
-      currentTime = time
+      currentBeat = beat;
+      currentTime = time;
     }
-  }
+  };
 
-  var processNotes = function() {
-    hard.noteLines.sort((a,b) => a.beat - b.beat)
-    for(let i = 1; i < hard.noteLines.length ; i++) {
-      if(hard.noteLines[i].beat == hard.noteLines[i - 1].beat && hard.noteLines[i].key == hard.noteLines[i - 1].key) {
-        hard.noteLines.splice(i, 1)
-        i--
+  var processNotes = function () {
+    hard.noteLines.sort((a, b) => a.beat - b.beat);
+    for (let i = 1; i < hard.noteLines.length; i++) {
+      if (
+        hard.noteLines[i].beat == hard.noteLines[i - 1].beat &&
+        hard.noteLines[i].key == hard.noteLines[i - 1].key
+      ) {
+        hard.noteLines.splice(i, 1);
+        i--;
       }
     }
 
     let pendingLns: any[] = [];
-    for(let note of hard.noteLines) {
-      if(note.objectName == 'note' && pendingLns.find((ln) => ln.key == note.key) == null) {
-        note.startTime = getTime(note.beat)
-        hard.nbNotes++
-        hard.notes.push(note)
-      } else if(note.objectName == 'longnote' && note.start && pendingLns.find((ln) => ln.key == note.key) == null) {
-        note.startTime = getTime(note.beat)
-        hard.nbLns++
-        hard.notes.push(note)
-        pendingLns.push(note)
+    for (let note of hard.noteLines) {
+      if (
+        note.objectName == "note" &&
+        pendingLns.find((ln) => ln.key == note.key) == null
+      ) {
+        note.startTime = getTime(note.beat);
+        hard.nbNotes++;
+        hard.notes.push(note);
+      } else if (
+        note.objectName == "longnote" &&
+        note.start &&
+        pendingLns.find((ln) => ln.key == note.key) == null
+      ) {
+        note.startTime = getTime(note.beat);
+        hard.nbLns++;
+        hard.notes.push(note);
+        pendingLns.push(note);
       } else {
-        let ln = pendingLns.find((ln) => ln.key == note.key)
-        if(ln == null) continue
-        pendingLns = pendingLns.filter((ln) => ln.key != note.key)
-        ln.endTime = getTime(note.beat)
-        ln.endHitSound = note.hitSound
+        let ln = pendingLns.find((ln) => ln.key == note.key);
+        if (ln == null) continue;
+        pendingLns = pendingLns.filter((ln) => ln.key != note.key);
+        ln.endTime = getTime(note.beat);
+        ln.endHitSound = note.hitSound;
       }
     }
-  }
+  };
 
-  var processTimeSounds = function() {
-    hard.timeSounds.sort((a,b) => a.beat - b.beat)
-    for(let i = 1; i < hard.timeSounds.length ; i++) {
-      if(hard.timeSounds[i].beat == hard.timeSounds[i - 1].beat && hard.timeSounds[i].name == hard.timeSounds[i - 1].name) {
-        hard.timeSounds.splice(i, 1)
-        i--
+  var processTimeSounds = function () {
+    hard.timeSounds.sort((a, b) => a.beat - b.beat);
+    for (let i = 1; i < hard.timeSounds.length; i++) {
+      if (
+        hard.timeSounds[i].beat == hard.timeSounds[i - 1].beat &&
+        hard.timeSounds[i].name == hard.timeSounds[i - 1].name
+      ) {
+        hard.timeSounds.splice(i, 1);
+        i--;
       }
     }
 
-    for(let timeSound of hard.timeSounds) {
-      timeSound.startTime = getTime(timeSound.beat)
+    for (let timeSound of hard.timeSounds) {
+      timeSound.startTime = getTime(timeSound.beat);
     }
-  }
+  };
 
   var getTime = function (beat: number) {
-    let timingPoint = getTimingPoint(beat)
-    return (beat - timingPoint.x) / (timingPoint.dx || 1) + timingPoint.t
-  }
+    let timingPoint = getTimingPoint(beat);
+    return (beat - timingPoint.x) / (timingPoint.dx || 1) + timingPoint.t;
+  };
 
   var getTimingPoint = function (beat: number) {
-    for(let i = 0; i < hard.timingPoints.length; i++) {
-      if(hard.timingPoints[i + 1]) {
-        if(hard.timingPoints[i + 1].inclusive && beat <= hard.timingPoints[i + 1].x) {
-          return hard.timingPoints[i]
-        } else if(!hard.timingPoints[i + 1].inclusive && beat < hard.timingPoints[i + 1].x) {
-          return hard.timingPoints[i]
+    for (let i = 0; i < hard.timingPoints.length; i++) {
+      if (hard.timingPoints[i + 1]) {
+        if (
+          hard.timingPoints[i + 1].inclusive &&
+          beat <= hard.timingPoints[i + 1].x
+        ) {
+          return hard.timingPoints[i];
+        } else if (
+          !hard.timingPoints[i + 1].inclusive &&
+          beat < hard.timingPoints[i + 1].x
+        ) {
+          return hard.timingPoints[i];
         }
       } else {
-        return hard.timingPoints[i]
+        return hard.timingPoints[i];
       }
     }
-  }
-
-
+  };
 
   var score: RibbitScore[] = [];
   var lnmap: RibbitLNMap = {};
@@ -396,13 +426,11 @@ export const convert: (
 
     for (let j = 0; j < current_package.events; j++) {
       let beat = (current_package.measure + j / current_package.events) * 4;
+      let bpm = dataview.getFloat32(cursor, true);
       if (current_package.channel == 0 || current_package.channel == 1) {
-        let bpm = dataview.getFloat32(cursor, true);
         cursor += 4;
         if (bpm !== 0) {
-          // if(score[current_package.measure] == null){
-          //   score[current_package.measure] = {}
-          // }
+          console.log(current_package.measure + j / current_package.events,current_package.measure + j,current_package.events)
           const beat_bpm: [number, number | string] = [
             (j / current_package.events) * 192,
             bpm,
@@ -416,22 +444,16 @@ export const convert: (
 
           // if (score[current_package.measure]) {
           //   // Check if the value already exists in the array
-          const valueExists = score[current_package.measure]["03"].some(
-            (item: [number, string | number]) =>
-              item[0] === beat_bpm[0] && item[1] === beat_bpm[1]
-          );
-          if (!valueExists) {
-            // If the value doesn't exist, push it to the array
-            score[current_package.measure]["03"].push(beat_bpm);
-          }
-          // } else {
-          //   score[current_package.measure] = { "03": [beat_bpm] };
+          // const valueExists = score[current_package.measure]["03"].some(
+          //   (item: [number, string | number]) =>
+          //     item[0] === beat_bpm[0] && item[1] === beat_bpm[1]
+          // );
+          // if (!valueExists) {
+          //   // If the value doesn't exist, push it to the array
+          //   score[current_package.measure]["03"].push(beat_bpm);
           // }
-          // .push({bpm})
-          // set.add([current_package.measure,j,bpm])
-
-          // score[current_package.measure] = {"03":[...set]}
-          parseTimingPoint(beat, bpm)
+          score[current_package.measure]["03"].push(beat_bpm);
+          parseTimingPoint(beat, bpm);
         }
       } else if (current_package.channel > 8) {
         let event: any = {};
@@ -443,11 +465,14 @@ export const convert: (
         cursor += 1;
 
         const commonData = parseCommon(event);
-  
-        if (commonData) {
-          hard.timeSounds.push({ beat, name: commonData.hitSound, ...commonData });
-        }
 
+        if (commonData) {
+          hard.timeSounds.push({
+            beat,
+            name: commonData.hitSound,
+            ...commonData,
+          });
+        }
       } else {
         let event: any = {};
         event.hitSound = dataview.getInt16(cursor, true);
@@ -462,8 +487,8 @@ export const convert: (
         }
 
         let ribbit_key =
-        keyMapping[current_package.channel as keyof typeof keyMapping];
-        
+          keyMapping[current_package.channel as keyof typeof keyMapping];
+
         if (!score[current_package.measure][ribbit_key]) {
           score[current_package.measure][ribbit_key] = [];
         }
@@ -471,7 +496,7 @@ export const convert: (
         const commonData = parseCommon(event);
         if (commonData) {
           event.type %= 4;
-      
+
           let objectName;
           switch (event.type) {
             case 0:
@@ -479,7 +504,7 @@ export const convert: (
                 (j / current_package.events) * 192,
                 "00",
               ]);
-              objectName = 'note';
+              objectName = "note";
               break;
             case 2:
               if (!lnmap[ribbit_key]) {
@@ -489,7 +514,7 @@ export const convert: (
                 [current_package.measure, (j / current_package.events) * 192],
                 [current_package.measure, (j / current_package.events) * 192],
               ]);
-              objectName = 'longnote';
+              objectName = "longnote";
               commonData.start = true;
               break;
             case 3:
@@ -497,14 +522,21 @@ export const convert: (
                 current_package.measure,
                 (j / current_package.events) * 192,
               ];
-              objectName = 'longnote';
+              objectName = "longnote";
               commonData.start = false;
               break;
           }
 
-          let key = current_package.channel - 2
-          let timing = getTiming(j, current_package.events)
-          hard.noteLines.push({beat,key, timing, objectName, ...commonData, soundTypes: []})
+          let key = current_package.channel - 2;
+          let timing = getTiming(j, current_package.events);
+          hard.noteLines.push({
+            beat,
+            key,
+            timing,
+            objectName,
+            ...commonData,
+            soundTypes: [],
+          });
         }
 
         note++;
@@ -515,7 +547,7 @@ export const convert: (
 
         if (death) {
           if (Object.keys(death).includes(note.toString())) {
-            if(death[note] != null){
+            if (death[note] != null) {
               const output: [number, string] = [
                 (j / current_package.events) * 192,
                 death[note],
@@ -540,6 +572,47 @@ export const convert: (
   }
   score = results;
 
+  let headerBpm = header.bpm;
+  let previousBpm = header.bpm;
+
+  let beatNow = 0;
+  let bypass = false
+  let beatNext = 0;
+  let bpmNow = 0;
+  let timeCount = 0;
+  score.forEach((item, m) => {
+    if (item["03"] == null) {
+      item["88"] = [];
+      item["88"].push([0, previousBpm, 192, (4*60000)/previousBpm  ]);
+      bypass = true
+    }
+    if(!bypass){
+      const newItem = [...item["03"]];
+      item["88"] = newItem;
+  
+      if (item["88"][0][0] != 0) {
+          item["88"].unshift([0, previousBpm]);
+      }
+    }
+    bypass = false
+
+    item["88"].forEach((line, indexGreenLine) => {
+      bpmNow = line[1]
+      beatNow = line[0]
+      try {
+        beatNext =score[m]["88"][indexGreenLine + 1][0]
+      } catch (error) {
+        beatNext = 192
+      }
+      let duration = (((beatNext-beatNow)/48)*60000)/bpmNow
+
+      item["88"][indexGreenLine].push(beatNext,duration)
+    })
+
+    previousBpm = Number(item["88"][item["88"].length - 1][1]);
+
+  });
+
   let ribbit: Ribbit = {
     artist: header.artist,
     bpm: header.bpm,
@@ -554,13 +627,13 @@ export const convert: (
     unit: 192,
   };
 
-  let output: ConvertedOJN = { header, ribbit, hard , hitSounds };
+  let output: ConvertedOJN = { header, ribbit, hard, hitSounds };
 
-  processTimingPoints()
+  processTimingPoints();
 
-  processNotes()
+  processNotes();
 
-  processTimeSounds()
+  processTimeSounds();
 
   return output;
 };
