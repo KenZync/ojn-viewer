@@ -117,7 +117,6 @@
         >
           Play Song (W.I.P)
         </button>
-        <div class="">{{ hard.timingPoints}}</div>
       </div>
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
