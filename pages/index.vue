@@ -460,11 +460,11 @@ let initMeasure = false;
 let offset = 0;
 
 const runPreviewLine = () => {
-  if(!initMeasure &&preview){
-    offset = preview.position.y - pHeight
-    initMeasure = true
+  if (!initMeasure && preview) {
+    offset = preview.position.y - pHeight;
+    initMeasure = true;
   }
-  console.log("PLAYING",measure,mini,greenLine[measure][mini].duration)
+  console.log("PLAYING", measure, mini, greenLine[measure][mini].duration);
   if (preview) {
     $anime({
       targets: preview.position,
@@ -473,14 +473,14 @@ const runPreviewLine = () => {
       duration: greenLine[measure][mini].duration,
       complete: function (anim) {
         mini++;
-        if(typeof greenLine[measure][mini] === "undefined" && preview){
+        if (typeof greenLine[measure][mini] === "undefined" && preview) {
           console.log("End of measure");
           measure++;
           mini = 0;
           preview.position = measureLocation.value[measure];
           offset = preview.position.y - pHeight + 1;
         }
-        runPreviewLine()
+        runPreviewLine();
       },
     });
   }
@@ -660,7 +660,9 @@ const Measure = (param: {
     }
 
     if (key in gScore) {
-      gScore[key].forEach(function (value: [number, string | number, number?, number?]) {
+      gScore[key].forEach(function (
+        value: [number, string | number, number?, number?]
+      ) {
         const pos: number[] = value as number[];
         g.beginFill(colScheme[counter]);
         g.lineStyle(0, 0, 0);
@@ -692,18 +694,22 @@ const Measure = (param: {
   ch.forEach((aKey: string) => {
     if (aKey in gScore && !(ohmMode.value === "off" && aKey === ch[2])) {
       gScore[aKey].forEach((pos) => {
-        if(aKey==ch[3]){
+        if (aKey == ch[3]) {
           // console.log(pos)
-        if (!greenLine[measureNow]) {
-          greenLine[measureNow] = [];
-        }
-        greenLine[measureNow].push({
-          y: gHeight - gGridY * pos[0] - lineH,
-          to: gHeight - gGridY * pos[2] - lineH,
-          translate: (gHeight - gGridY * pos[0] - lineH) - (gHeight - gGridY * pos[2] - lineH),
-          duration: pos[3]
-        });
-          return
+          if (!greenLine[measureNow]) {
+            greenLine[measureNow] = [];
+          }
+          greenLine[measureNow].push({
+            y: gHeight - gGridY * pos[0] - lineH,
+            to: gHeight - gGridY * pos[2] - lineH,
+            translate:
+              gHeight -
+              gGridY * pos[0] -
+              lineH -
+              (gHeight - gGridY * pos[2] - lineH),
+            duration: pos[3],
+          });
+          return;
         }
         if (
           aKey === ch[2] &&

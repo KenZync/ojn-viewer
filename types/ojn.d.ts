@@ -52,8 +52,8 @@ interface Ribbit {
 interface ConvertedOJN {
   header: OJNHeader;
   ribbit: Ribbit;
-  hard: HardType
-  hitSounds?: HitSound; 
+  hard: HardType;
+  hitSounds?: HitSound;
 }
 interface RibbitScore extends RibbitNote {
   length?: number;
@@ -64,7 +64,7 @@ interface HitSound {
 }
 
 interface RibbitNote {
-  [key: string]: Array<[number, string | number, number?,number?]>;
+  [key: string]: Array<[number, string | number, number?, number?]>;
 }
 
 interface RibbitLNMap {

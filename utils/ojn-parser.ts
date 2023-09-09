@@ -430,7 +430,11 @@ export const convert: (
       if (current_package.channel == 0 || current_package.channel == 1) {
         cursor += 4;
         if (bpm !== 0) {
-          console.log(current_package.measure + j / current_package.events,current_package.measure + j,current_package.events)
+          console.log(
+            current_package.measure + j / current_package.events,
+            current_package.measure + j,
+            current_package.events
+          );
           const beat_bpm: [number, number | string] = [
             (j / current_package.events) * 192,
             bpm,
@@ -576,41 +580,40 @@ export const convert: (
   let previousBpm = header.bpm;
 
   let beatNow = 0;
-  let bypass = false
+  let bypass = false;
   let beatNext = 0;
   let bpmNow = 0;
   let timeCount = 0;
   score.forEach((item, m) => {
     if (item["03"] == null) {
       item["88"] = [];
-      item["88"].push([0, previousBpm, 192, (4*60000)/previousBpm  ]);
-      bypass = true
+      item["88"].push([0, previousBpm, 192, (4 * 60000) / previousBpm]);
+      bypass = true;
     }
-    if(!bypass){
+    if (!bypass) {
       const newItem = [...item["03"]];
       item["88"] = newItem;
-  
+
       if (item["88"][0][0] != 0) {
-          item["88"].unshift([0, previousBpm]);
+        item["88"].unshift([0, previousBpm]);
       }
     }
-    bypass = false
+    bypass = false;
 
     item["88"].forEach((line, indexGreenLine) => {
-      bpmNow = line[1]
-      beatNow = line[0]
+      bpmNow = line[1];
+      beatNow = line[0];
       try {
-        beatNext =score[m]["88"][indexGreenLine + 1][0]
+        beatNext = score[m]["88"][indexGreenLine + 1][0];
       } catch (error) {
-        beatNext = 192
+        beatNext = 192;
       }
-      let duration = (((beatNext-beatNow)/48)*60000)/bpmNow
+      let duration = (((beatNext - beatNow) / 48) * 60000) / bpmNow;
 
-      item["88"][indexGreenLine].push(beatNext,duration)
-    })
+      item["88"][indexGreenLine].push(beatNext, duration);
+    });
 
     previousBpm = Number(item["88"][item["88"].length - 1][1]);
-
   });
 
   let ribbit: Ribbit = {
