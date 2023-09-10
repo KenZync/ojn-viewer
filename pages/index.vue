@@ -144,6 +144,7 @@ import {
   rightMargin,
   bottomMargin,
 } from "~/constants";
+import { AnimeInstance } from "animejs";
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 
 const { $anime } = useNuxtApp();
@@ -251,19 +252,16 @@ const { data: ojn } = useAsyncData(
 );
 
 const playSong = async () => {
-  const audioContext = new AudioContext();
   function scheduleSounds() {
-    const currentTime = audioContext.currentTime * 1000; // Convert to milliseconds
-
     function scheduleNotes(notesArray: any[]) {
       for (const { hitSound, startTime } of notesArray) {
-        if (hitSound === 0) continue;
-        if (startTime >= currentTime) {
-          const delay = (startTime - currentTime) / 1000; // Convert to seconds
-          setTimeout(() => {
-            new Audio(hitSounds.value[hitSound]).play();
-          }, delay * 1000); // Convert back to milliseconds
-        }
+        setTimeout(() => {
+          if (hitSounds.value[hitSound] == null) return;
+          if (hitSounds.value[hitSound].length == 82) {
+            return;
+          }
+          new Audio(hitSounds.value[hitSound]).play();
+        }, startTime);
       }
     }
     scheduleNotes(hard.value.notes); // Schedule sounds from hard.value.notes
@@ -306,7 +304,6 @@ const onInputChange = async (e: any) => {
     headerData.value = output.header;
     hard.value = output.hard;
     hitSounds.value = output.hitSounds;
-    console.log(jsonData.value);
     router.replace("/");
     setTimeout(() => {
       renderNote();
@@ -460,29 +457,49 @@ let initMeasure = false;
 let offset = 0;
 
 const runPreviewLine = () => {
-  if (!initMeasure && preview) {
-    offset = preview.position.y - pHeight;
-    initMeasure = true;
-  }
-  console.log("PLAYING", measure, mini, greenLine[measure][mini].duration);
   if (preview) {
-    $anime({
-      targets: preview.position,
-      y: greenLine[measure][mini].to + offset + 1,
-      easing: "linear",
-      duration: greenLine[measure][mini].duration,
-      complete: function (anim) {
-        mini++;
-        if (typeof greenLine[measure][mini] === "undefined" && preview) {
-          console.log("End of measure");
-          measure++;
-          mini = 0;
-          preview.position = measureLocation.value[measure];
+    offset = preview.position.y - pHeight;
+  }
+  let previousY = 0
+  let anime: AnimeInstance
+  for (const room in greenLine) {
+    const lines = greenLine[room];
+    for (const line in lines) {
+      setTimeout(() => {
+        if (preview){
+          if(anime){
+            anime.seek(anime.duration)
+          }
+        }
+        if(parseInt(line) == 0 && preview){
+          preview.position = measureLocation.value[parseInt(room)]
           offset = preview.position.y - pHeight + 1;
         }
-        runPreviewLine();
-      },
-    });
+        if (preview){
+          previousY = greenLine[room][line].to + offset + 1
+          anime = $anime({
+            targets: preview.position,
+            // y: greenLine[measure][mini].to + offset + 1,
+            y: greenLine[room][line].to + offset + 1,
+            easing: "linear",
+            duration: greenLine[room][line].duration,
+
+            // duration: greenLine[measure][mini].duration,
+            // complete: function (anim) {
+            //   mini++;
+            //   if (typeof greenLine[measure][mini] === "undefined" && preview) {
+            //     console.log("End of measure");
+            //     measure++;
+            //     mini = 0;
+            //     preview.position = measureLocation.value[measure];
+            //     offset = preview.position.y - pHeight + 1;
+            //   }
+            //   runPreviewLine();
+            // },
+          });
+        }
+      }, greenLine[room][line].startTime);
+    }
   }
 };
 
@@ -661,7 +678,7 @@ const Measure = (param: {
 
     if (key in gScore) {
       gScore[key].forEach(function (
-        value: [number, string | number, number?, number?]
+        value: [number, string | number, number?, number?, number?]
       ) {
         const pos: number[] = value as number[];
         g.beginFill(colScheme[counter]);
@@ -695,20 +712,17 @@ const Measure = (param: {
     if (aKey in gScore && !(ohmMode.value === "off" && aKey === ch[2])) {
       gScore[aKey].forEach((pos) => {
         if (aKey == ch[3]) {
-          // console.log(pos)
           if (!greenLine[measureNow]) {
             greenLine[measureNow] = [];
           }
-          greenLine[measureNow].push({
-            y: gHeight - gGridY * pos[0] - lineH,
-            to: gHeight - gGridY * pos[2] - lineH,
-            translate:
-              gHeight -
-              gGridY * pos[0] -
-              lineH -
-              (gHeight - gGridY * pos[2] - lineH),
-            duration: pos[3],
-          });
+          if(pos[2]){
+            greenLine[measureNow].push({
+              y: gHeight - gGridY * pos[0] - lineH,
+              to: gHeight - gGridY * pos[2] - lineH,
+              duration: pos[3],
+              startTime: pos[4],
+            });
+          }
           return;
         }
         if (

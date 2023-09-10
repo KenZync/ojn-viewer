@@ -64,7 +64,7 @@ interface HitSound {
 }
 
 interface RibbitNote {
-  [key: string]: Array<[number, string | number, number?, number?]>;
+  [key: string]: Array<[number, string | number, number?, number?, number?]>;
 }
 
 interface RibbitLNMap {

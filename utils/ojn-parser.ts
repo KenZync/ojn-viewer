@@ -177,7 +177,6 @@ export const convert: (
     for (let timing of hard.timingLines) {
       let beat = timing.beat;
       let time = currentTime + ((beat - currentBeat) * 60000) / currentBPM;
-      // console.log(currentTime,beat,currentBeat,currentBPM)
       if (timing.bpm) {
         currentBPM = timing.bpm;
         hard.timingPoints.push({
@@ -430,11 +429,6 @@ export const convert: (
       if (current_package.channel == 0 || current_package.channel == 1) {
         cursor += 4;
         if (bpm !== 0) {
-          console.log(
-            current_package.measure + j / current_package.events,
-            current_package.measure + j,
-            current_package.events
-          );
           const beat_bpm: [number, number | string] = [
             (j / current_package.events) * 192,
             bpm,
@@ -580,28 +574,28 @@ export const convert: (
   let previousBpm = header.bpm;
 
   let beatNow = 0;
-  let bypass = false;
   let beatNext = 0;
   let bpmNow = 0;
   let timeCount = 0;
   score.forEach((item, m) => {
     if (item["03"] == null) {
       item["88"] = [];
-      item["88"].push([0, previousBpm, 192, (4 * 60000) / previousBpm]);
-      bypass = true;
+      let dura = (4 * 60000) / previousBpm
+      item["88"].push([0, previousBpm, 192, dura , timeCount]);
+      timeCount = timeCount+ dura
+      return
     }
-    if (!bypass) {
-      const newItem = [...item["03"]];
-      item["88"] = newItem;
 
-      if (item["88"][0][0] != 0) {
-        item["88"].unshift([0, previousBpm]);
-      }
+    const newItem = [...item["03"]];
+    item["88"] = newItem;
+
+    if (item["88"][0][0] != 0) {
+      item["88"].unshift([0, previousBpm]);
     }
-    bypass = false;
+    
 
     item["88"].forEach((line, indexGreenLine) => {
-      bpmNow = line[1];
+      bpmNow = Number(line[1]);
       beatNow = line[0];
       try {
         beatNext = score[m]["88"][indexGreenLine + 1][0];
@@ -609,8 +603,8 @@ export const convert: (
         beatNext = 192;
       }
       let duration = (((beatNext - beatNow) / 48) * 60000) / bpmNow;
-
-      item["88"][indexGreenLine].push(beatNext, duration);
+      item["88"][indexGreenLine].push(beatNext, duration, timeCount);
+      timeCount = timeCount+duration
     });
 
     previousBpm = Number(item["88"][item["88"].length - 1][1]);
