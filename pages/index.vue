@@ -460,23 +460,31 @@ const runPreviewLine = () => {
   if (preview) {
     offset = preview.position.y - pHeight;
   }
-  let previousY = 0
-  let anime: AnimeInstance
+  let previousY = 0;
+  let anime: AnimeInstance;
   for (const room in greenLine) {
     const lines = greenLine[room];
     for (const line in lines) {
       setTimeout(() => {
-        if (preview){
-          if(anime){
-            anime.seek(anime.duration)
+        if (preview) {
+          if (anime) {
+            anime.seek(anime.duration);
           }
         }
-        if(parseInt(line) == 0 && preview){
-          preview.position = measureLocation.value[parseInt(room)]
+        if (parseInt(line) == 0 && preview && main) {
+          main.position.x = Math.min(
+            Math.max(
+              -measureLocation.value[parseInt(room)].x,
+              app.renderer.width - main.width - leftMargin - rightMargin
+            ),
+            0
+          );
+          updateDrawbox();
+          preview.position = measureLocation.value[parseInt(room)];
           offset = preview.position.y - pHeight + 1;
         }
-        if (preview){
-          previousY = greenLine[room][line].to + offset + 1
+        if (preview) {
+          previousY = greenLine[room][line].to + offset + 1;
           anime = $anime({
             targets: preview.position,
             // y: greenLine[measure][mini].to + offset + 1,
@@ -715,7 +723,7 @@ const Measure = (param: {
           if (!greenLine[measureNow]) {
             greenLine[measureNow] = [];
           }
-          if(pos[2]){
+          if (pos[2]) {
             greenLine[measureNow].push({
               y: gHeight - gGridY * pos[0] - lineH,
               to: gHeight - gGridY * pos[2] - lineH,
