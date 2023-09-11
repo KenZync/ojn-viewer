@@ -20,18 +20,7 @@
         v-else
         class="min-h-screen bg-zinc-900 flex justify-center items-center text-white font-bold flex-col"
       >
-        <div class="">OJN Viewer by KenZ</div>
-        <div class="flex flex-col text-center">
-          <div>Credits</div>
-          <a href="https://rodrig0v.github.io/webmania/#/"
-            >https://rodrig0v.github.io/webmania/#/</a
-          >
-          <a href="http://www.ribbit.xyz/bms/score/"
-            >http://www.ribbit.xyz/bms/score/</a
-          >
-          <div>Contributor</div>
-          <div>Lelloq</div>
-        </div>
+        <TitleScreen />
       </div>
       <Sidebar
         v-if="showPanel"
@@ -46,9 +35,9 @@
       />
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
-        v-if="loading"
+        v-if="!loading"
       >
-        <div class="flex h-screen items-center justify-center">
+        <div class="flex h-screen items-center">
           <LoadingSpinner />
         </div>
       </div>
