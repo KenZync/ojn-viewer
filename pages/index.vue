@@ -342,7 +342,6 @@ const runPreviewLine = () => {
   if (preview) {
     offset = preview.position.y - pHeight;
   }
-  let previousY = 0;
   let anime: AnimeInstance;
   for (const room in greenLine) {
     const lines = greenLine[room];
@@ -366,7 +365,6 @@ const runPreviewLine = () => {
           offset = preview.position.y - pHeight + 1;
         }
         if (preview) {
-          previousY = greenLine[room][line].to + offset + 1;
           anime = $anime({
             targets: preview.position,
             y: greenLine[room][line].to + offset + 1,
@@ -485,8 +483,6 @@ const Measure = (param: {
   g.lineTo(gWidth + lineWidth, gHeight - lineWidth);
   g.lineTo(lineStart - 1, gHeight - lineWidth);
   g.lineTo(lineStart - 1, 0);
-
-  // console.log(gWidth + lineWidth, 0, gWidth + lineWidth, gHeight - lineWidth, lineStart - 1, gHeight - lineWidth, lineStart - 1, 0)
 
   // ノート描画
   var noteThickness = 4;
@@ -615,14 +611,6 @@ const Measure = (param: {
           gGridX * measureLeftLaneSize[7],
           gHeight - gGridY * pos[0] - lineH
         );
-
-        // if (!greenLine[measureNow]) {
-        //   greenLine[measureNow] = [];
-        // }
-        // greenLine[measureNow].push({
-        //   x: lineStart,
-        //   y: gHeight - gGridY * pos[0] - lineH,
-        // });
 
         const labelText: PIXI.Text = new PIXI.Text(
           aKey === ch[2]
