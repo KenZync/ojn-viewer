@@ -50,7 +50,7 @@ var readFileEntry = async function (fileEntry: {
   });
 };
 
-var readFileAsArrayBuffer = async function (file: Blob): Promise<ArrayBuffer> {
+export const readFileAsArrayBuffer = async function (file: Blob): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     let fileReader = new FileReader();
     fileReader.onload = (e) => resolve(e.target?.result as ArrayBuffer);

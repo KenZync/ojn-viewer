@@ -6,6 +6,9 @@
         class="flex justify-between h-[50px] bg-black text-white text-xl font-bold p-4"
       >
         <div>
+          <audio controls v-if="audio">
+            <source :src="audio" />
+          </audio>
           {{
             `Lv.${headerData.difficulty.hard.level} ${jsonData.title} / ${
               jsonData.artist
@@ -117,6 +120,8 @@
         >
           Play Song (W.I.P)
         </button>
+        {{ message }}
+        <div v-if="hitSounds && Object.keys(hitSounds).length !== 0"></div>
       </div>
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
@@ -133,7 +138,7 @@
 
 <script setup lang="ts">
 import * as PIXI from "pixi.js";
-import FileParser from "~/utils/file-parser";
+import FileParser, { readFileAsArrayBuffer } from "~/utils/file-parser";
 import { fancyTimeFormat } from "~/utils/formatter";
 import { searchDeathPlayer, searchStringInDeathPoint } from "~/utils/search";
 import {
@@ -145,6 +150,10 @@ import {
   bottomMargin,
 } from "~/constants";
 import { AnimeInstance } from "animejs";
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import type { LogEvent } from "@ffmpeg/ffmpeg/dist/esm/types";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
+
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 
 const { $anime } = useNuxtApp();
@@ -166,6 +175,7 @@ const ohmMode = ref("all");
 
 const hard = ref<any>();
 const hitSounds = ref<any>();
+const message = ref("Status : Nothing");
 
 var app: PIXI.Application<PIXI.ICanvas>;
 
@@ -198,6 +208,12 @@ var measureNow = 0;
 let pHeight = 0;
 let greenLine: any = {};
 
+onUnmounted(() => {
+  if (app) {
+    app.destroy(true);
+  }
+});
+
 useHead({
   title: "OJN Viewer",
   meta: [{ name: "description", content: "O2Jam Chart Viewer" }],
@@ -227,20 +243,26 @@ const { data: ojn } = useAsyncData(
       );
       deathPoints.value = resDeath as DeathPoint;
       try {
-        const downloadedOjn = await $fetch(
-          `/api/${route.query.server}/${route.query.id}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/octet-stream",
-            },
-            responseType: "arrayBuffer",
-          }
-        );
+        const downloadedOjn = await $fetch(`/o2ma2703.ojn`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+          responseType: "arrayBuffer",
+        });
+        const downloadedOjm = await $fetch(`/o2ma2703.ojm`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+          responseType: "arrayBuffer",
+        });
+        hitSounds.value = ojmParser.parseContent(downloadedOjm as ArrayBuffer);
         const response = downloadedOjn as ArrayBuffer;
         let output: ConvertedOJN = convert(response, deathPoints.value, {});
         jsonData.value = output.ribbit;
         headerData.value = output.header;
+        hard.value = output.hard;
         renderNote();
       } catch (error) {
         alert("OJN NOT FOUND " + error);
@@ -251,23 +273,99 @@ const { data: ojn } = useAsyncData(
   { server: false }
 );
 
-const playSong = async () => {
-  function scheduleSounds() {
-    function scheduleNotes(notesArray: any[]) {
-      for (const { hitSound, startTime } of notesArray) {
-        setTimeout(() => {
-          if (hitSounds.value[hitSound] == null) return;
-          if (hitSounds.value[hitSound].length == 82) {
-            return;
-          }
-          new Audio(hitSounds.value[hitSound]).play();
-        }, startTime);
-      }
+const audio = ref();
+
+const playSong = async () => {''
+  const ffmpeg = new FFmpeg();
+  ffmpeg.on("log", ({ type, message }) => {
+  console.log(type,message)
+  })
+  message.value = "Loading ffmpeg";
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`/ffmpeg-core.js`, "text/javascript"),
+    wasmURL: await toBlobURL(`/ffmpeg-core.wasm`, "applicaiton/wasm"),
+    // workerURL: await toBlobURL(`/ffmpeg-core.worker.js`, "text/javascript"),
+  },);
+  message.value = "Writing Files to wasm";
+
+  for (const [id, audioData] of Object.entries(hitSounds.value)) {
+    let name = "";
+    if (hitSounds.value[id].startsWith("data:audio/ogg")) {
+      name = `${id}.ogg`;
     }
-    scheduleNotes(hard.value.notes); // Schedule sounds from hard.value.notes
-    scheduleNotes(hard.value.timeSounds); // Schedule sounds from hard.value.timeSounds
+    if (hitSounds.value[id].startsWith("data:audio/wav")) {
+      name = `${id}.wav`;
+    }
+    //Write all audio files to ffmpeg workers
+    await ffmpeg.writeFile(name, await fetchFile(hitSounds.value[id]));
   }
-  scheduleSounds();
+
+  // Combine the notes and timeSounds arrays and sort them based on startTime
+  const allSounds = [...hard.value.notes, ...hard.value.timeSounds]
+    .sort((a, b) => a.startTime - b.startTime)
+    .map((sound) => ({
+      ...sound,
+      name: hitSounds.value[sound.hitSound]
+        ? `${sound.hitSound}.${
+            hitSounds.value[sound.hitSound].startsWith("data:audio/ogg")
+              ? "ogg"
+              : "wav"
+          }`
+        : "",
+    }))
+    .filter((sound) => {
+    const hitSoundValue = hitSounds.value[sound.hitSound];
+    return hitSoundValue && hitSoundValue.length !== 82;
+  })
+
+    
+
+  const input = allSounds.reduce((acc, sound) => {
+    acc.push("-i", sound.name);
+    return acc;
+  }, []);
+
+  const filter = allSounds
+    .map(
+      (sound, index) =>
+        `[${index}]adelay=${sound.startTime}|${sound.startTime}[a${index}]`
+    )
+    .join(";");
+  const concatFilter = allSounds.map((sound, index) => `[a${index}]`).join("");
+
+  const args = [
+    ...input,
+    "-filter_complex",
+    filter + ";" + concatFilter + "amix=inputs=" + allSounds.length+":normalize=0",
+    "output.ogg",
+  ];
+
+  await ffmpeg.exec(args);
+
+  const data = await ffmpeg.readFile("output.ogg");
+  message.value = "Done transcoding";
+  audio.value = URL.createObjectURL(
+    new Blob([(data as Uint8Array).buffer], { type: "audio/ogg" })
+  );
+  new Audio(audio.value).play();
+  message.value = "Complete transcoding";
+
+  // function scheduleSounds() {
+  //   function scheduleNotes(notesArray: any[]) {
+  //     for (const { hitSound, startTime } of notesArray) {
+  //       setTimeout(() => {
+  //         if (hitSounds.value[hitSound] == null) return;
+  //         if (hitSounds.value[hitSound].length == 82) {
+  //           return;
+  //         }
+  //         new Audio(hitSounds.value[hitSound]).play();
+  //       }, startTime);
+  //     }
+  //   }
+  //   scheduleNotes(hard.value.notes); // Schedule sounds from hard.value.notes
+  //   scheduleNotes(hard.value.timeSounds); // Schedule sounds from hard.value.timeSounds
+  // }
+  // scheduleSounds();
   runPreviewLine();
 };
 
@@ -460,23 +558,23 @@ const runPreviewLine = () => {
   if (preview) {
     offset = preview.position.y - pHeight;
   }
-  let previousY = 0
-  let anime: AnimeInstance
+  let previousY = 0;
+  let anime: AnimeInstance;
   for (const room in greenLine) {
     const lines = greenLine[room];
     for (const line in lines) {
       setTimeout(() => {
-        if (preview){
-          if(anime){
-            anime.seek(anime.duration)
+        if (preview) {
+          if (anime) {
+            anime.seek(anime.duration);
           }
         }
-        if(parseInt(line) == 0 && preview){
-          preview.position = measureLocation.value[parseInt(room)]
+        if (parseInt(line) == 0 && preview) {
+          preview.position = measureLocation.value[parseInt(room)];
           offset = preview.position.y - pHeight + 1;
         }
-        if (preview){
-          previousY = greenLine[room][line].to + offset + 1
+        if (preview) {
+          previousY = greenLine[room][line].to + offset + 1;
           anime = $anime({
             targets: preview.position,
             // y: greenLine[measure][mini].to + offset + 1,
@@ -715,7 +813,7 @@ const Measure = (param: {
           if (!greenLine[measureNow]) {
             greenLine[measureNow] = [];
           }
-          if(pos[2]){
+          if (pos[2]) {
             greenLine[measureNow].push({
               y: gHeight - gGridY * pos[0] - lineH,
               to: gHeight - gGridY * pos[2] - lineH,

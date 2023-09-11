@@ -580,10 +580,10 @@ export const convert: (
   score.forEach((item, m) => {
     if (item["03"] == null) {
       item["88"] = [];
-      let dura = (4 * 60000) / previousBpm
-      item["88"].push([0, previousBpm, 192, dura , timeCount]);
-      timeCount = timeCount+ dura
-      return
+      let dura = (4 * 60000) / previousBpm;
+      item["88"].push([0, previousBpm, 192, dura, timeCount]);
+      timeCount = timeCount + dura;
+      return;
     }
 
     const newItem = [...item["03"]];
@@ -592,7 +592,6 @@ export const convert: (
     if (item["88"][0][0] != 0) {
       item["88"].unshift([0, previousBpm]);
     }
-    
 
     item["88"].forEach((line, indexGreenLine) => {
       bpmNow = Number(line[1]);
@@ -604,7 +603,7 @@ export const convert: (
       }
       let duration = (((beatNext - beatNow) / 48) * 60000) / bpmNow;
       item["88"][indexGreenLine].push(beatNext, duration, timeCount);
-      timeCount = timeCount+duration
+      timeCount = timeCount + duration;
     });
 
     previousBpm = Number(item["88"][item["88"].length - 1][1]);

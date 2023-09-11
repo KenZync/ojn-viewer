@@ -15,6 +15,7 @@
     "nuxt": "^3.7.1"
   },
   "dependencies": {
+    "@ffmpeg/core-mt": "^0.12.3",
     "@ffmpeg/ffmpeg": "^0.12.6",
     "@ffmpeg/util": "^0.12.1",
     "box-node-sdk": "^3.1.1",
