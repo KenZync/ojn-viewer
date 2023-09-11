@@ -35,7 +35,7 @@
       />
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
-        v-if="!loading"
+        v-if="loading"
       >
         <div class="flex h-screen items-center">
           <LoadingSpinner />
