@@ -427,6 +427,11 @@ export const convert: (
       let beat = (current_package.measure + j / current_package.events) * 4;
       let bpm = dataview.getFloat32(cursor, true);
       if (current_package.channel == 0 || current_package.channel == 1) {
+        var multiplier = 1;
+        if (current_package.channel == 0) {
+          multiplier = bpm
+        }
+        
         cursor += 4;
         if (bpm !== 0) {
           const beat_bpm: [number, number | string] = [
@@ -436,6 +441,12 @@ export const convert: (
 
           if (!score[current_package.measure]["03"]) {
             score[current_package.measure]["03"] = [];
+          }
+
+          if(current_package.channel == 0){
+            score[current_package.measure].length = 192*multiplier
+          }else{
+            score[current_package.measure]["03"].push(beat_bpm);
           }
 
           // score[current_package.measure][key].push( [j,'00'] );
@@ -450,7 +461,6 @@ export const convert: (
           //   // If the value doesn't exist, push it to the array
           //   score[current_package.measure]["03"].push(beat_bpm);
           // }
-          score[current_package.measure]["03"].push(beat_bpm);
           parseTimingPoint(beat, bpm);
         }
       } else if (current_package.channel > 8) {
