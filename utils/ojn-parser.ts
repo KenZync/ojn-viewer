@@ -438,16 +438,22 @@ export const convert: (
             (j / current_package.events) * 192,
             bpm,
           ];
-
+          if(bpm < 10e-10){
+            continue
+          }
+          if(current_package.channel == 0 && bpm > 10e-10){
+            score[current_package.measure].length = 192*multiplier
+            continue
+          }
           if (!score[current_package.measure]["03"]) {
             score[current_package.measure]["03"] = [];
           }
-
-          if(current_package.channel == 0){
-            score[current_package.measure].length = 192*multiplier
-          }else{
-            score[current_package.measure]["03"].push(beat_bpm);
-          }
+          
+          // if(bpm > 0 || bpm < 10e-10){
+          //   continue
+          // }
+          score[current_package.measure]["03"].push(beat_bpm);
+          parseTimingPoint(beat, bpm);
 
           // score[current_package.measure][key].push( [j,'00'] );
 
@@ -461,7 +467,6 @@ export const convert: (
           //   // If the value doesn't exist, push it to the array
           //   score[current_package.measure]["03"].push(beat_bpm);
           // }
-          parseTimingPoint(beat, bpm);
         }
       } else if (current_package.channel > 8) {
         let event: any = {};
@@ -567,7 +572,6 @@ export const convert: (
       }
     }
   }
-
   const results = [];
   for (const value of score) {
     // If the value is null, add an empty dictionary to the results array.
@@ -602,7 +606,6 @@ export const convert: (
     if (item["88"][0][0] != 0) {
       item["88"].unshift([0, previousBpm]);
     }
-    
 
     item["88"].forEach((line, indexGreenLine) => {
       bpmNow = Number(line[1]);
