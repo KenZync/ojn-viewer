@@ -429,26 +429,25 @@ export const convert: (
       if (current_package.channel == 0 || current_package.channel == 1) {
         var multiplier = 1;
         if (current_package.channel == 0) {
-          multiplier = bpm
+          multiplier = bpm;
         }
-        
+
         cursor += 4;
         if (bpm !== 0) {
           const beat_bpm: [number, number | string] = [
             (j / current_package.events) * 192,
             bpm,
           ];
-          if(bpm < 10e-10){
-            continue
+          if (bpm < 10e-10) {
+            continue;
           }
-          if(current_package.channel == 0 && bpm > 10e-10){
-            score[current_package.measure].length = 192*multiplier
-            continue
+          if (current_package.channel == 0 && bpm > 10e-10) {
+            score[current_package.measure].length = 192 * multiplier;
+            continue;
           }
           if (!score[current_package.measure]["03"]) {
             score[current_package.measure]["03"] = [];
           }
-          
           // if(bpm > 0 || bpm < 10e-10){
           //   continue
           // }
@@ -476,7 +475,6 @@ export const convert: (
         cursor += 1;
         event.type = dataview.getInt8(cursor);
         cursor += 1;
-
         const commonData = parseCommon(event);
 
         if (commonData) {
@@ -531,13 +529,15 @@ export const convert: (
               commonData.start = true;
               break;
             case 3:
-              lnmap[ribbit_key][lnmap[ribbit_key].length - 1][1] = [
-                current_package.measure,
-                (j / current_package.events) * 192,
-              ];
-              objectName = "longnote";
-              commonData.start = false;
-              break;
+              if (lnmap[ribbit_key]) {
+                lnmap[ribbit_key][lnmap[ribbit_key].length - 1][1] = [
+                  current_package.measure,
+                  (j / current_package.events) * 192,
+                ];
+                objectName = "longnote";
+                commonData.start = false;
+                break;
+              }
           }
 
           let key = current_package.channel - 2;
@@ -572,6 +572,7 @@ export const convert: (
       }
     }
   }
+
   const results = [];
   for (const value of score) {
     // If the value is null, add an empty dictionary to the results array.
@@ -584,7 +585,6 @@ export const convert: (
   }
   score = results;
 
-  let headerBpm = header.bpm;
   let previousBpm = header.bpm;
 
   let beatNow = 0;
@@ -594,10 +594,10 @@ export const convert: (
   score.forEach((item, m) => {
     if (item["03"] == null) {
       item["88"] = [];
-      let dura = (4 * 60000) / previousBpm
-      item["88"].push([0, previousBpm, 192, dura , timeCount]);
-      timeCount = timeCount+ dura
-      return
+      let dura = (4 * 60000) / previousBpm;
+      item["88"].push([0, previousBpm, 192, dura, timeCount]);
+      timeCount = timeCount + dura;
+      return;
     }
 
     const newItem = [...item["03"]];
@@ -617,7 +617,7 @@ export const convert: (
       }
       let duration = (((beatNext - beatNow) / 48) * 60000) / bpmNow;
       item["88"][indexGreenLine].push(beatNext, duration, timeCount);
-      timeCount = timeCount+duration
+      timeCount = timeCount + duration;
     });
 
     previousBpm = Number(item["88"][item["88"].length - 1][1]);
@@ -644,6 +644,5 @@ export const convert: (
   processNotes();
 
   processTimeSounds();
-
   return output;
 };
