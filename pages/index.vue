@@ -135,10 +135,12 @@ const { data: ojn } = useAsyncData(
   async () => {
     if (route.query.server && route.query.id) {
       loading.value = true;
-      const resDeath = await $fetch(
-        `/api/${route.query.server}/fail/${route.query.id}`
-      );
-      deathPoints.value = resDeath as DeathPoint;
+      if(route.query.server === 'dmjam'){
+        const resDeath = await $fetch(
+          `/api/${route.query.server}/fail/${route.query.id}`
+        );
+        deathPoints.value = resDeath as DeathPoint;
+      }
       try {
         const downloadedOjn = await $fetch(
           `/api/${route.query.server}/${route.query.id}`,
