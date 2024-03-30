@@ -2,7 +2,7 @@ import BoxSDK from "box-node-sdk";
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
-  const folder = getRouterParam(event, "folder");
+  const query = getQuery(event);
   const filename = `o2ma${id}.ojn`;
 
   const sdk = new BoxSDK({
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
   const search = await client.search.query(filename, {
     content_types: "name",
     fields: "id,name",
-    ancestor_folder_ids: folder,
+    ancestor_folder_ids: query.folder,
     limit: 1,
   });
 

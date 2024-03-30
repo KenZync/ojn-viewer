@@ -135,7 +135,7 @@ const { data: ojn } = useAsyncData(
   async () => {
     if (route.query.server && route.query.id) {
       loading.value = true;
-      if(route.query.server === 'dmjam'){
+      if (route.query.server === "dmjam") {
         const resDeath = await $fetch(
           `/api/${route.query.server}/fail/${route.query.id}`
         );
@@ -145,6 +145,9 @@ const { data: ojn } = useAsyncData(
         const downloadedOjn = await $fetch(
           `/api/${route.query.server}/${route.query.id}`,
           {
+            query: {
+              folder: route.query.folder,
+            },
             method: "GET",
             headers: {
               "Content-Type": "application/octet-stream",
