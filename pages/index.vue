@@ -142,19 +142,21 @@ const { data: ojn } = useAsyncData(
         deathPoints.value = resDeath as DeathPoint;
       }
       try {
-        const downloadedOjn = await $fetch(
+        const downloadUrl = await $fetch(
           `/api/${route.query.server}/${route.query.id}`,
           {
             query: {
               folder: route.query.folder,
             },
-            method: "GET",
-            headers: {
-              "Content-Type": "application/octet-stream",
-            },
-            responseType: "arrayBuffer",
           }
         );
+        const responseUrl = downloadUrl;
+        const downloadedOjn = await $fetch(responseUrl, {
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+          responseType: "arrayBuffer",
+        });
         const response = downloadedOjn as ArrayBuffer;
         let output: ConvertedOJN = convert(response, deathPoints.value, {});
         jsonData.value = output.ribbit;

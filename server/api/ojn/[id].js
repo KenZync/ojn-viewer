@@ -36,6 +36,6 @@ export default defineEventHandler(async (event) => {
   if (firstEntry.name != filename) {
     throw createError({ statusCode: 404, statusMessage: "OJN Not Found" });
   }
-  const file = client.files.getReadStream(firstEntry.id);
-  return file;
+  const url = client.files.getDownloadURL(firstEntry.id);
+  return url;
 });
