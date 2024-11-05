@@ -5,3 +5,8 @@ export const useSeed = () => {
 export const useOhm = () => {
     return useState("ohm", () => "all");
 };
+
+export const useNoLN = () => {
+  return useState("noLN", () => false);
+};
+

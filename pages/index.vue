@@ -32,6 +32,7 @@
         @upload="upload"
         @toggle-ohm-mode="toggleOhmMode"
         @play-song="playSong"
+        @toggle-no-ln="toggleNoLN"
       />
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
@@ -78,6 +79,7 @@ const headerData = ref<OJNHeader>();
 const showPanel = ref(true);
 const seed = useSeed();
 const ohmMode = useOhm();
+const noLN = useNoLN();
 
 const hard = ref<any>();
 const hitSounds = ref<any>();
@@ -536,21 +538,37 @@ const Measure = (param: {
           var lnEnd = gLogicalLength;
           if (area[0][0] == gIndex) {
             lnBegin = area[0][1];
+            if(noLN.value){
+              g.beginFill(colSchemeLN[counter]);
+              g.lineStyle(0, 0, 0);
+              g.drawRect(
+                idx * gGridX - (idx == 0 ? lineWidth : 0) + (lnRatio * gGridX) / 2,
+                gHeight - gGridY * lnBegin - noteThickness - lineWidth,
+                2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
+                noteThickness
+              );
+              g.endFill();
+            }
           }
           if (area[1][0] == gIndex) {
             lnEnd = area[1][1];
           }
-          g.beginFill(colSchemeLN[counter]);
-          g.lineStyle(0, 0, 0);
-          g.drawRect(
-            idx * gGridX - (idx == 0 ? lineWidth : 0) + (lnRatio * gGridX) / 2,
-            gHeight - gGridY * lnEnd - lineWidth,
-            2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
-            gGridY * (lnEnd - lnBegin) +
-              (lnBegin == 0 ? lineWidth : 0) -
-              lineWidth
-          );
-          g.endFill();
+
+          if (!noLN.value) {
+            g.beginFill(colSchemeLN[counter]);
+            g.lineStyle(0, 0, 0);
+            g.drawRect(
+              idx * gGridX - (idx == 0 ? lineWidth : 0) + (lnRatio * gGridX) / 2,
+              gHeight - gGridY * lnEnd - lineWidth,
+              2 * gGridX - (idx == 0 ? 0 : lineWidth) - lnRatio * gGridX,
+              gGridY * (lnEnd - lnBegin) +
+                (lnBegin == 0 ? lineWidth : 0) -
+                lineWidth
+            );
+            g.endFill();
+          }
+
+          
         }
       });
     }
@@ -853,6 +871,19 @@ const toggleOhmMode = (event: string) => {
     alert("NO DATA");
     return;
   }
+  loading.value = true;
+  setTimeout(() => {
+    if (main != null) {
+      let nowLocation = main?.position.x;
+      renderNote();
+      main.position.x = nowLocation;
+    }
+    updateDrawbox();
+  }, 200);
+};
+
+const toggleNoLN = () => {
+  noLN.value = !noLN.value;
   loading.value = true;
   setTimeout(() => {
     if (main != null) {

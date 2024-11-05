@@ -81,6 +81,16 @@
     >
       Play Song (W.I.P)
     </button>
+    <button
+      @click="toggleNoLN"
+      :class="{
+        'bg-zinc-700': !noLN,
+        'bg-blue-600': noLN,
+      }"
+      class="border border-gray-400 rounded-lg text-center font-bold py-2"
+    >
+      Toggle No LN
+    </button>
   </div>
 </template>
 
@@ -98,11 +108,17 @@ const emit = defineEmits<{
   upload: [value: ConvertedOJN];
   toggleOhmMode: [value: string];
   playSong: [void];
+  toggleNoLn: [void];
 }>();
 
 const route = useRoute();
 const seed = useSeed();
 const ohmMode = useOhm();
+const noLN = useNoLN();
+
+const toggleNoLN = () => {
+  emit("toggleNoLn");
+};
 
 const onInputChange = async (e: any) => {
   let originalFiles;
