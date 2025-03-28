@@ -155,9 +155,9 @@ const { data: ojn } = useAsyncData(
         // const responseUrl = downloadUrl;
         const responseUrl = `http://ojn-api.dmjam.net/ojn-api/o2ma${route.query.id}.ojn`
         const downloadedOjn = await $fetch(responseUrl, {
-          headers: {
-            "Content-Type": "application/octet-stream",
-          },
+          // headers: {
+          //   "Content-Type": "application/octet-stream",
+          // },
           responseType: "arrayBuffer",
         });
         const response = downloadedOjn as ArrayBuffer;
