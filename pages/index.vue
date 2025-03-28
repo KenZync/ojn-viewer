@@ -144,15 +144,16 @@ const { data: ojn } = useAsyncData(
         deathPoints.value = resDeath as DeathPoint;
       }
       try {
-        const downloadUrl = await $fetch(
-          `/api/${route.query.server}/${route.query.id}`,
-          {
-            query: {
-              folder: route.query.folder,
-            },
-          }
-        );
-        const responseUrl = downloadUrl;
+        // const downloadUrl = await $fetch(
+        //   `/api/${route.query.server}/${route.query.id}`,
+        //   {
+        //     query: {
+        //       folder: route.query.folder,
+        //     },
+        //   }
+        // );
+        // const responseUrl = downloadUrl;
+        const responseUrl = `http://ojn-api.dmjam.net/ojn-api/o2ma${route.query.id}.ojn`
         const downloadedOjn = await $fetch(responseUrl, {
           headers: {
             "Content-Type": "application/octet-stream",
