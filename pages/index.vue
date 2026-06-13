@@ -1536,7 +1536,6 @@ const toggleOhmMode = (event: string) => {
 };
 
 const toggleNoLN = () => {
-  noLN.value = !noLN.value;
   if (main != null) {
     loading.value = true;
     setTimeout(() => {
