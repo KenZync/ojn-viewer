@@ -1,8 +1,20 @@
-import { Buffer } from "buffer";
-import iconv from "iconv-lite";
-
 const OJN_SIGNATURE = 0x006e6a6f;
 const dec = new TextDecoder("utf-8");
+const decEucKr = new TextDecoder("euc-kr");
+
+const uint8ArrayToBase64 = (uint8Array: any) => {
+  if (uint8Array instanceof ArrayBuffer) {
+    uint8Array = new Uint8Array(uint8Array);
+  } else if (uint8Array.buffer && !(uint8Array instanceof Uint8Array)) {
+    uint8Array = new Uint8Array(uint8Array.buffer, uint8Array.byteOffset, uint8Array.byteLength);
+  }
+  let binary = "";
+  const len = uint8Array.length;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  return window.btoa(binary);
+};
 
 const genreMap = [
   "Ballad",
@@ -345,17 +357,17 @@ export const convert: (
   header.old_file_version = dataview.getInt32(cursor, true);
   cursor += 4;
 
-  const title_raw = Buffer.from(ojn, 108, 64);
-  header.title = iconv.decode(title_raw, "CP949").replace(/\0/g, "");
+  const title_raw = new Uint8Array(ojn, 108, 64);
+  header.title = decEucKr.decode(title_raw).replace(/\0/g, "");
 
-  const artist_raw = Buffer.from(ojn, 172, 32);
-  header.artist = iconv.decode(artist_raw, "CP949").replace(/\0/g, "");
+  const artist_raw = new Uint8Array(ojn, 172, 32);
+  header.artist = decEucKr.decode(artist_raw).replace(/\0/g, "");
 
-  const noter_raw = Buffer.from(ojn, 204, 32);
-  header.noter = iconv.decode(noter_raw, "CP949").replace(/\0/g, "");
+  const noter_raw = new Uint8Array(ojn, 204, 32);
+  header.noter = decEucKr.decode(noter_raw).replace(/\0/g, "");
 
-  const ojm_file_raw = Buffer.from(ojn, 236, 32);
-  header.ojm_file = iconv.decode(ojm_file_raw, "CP949").replace(/\0/g, "");
+  const ojm_file_raw = new Uint8Array(ojn, 236, 32);
+  header.ojm_file = decEucKr.decode(ojm_file_raw).replace(/\0/g, "");
   cursor += 64;
   cursor += 32;
   cursor += 32;
@@ -386,13 +398,9 @@ export const convert: (
   const cover_offset_end = header.cover_offset + header.cover_size;
   const bmp_offset_end = cover_offset_end + header.bmp_size;
 
-  const cover_base64 = Buffer.from(
-    ojn.slice(header.cover_offset, cover_offset_end)
-  ).toString("base64");
+  const cover_base64 = uint8ArrayToBase64(new Uint8Array(ojn, header.cover_offset, header.cover_size));
   const cover = "data:image/png;base64," + cover_base64;
-  const bmp_base64 = Buffer.from(
-    ojn.slice(cover_offset_end, bmp_offset_end)
-  ).toString("base64");
+  const bmp_base64 = uint8ArrayToBase64(new Uint8Array(ojn, cover_offset_end, header.bmp_size));
   const bmp = "data:image/png;base64," + bmp_base64;
 
   header.image = cover;
@@ -644,5 +652,15 @@ export const convert: (
   processNotes();
 
   processTimeSounds();
+
+  const removeDuplicateTimeSounds = () => {
+    const noteKeys = new Set(hard.notes.map((n) => `${n.beat}_${n.hitSound}`));
+    hard.timeSounds = hard.timeSounds.filter((ts) => {
+      const key = `${ts.beat}_${ts.hitSound}`;
+      return !noteKeys.has(key);
+    });
+  };
+  removeDuplicateTimeSounds();
+
   return output;
 };

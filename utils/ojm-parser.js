@@ -1,5 +1,17 @@
 "use strict";
-import { Buffer } from "buffer";
+function uint8ArrayToBase64(uint8Array) {
+  if (uint8Array instanceof ArrayBuffer) {
+    uint8Array = new Uint8Array(uint8Array);
+  } else if (uint8Array.buffer && !(uint8Array instanceof Uint8Array)) {
+    uint8Array = new Uint8Array(uint8Array.buffer, uint8Array.byteOffset, uint8Array.byteLength);
+  }
+  let binary = "";
+  const len = uint8Array.length;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  return window.btoa(binary);
+}
 function OJMParser() {
   var data = {
     samples: [],
@@ -70,9 +82,10 @@ function OJMParser() {
     cursor += 4;
 
     cursor = data.sampleOffset;
+    const payloadSize = data.payloadSize || buffer.byteLength;
 
     for (let i = 0; i < data.sampleCount; i++) {
-      if (data.payloadSize - cursor < 52) break;
+      if (payloadSize - cursor < 52) break;
 
       let sample = {
         extension: "ogg",
@@ -145,14 +158,14 @@ function OJMParser() {
     data.oggStart = dataview.getInt32(cursor, true);
     cursor += 4;
     data.fileSize = dataview.getInt32(cursor, true);
-    cursor += 4;
+    const fileSize = data.fileSize || buffer.byteLength;
 
     let sampleId = 0;
     cursor = data.wavStart;
 
     while (cursor < data.oggStart) {
       // WAV data
-      if (data.fileSize - cursor < 56) break;
+      if (fileSize - cursor < 56) break;
 
       let sample = {
         extension: "wav",
@@ -237,9 +250,9 @@ function OJMParser() {
     sampleId = 1000;
     cursor = data.oggStart;
 
-    while (cursor < data.fileSize) {
+    while (cursor < fileSize) {
       // OGG data
-      if (data.fileSize - cursor < 36) break;
+      if (fileSize - cursor < 36) break;
 
       let sample = {
         extension: "ogg",
@@ -320,7 +333,7 @@ function OJMParser() {
         "data:audio/" +
         sample.extension +
         ";base64," +
-        Buffer.from(sample.data).toString("base64");
+        uint8ArrayToBase64(sample.data);
     }
 
     return hitSounds;
