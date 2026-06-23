@@ -108,6 +108,7 @@ import { shuffle } from "~/utils/random";
 import { fancyTimeFormat } from "~/utils/formatter";
 import { searchDeathPlayer, searchStringInDeathPoint } from "~/utils/search";
 import FileParser from "~/utils/file-parser";
+import OJMParser from "~/utils/ojm-parser";
 import {
   schemes,
   measureGridSize,
@@ -302,10 +303,12 @@ const { data: ojn } = useAsyncData(
           // },
           responseType: "arrayBuffer",
         });
-        const response = downloadedOjn as ArrayBuffer;
+                const response = downloadedOjn as ArrayBuffer;
         let output: ConvertedOJN = convert(response, deathPoints.value, {});
         jsonData.value = output.ribbit;
         headerData.value = output.header;
+        hard.value = output.hard;
+        hitSounds.value = output.hitSounds;
         showPanel.value = true;
         renderNote();
       } catch (error) {
@@ -469,11 +472,35 @@ const stopPlayheadAnimation = () => {
   }
 };
 
-const togglePlay = () => {
-  if (!jsonData.value) return;
+const togglePlay = async () => {
+  if (!jsonData.value || loading.value || isDecoding.value) return;
   if (isPlaying.value) {
     pauseAudioPlayback();
   } else {
+    if (
+      route.query.server === "dmjam" &&
+      route.query.id &&
+      (!hitSounds.value || Object.keys(hitSounds.value).length === 0)
+    ) {
+      loading.value = true;
+      try {
+        const ojmUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${route.query.id}.ojm`;
+        const downloadedOjm = await $fetch(ojmUrl, {
+          responseType: "arrayBuffer",
+        });
+        const parsedHitSounds = OJMParser.parseContent(
+          downloadedOjm as ArrayBuffer
+        );
+        hitSounds.value = parsedHitSounds;
+        await decodeAllSounds();
+      } catch (error) {
+        console.error("Failed to download or parse OJM:", error);
+        alert("OJM download failed: " + error);
+      } finally {
+        loading.value = false;
+      }
+    }
+
     const totalDurationMs = getChartDurationMs() || (headerData.value?.difficulty?.hard?.duration || 0) * 1000;
     let currentMs = seekOffset.value || 0;
     if (currentMs >= totalDurationMs - 100) {
