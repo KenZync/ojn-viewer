@@ -445,7 +445,7 @@ const updateNoteHeight = () => {
   triggerNoteRender();
 };
 
-const onChangeDifficulty = async (difficulty: "easy" | "normal" | "hard") => {
+const onChangeDifficulty = async (difficulty: OjnDifficulty) => {
   if (!rawOjnBuffer.value) return;
   
   const wasPlaying = isPlaying.value;

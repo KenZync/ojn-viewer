@@ -59,7 +59,7 @@ var readFileAsArrayBuffer = async function (file: Blob): Promise<ArrayBuffer> {
   });
 };
 
-var processO2jamFolderV2 = async function (files: any, difficulty: "easy" | "normal" | "hard" = "hard") {
+var processO2jamFolderV2 = async function (files: any, difficulty: OjnDifficulty = "hard") {
   let ojnFile;
   let ojmFile;
   let hitSounds = {};
@@ -81,7 +81,7 @@ var processO2jamFolderV2 = async function (files: any, difficulty: "easy" | "nor
 };
 
 export default {
-  async parseFiles(items: any, drop: boolean, difficulty: "easy" | "normal" | "hard" = "hard"): Promise<ConvertedOJN> {
+  async parseFiles(items: any, drop: boolean, difficulty: OjnDifficulty = "hard"): Promise<ConvertedOJN> {
     let files = [];
     if (drop) {
       if (items.length == 0) throw "NO FILE";

@@ -44,7 +44,7 @@ export const convert = (
   ojn: ArrayBufferLike,
   death: DeathPoint,
   hitSounds: HitSound,
-  difficulty: "easy" | "normal" | "hard" = "hard"
+  difficulty: OjnDifficulty = "hard"
 ): ConvertedOJN => {
   var header: OJNHeader = {
     song_id: 0,

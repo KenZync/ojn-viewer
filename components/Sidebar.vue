@@ -280,7 +280,7 @@ const emit = defineEmits<{
   updateScaleW: [value: number];
   updateScaleH: [value: number];
   updateNoteHeight: [value: number];
-  changeDifficulty: [value: "easy" | "normal" | "hard"];
+  changeDifficulty: [value: OjnDifficulty];
 }>();
 
 const route = useRoute();

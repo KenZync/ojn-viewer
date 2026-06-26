@@ -20,6 +20,8 @@ interface OJNHeader {
   bmp: string;
 }
 
+type OjnDifficulty = "easy" | "normal" | "hard";
+
 interface Difficulty {
   easy: DifficultyDetails;
   normal: DifficultyDetails;
@@ -89,27 +91,43 @@ interface Common {
   start?: boolean;
 }
 
+interface TimingLine {
+  beat: number;
+  bpm?: number;
+  time?: number;
+}
+
+interface TimingPoint {
+  t: number;
+  x: number;
+  dx: number;
+  bpm: number;
+  inclusive: boolean;
+}
+
+interface NoteLine extends Common {
+  beat: number;
+  key: number;
+  timing: number;
+  objectName?: string;
+  startTime?: number;
+  endTime?: number;
+  endHitSound?: number;
+  soundTypes: string[];
+}
+
+interface TimeSound extends Common {
+  beat: number;
+  name: number;
+  startTime?: number;
+}
+
 interface HardType {
   nbNotes: number;
   nbLns: number;
-  timingLines: any[]; // You can specify the actual type of the elements in the array
-  timingPoints: any[]; // You can specify the actual type of the elements in the array
-  noteLines: any[]; // You can specify the actual type of the elements in the array
-  notes: Notes[]; // You can specify the actual type of the elements in the array
-  timeSounds: any[]; // You can specify the actual type of the elements in the array
-}
-
-interface Notes {
-  beat: number;
-  endHitSound: number;
-  endTime: number;
-  hitSound: number;
-  key: number;
-  objectName: string;
-  pan: number;
-  soundTypes: string[]; // Assuming soundTypes is an array of strings
-  start: boolean;
-  startTime: number;
-  timing: number;
-  volume: number;
+  timingLines: any[];
+  timingPoints: any[];
+  noteLines: any[];
+  notes: any[];
+  timeSounds: any[];
 }
