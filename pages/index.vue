@@ -196,6 +196,7 @@ const initChartRenderer = () => {
     pattern: pattern.value,
     deathPointPlayer: deathPointPlayer.value,
     onSeek: (timeMs) => {
+      chartRenderer.value?.resetSeekCache();
       seekTo(timeMs);
     },
     onBeforeDrag: () => {
@@ -472,6 +473,7 @@ const onChangeDifficulty = async (difficulty: OjnDifficulty) => {
     const clampedOffset = Math.max(0, Math.min(currentOffset, chartDurationMs));
     
     // Seek back to the clamped offset in the new difficulty layout
+    chartRenderer.value?.resetSeekCache();
     seekTo(clampedOffset);
     
     if (wasPlaying) {

@@ -46,6 +46,48 @@ export class OjnChartRenderer {
   private lastMeasureHeight = 0;
   private playheadHeight = 0;
 
+  // Performance: cache TextStyle objects to avoid reallocating them per measure
+  private labelTextStyle: PIXI.TextStyle | null = null;
+  private bpmTextStyle: PIXI.TextStyle | null = null;
+  private deathTextStyle: PIXI.TextStyle | null = null;
+
+  // Performance: cache last known measure index for playhead seek
+  private lastKnownMeasureIndex = 0;
+
+  // True chart dimensions stored at render time, used for scroll clamping.
+  // We cannot use mainChartContainer.width/height because culling (renderable=false)
+  // can shrink the PIXI-reported bounds.
+  private totalChartWidth = 0;
+  private totalChartHeight = 0;
+
+  // Pre-cached timing data for findMeasureAndOffsetAtTime to avoid
+  // calling .reduce() on every animation frame.
+  private measureTimingCache: Array<{ startTime: number; endTime: number }> = [];
+
+  // Last container position used for culling — skip redundant culls when nothing moved.
+  private lastCullX = Infinity;
+  private lastCullY = Infinity;
+
+  // Pre-computed note color arrays (constant across all measures).
+  private static readonly KEY_COLOR_CONFIG = [
+    schemes.default.noteWhiteFill,
+    schemes.default.noteBlueFill,
+    schemes.default.noteWhiteFill,
+    schemes.default.noteYellowFill,
+    schemes.default.noteWhiteFill,
+    schemes.default.noteBlueFill,
+    schemes.default.noteWhiteFill,
+  ];
+  private static readonly KEY_COLOR_LN_CONFIG = [
+    schemes.default.lnoteWhiteFill,
+    schemes.default.lnoteBlueFill,
+    schemes.default.lnoteWhiteFill,
+    schemes.default.lnoteYellowFill,
+    schemes.default.lnoteWhiteFill,
+    schemes.default.lnoteBlueFill,
+    schemes.default.lnoteWhiteFill,
+  ];
+
   // Interactivity state
   private isDragging = false;
   private dragStartX = 0;
@@ -93,6 +135,34 @@ export class OjnChartRenderer {
     // Destroy old stages to prevent memory leak
     this.clearRenderedAssets();
 
+    // Reset playhead seek cache
+    this.lastKnownMeasureIndex = 0;
+
+    // Pre-build shared TextStyle objects once per render pass to avoid
+    // allocating a new TextStyle for every measure / BPM marker.
+    const finalScaleWForStyle = chartData.ribbit ? (this.options.verticalMode ? this.options.scaleW * 2 : this.options.scaleW) : this.options.scaleW;
+    this.labelTextStyle = new PIXI.TextStyle({
+      fontSize: finalScaleWForStyle * 2,
+      fontWeight: "bold",
+      fill: schemes.default.labelText,
+      stroke: schemes.default.labelFill,
+      strokeThickness: 2,
+    });
+    this.bpmTextStyle = new PIXI.TextStyle({
+      fontSize: finalScaleWForStyle * 1.5,
+      fontWeight: "bold",
+      fill: schemes.default.bpmText,
+      stroke: schemes.default.bpmTextStroke,
+      strokeThickness: schemes.default.bpmTextStroke !== null ? 2 : 0,
+    });
+    this.deathTextStyle = new PIXI.TextStyle({
+      fontSize: finalScaleWForStyle * 1.5,
+      fontWeight: "bold",
+      fill: schemes.default.mineRedLine,
+      stroke: schemes.default.lnoteWhiteFill,
+      strokeThickness: 2,
+    });
+
     this.mainChartContainer = new PIXI.Container();
 
     const finalScaleW = this.options.verticalMode ? this.options.scaleW * 2 : this.options.scaleW;
@@ -111,6 +181,19 @@ export class OjnChartRenderer {
     const unit = chartData.ribbit.unit;
     const lnmap = chartData.ribbit.lnmap;
 
+    // Pre-compute the keys mapping once for all measures
+    const keysMapping: string[] = this.options.pattern
+      ? this.options.pattern.map((char) => keyCh[7][parseInt(char)])
+      : keyCh[7];
+
+    // Reset timing cache and cull state
+    this.measureTimingCache = [];
+    this.lastCullX = Infinity;
+    this.lastCullY = Infinity;
+
+    // Track chart extents directly to avoid a getBounds() call after render
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
     for (let measureIndex = 0; measureIndex < score.length; measureIndex++) {
       const currentScore = score[measureIndex];
       const measureLength = currentScore.length || unit;
@@ -128,7 +211,7 @@ export class OjnChartRenderer {
         this.options.scaleH,
         this.options.noteHeight,
         measureLength,
-        this.options.pattern,
+        keysMapping,
         unit,
         stretchRatio
       );
@@ -149,8 +232,30 @@ export class OjnChartRenderer {
       measureContainer.position.x = currentPosX;
       measureContainer.position.y = currentPosY;
       this.mainChartContainer.addChild(measureContainer);
-      measureContainer.cacheAsBitmap = true;
+
+      // Track chart extents without calling getBounds()
+      minX = Math.min(minX, currentPosX);
+      minY = Math.min(minY, currentPosY);
+      maxX = Math.max(maxX, currentPosX + this.lastMeasureWidth);
+      maxY = Math.max(maxY, currentPosY + this.lastMeasureHeight);
+
+      // Build timing cache entry for this measure (avoids .reduce() every frame)
+      const timingLines = currentScore["88"];
+      if (timingLines && timingLines.length > 0) {
+        const startTime = timingLines[0][4] as number;
+        let duration = 0;
+        for (let t = 0; t < timingLines.length; t++) {
+          duration += timingLines[t][3] as number;
+        }
+        this.measureTimingCache[measureIndex] = { startTime, endTime: startTime + duration };
+      } else {
+        this.measureTimingCache[measureIndex] = { startTime: -1, endTime: -1 };
+      }
     }
+
+    // Store true chart dimensions computed from layout (avoids expensive getBounds())
+    this.totalChartWidth = maxX - minX;
+    this.totalChartHeight = maxY - minY;
 
     // Set interactivity on the main container
     this.mainChartContainer.cursor = "pointer";
@@ -160,16 +265,16 @@ export class OjnChartRenderer {
     if (this.options.verticalMode) {
       this.mainChartContainer.hitArea = new PIXI.Rectangle(
         0, 
-        initialPosY - this.mainChartContainer.height, 
+        initialPosY - this.totalChartHeight, 
         finalColumnWidth, 
-        this.mainChartContainer.height + bottomMargin
+        this.totalChartHeight + bottomMargin
       );
     } else {
       this.mainChartContainer.hitArea = new PIXI.Rectangle(
         0, 
         0, 
-        this.mainChartContainer.width, 
-        this.mainChartContainer.height + 50
+        this.totalChartWidth, 
+        this.totalChartHeight + 50
       );
     }
 
@@ -213,6 +318,7 @@ export class OjnChartRenderer {
     }
 
     this.pixiApp.stage.addChild(this.thumbnailContainer);
+    this.updateDrawbox();
   }
 
   private clearRenderedAssets(): void {
@@ -250,7 +356,7 @@ export class OjnChartRenderer {
     scaleH: number,
     noteHeight: number,
     measureLength: number,
-    pattern: string[],
+    keysMapping: string[],
     unit: number,
     stretchRatio: number
   ): PIXI.Container {
@@ -278,13 +384,12 @@ export class OjnChartRenderer {
     }
 
     // Draw beat division lines
-    const measureGridY = calculatedHeight / measureLength;
     for (let beat = 1; (beat * unit) / 16 < measureLength; beat++) {
       const isQuarter = beat % 4 === 0;
       const lineColor = isQuarter ? schemes.default.quarterLine : schemes.default.sixteenthLine;
 
       graphics.lineStyle(lineWidth, lineColor, 1);
-      const lineY = calculatedHeight - (measureGridY * beat * unit) / 16 - lineWidth;
+      const lineY = calculatedHeight - (rowHeight * beat * unit) / 16 - lineWidth;
       graphics.moveTo(lineStart - 1, lineY);
       graphics.lineTo(calculatedWidth, lineY);
     }
@@ -301,7 +406,8 @@ export class OjnChartRenderer {
 
     if (measureLength >= unit / 4 / scaleH) {
       labelColumnIdx += 2;
-      const labelText = new PIXI.Text(measureIndex.toString(), {
+      // Reuse the shared TextStyle object to avoid allocating a new one per measure
+      const labelText = new PIXI.Text(measureIndex.toString(), this.labelTextStyle ?? {
         fontSize: scaleW * 2,
         fontWeight: "bold",
         fill: schemes.default.labelText,
@@ -322,32 +428,11 @@ export class OjnChartRenderer {
     graphics.lineTo(lineStart - 1, calculatedHeight - lineWidth);
     graphics.lineTo(lineStart - 1, 0);
 
-    // Color schemas mapping
-    const keyColorConfig = [
-      schemes.default.noteWhiteFill,
-      schemes.default.noteBlueFill,
-      schemes.default.noteWhiteFill,
-      schemes.default.noteYellowFill,
-      schemes.default.noteWhiteFill,
-      schemes.default.noteBlueFill,
-      schemes.default.noteWhiteFill,
-    ];
-    const keyColorLNConfig = [
-      schemes.default.lnoteWhiteFill,
-      schemes.default.lnoteBlueFill,
-      schemes.default.lnoteWhiteFill,
-      schemes.default.lnoteYellowFill,
-      schemes.default.lnoteWhiteFill,
-      schemes.default.lnoteBlueFill,
-      schemes.default.lnoteWhiteFill,
-    ];
+    // Use pre-computed static color arrays (avoids per-measure array allocation)
+    const keyColorConfig = OjnChartRenderer.KEY_COLOR_CONFIG;
+    const keyColorLNConfig = OjnChartRenderer.KEY_COLOR_LN_CONFIG;
 
-    // Rearrange keys based on pattern setting
-    let keysMapping = keyCh[7];
-    if (pattern) {
-      keysMapping = pattern.map((char) => keyCh[7][parseInt(char)]);
-    }
-
+    // keysMapping is now passed in pre-computed — no need to rebuild it here
     let currentDrawXIndex = 5;
     let keyIterationIndex = 0;
 
@@ -443,13 +528,13 @@ export class OjnChartRenderer {
           ? bpmNode[1].toString() 
           : (Math.round(Number(bpmNode[1]) * 10) / 10).toString();
 
-        const bpmText = new PIXI.Text(textLabelValue, {
-          fontSize: scaleW * 1.5,
-          fontWeight: "bold",
-          fill: isDeathPoint ? schemes.default.mineRedLine : schemes.default.bpmText,
-          stroke: isDeathPoint ? schemes.default.lnoteWhiteFill : schemes.default.bpmTextStroke,
-          strokeThickness: schemes.default.bpmTextStroke !== null ? 2 : 0,
-        });
+        // Reuse the shared TextStyle objects to avoid per-marker allocations
+        const bpmText = new PIXI.Text(
+          textLabelValue,
+          isDeathPoint
+            ? (this.deathTextStyle ?? undefined)
+            : (this.bpmTextStyle ?? undefined)
+        );
 
         bpmText.anchor.set(0.5);
         bpmText.x = scaleW * (measureLeftLaneSize[7] + 2);
@@ -459,7 +544,9 @@ export class OjnChartRenderer {
     });
 
     (measureContainer as any).measureHeight = calculatedHeight;
+    (measureContainer as any).measureWidth = calculatedWidth;
     (measureContainer as any).measureIndex = measureIndex;
+    (measureContainer as any).isMeasure = true;
     measureContainer.eventMode = "static";
     measureContainer.hitArea = new PIXI.Rectangle(0, 0, calculatedWidth, calculatedHeight);
 
@@ -645,6 +732,10 @@ export class OjnChartRenderer {
     return container;
   }
 
+  public resetSeekCache(): void {
+    this.lastKnownMeasureIndex = 0;
+  }
+
   public updatePlayheadPosition(timeMs: number): void {
     if (!this.playheadPreviewGraphics || !this.mainChartContainer || !this.currentChartData || !this.pixiApp) return;
 
@@ -656,31 +747,38 @@ export class OjnChartRenderer {
     const measureContainer = this.mainChartContainer.children[measureIndex] as PIXI.Container;
     if (!measureContainer || measureContainer === this.playheadPreviewGraphics) return;
 
-    const measureX = measureContainer.position.x;
-    const measureY = measureContainer.position.y;
+    // measureLocalY is the measure's Y in the local space of mainChartContainer.
+    const measureLocalY = measureContainer.position.y;
     const measureHeight = (measureContainer as any).measureHeight || (this.currentChartData.ribbit.unit * this.options.scaleH);
-
+    const measureWidth = (measureContainer as any).measureWidth || 0;
     const yOffset = (beatInMeasure / measureLength) * measureHeight;
-    const targetX = measureX;
-    const targetY = measureY + measureHeight - yOffset;
 
     if (this.options.verticalMode) {
       if (!this.isDragging) {
         const posYinit = this.pixiApp.renderer.height - bottomMargin;
-        this.mainChartContainer.position.y = Math.min(Math.max(posYinit - targetY, 0), this.mainChartContainer.height);
+        // targetY is the local-space Y of the playhead within the chart container.
+        // We want the playhead to sit at posYinit on screen, so:
+        //   containerY + targetLocalY = posYinit
+        //   => containerY = posYinit - targetLocalY
+        const targetLocalY = measureLocalY + measureHeight - yOffset;
+        const newContainerY = posYinit - targetLocalY;
+        this.mainChartContainer.position.y = Math.min(Math.max(newContainerY, 0), this.totalChartHeight);
         this.mainChartContainer.position.x = 0;
         this.updateDrawbox();
       }
     } else {
-      this.playheadPreviewGraphics.x = targetX;
+      const measureX = measureContainer.position.x;
+      const targetY = measureLocalY + measureHeight - yOffset;
+
+      this.playheadPreviewGraphics.x = measureX;
       this.playheadPreviewGraphics.y = targetY - this.playheadHeight;
 
       if (!this.isDragging) {
-        const targetScrollX = -targetX + (this.pixiApp.renderer.width / 2) - (measureContainer.width / 2);
+        const targetScrollX = -measureX + (this.pixiApp.renderer.width / 2) - (measureWidth / 2);
         this.mainChartContainer.position.x = Math.min(
           Math.max(
             targetScrollX,
-            this.pixiApp.renderer.width - this.mainChartContainer.width - leftMargin - rightMargin
+            this.pixiApp.renderer.width - this.totalChartWidth - leftMargin - rightMargin
           ),
           0
         );
@@ -694,34 +792,62 @@ export class OjnChartRenderer {
     
     const score = this.currentChartData.ribbit.score;
     const unit = this.currentChartData.ribbit.unit;
+    const cache = this.measureTimingCache;
 
-    for (let m = 0; m < score.length; m++) {
-      const measure = score[m];
-      const timingLines = measure["88"];
-      if (!timingLines || timingLines.length === 0) continue;
+    // Performance: start search from the last known measure index rather than 0
+    const startIdx = Math.max(0, this.lastKnownMeasureIndex - 1);
 
-      const measureStartTime = timingLines[0][4] as number;
-      const measureDuration = timingLines.reduce((acc: number, line: any) => acc + (line[3] as number), 0);
-      const measureEndTime = measureStartTime + measureDuration;
+    // First, try scanning forward from the cached position
+    for (let m = startIdx; m < score.length; m++) {
+      const cached = cache[m];
+      // Use precomputed timing bounds — no .reduce() needed
+      if (!cached || cached.startTime < 0) continue;
+      if (timeMs < cached.startTime || timeMs > cached.endTime) continue;
 
-      if (timeMs >= measureStartTime && timeMs <= measureEndTime) {
-        for (let i = 0; i < timingLines.length; i++) {
-          const line = timingLines[i];
-          const beatNow = line[0] as number;
-          const beatNext = line[2] as number;
-          const duration = line[3] as number;
-          const timeCount = line[4] as number;
+      this.lastKnownMeasureIndex = m;
+      const timingLines = score[m]["88"]!;
+      for (let i = 0; i < timingLines.length; i++) {
+        const line = timingLines[i];
+        const beatNow = line[0] as number;
+        const beatNext = line[2] as number;
+        const duration = line[3] as number;
+        const timeCount = line[4] as number;
 
-          if (timeMs >= timeCount && timeMs <= timeCount + duration) {
-            const elapsed = timeMs - timeCount;
-            const progress = duration > 0 ? elapsed / duration : 0;
-            const beatInMeasure = beatNow + progress * (beatNext - beatNow);
-            return {
-              measureIndex: m,
-              beatInMeasure,
-              measureLength: measure.length || unit,
-            };
-          }
+        if (timeMs >= timeCount && timeMs <= timeCount + duration) {
+          const elapsed = timeMs - timeCount;
+          const progress = duration > 0 ? elapsed / duration : 0;
+          return {
+            measureIndex: m,
+            beatInMeasure: beatNow + progress * (beatNext - beatNow),
+            measureLength: score[m].length || unit,
+          };
+        }
+      }
+    }
+
+    // Fallback: full scan from the beginning (handles seeking backwards)
+    for (let m = 0; m < startIdx; m++) {
+      const cached = cache[m];
+      if (!cached || cached.startTime < 0) continue;
+      if (timeMs < cached.startTime || timeMs > cached.endTime) continue;
+
+      this.lastKnownMeasureIndex = m;
+      const timingLines = score[m]["88"]!;
+      for (let i = 0; i < timingLines.length; i++) {
+        const line = timingLines[i];
+        const beatNow = line[0] as number;
+        const beatNext = line[2] as number;
+        const duration = line[3] as number;
+        const timeCount = line[4] as number;
+
+        if (timeMs >= timeCount && timeMs <= timeCount + duration) {
+          const elapsed = timeMs - timeCount;
+          const progress = duration > 0 ? elapsed / duration : 0;
+          return {
+            measureIndex: m,
+            beatInMeasure: beatNow + progress * (beatNext - beatNow),
+            measureLength: score[m].length || unit,
+          };
         }
       }
     }
@@ -730,11 +856,7 @@ export class OjnChartRenderer {
     const lastMeasure = score[lastIdx];
     if (lastMeasure) {
       const length = lastMeasure.length || unit;
-      return {
-        measureIndex: lastIdx,
-        beatInMeasure: length,
-        measureLength: length,
-      };
+      return { measureIndex: lastIdx, beatInMeasure: length, measureLength: length };
     }
     return null;
   }
@@ -830,13 +952,53 @@ export class OjnChartRenderer {
     if (this.options.verticalMode) {
       const viewBoxHeight = this.pixiApp.renderer.height * this.containerHeightShrinkRatio;
       const thumbnailHeightVal = this.pixiApp.renderer.height - bottomMargin;
-      
-      const targetY = (thumbnailHeightVal - viewBoxHeight) * (1 - this.mainChartContainer.position.y / this.mainChartContainer.height);
+      // Use totalChartHeight instead of mainChartContainer.height (avoids PIXI bounds recalc)
+      const targetY = (thumbnailHeightVal - viewBoxHeight) * (1 - this.mainChartContainer.position.y / this.totalChartHeight);
       this.viewBoxContainer.position.y = Math.min(Math.max(targetY, 0), thumbnailHeightVal - viewBoxHeight);
       this.viewBoxContainer.position.x = 0;
     } else {
       this.viewBoxContainer.position.x = (-leftMargin - this.mainChartContainer.position.x) * this.containerWidthShrinkRatio;
       this.viewBoxContainer.position.y = 0;
+    }
+
+    this.cullOffscreenMeasures();
+  }
+
+  private cullOffscreenMeasures(): void {
+    if (!this.mainChartContainer || !this.pixiApp) return;
+
+    const rendererWidth = this.pixiApp.renderer.width;
+    const rendererHeight = this.pixiApp.renderer.height;
+    const containerX = this.mainChartContainer.position.x;
+    const containerY = this.mainChartContainer.position.y;
+
+    // Skip culling if the container hasn't moved since last cull
+    if (containerX === this.lastCullX && containerY === this.lastCullY) return;
+    this.lastCullX = containerX;
+    this.lastCullY = containerY;
+
+    const isVertical = this.options.verticalMode;
+
+    for (let i = 0; i < this.mainChartContainer.children.length; i++) {
+      const child = this.mainChartContainer.children[i] as any;
+      if (!child || !child.isMeasure) continue;
+
+      const measureHeight = child.measureHeight || 0;
+      // Use the cached measureWidth instead of child.width (which triggers PIXI bounds calc)
+      const measureWidth = child.measureWidth || 0;
+
+      if (isVertical) {
+        const globalYTop = containerY + child.position.y;
+        const globalYBottom = globalYTop + measureHeight;
+
+        // Use renderable instead of visible so PIXI still counts this child
+        // in bounds calculations (visible=false would shrink container bounds).
+        child.renderable = globalYBottom >= -150 && globalYTop <= rendererHeight + 150;
+      } else {
+        const globalXLeft = containerX + child.position.x;
+        const globalXRight = globalXLeft + measureWidth;
+        child.renderable = globalXRight >= -300 && globalXLeft <= rendererWidth + 300;
+      }
     }
   }
 
@@ -855,7 +1017,7 @@ export class OjnChartRenderer {
       
       let targetPositionY = 0;
       if (scrollRange > 0) {
-        targetPositionY = this.mainChartContainer.height * (1 - posY_clamped / scrollRange);
+        targetPositionY = this.totalChartHeight * (1 - posY_clamped / scrollRange);
       }
       this.mainChartContainer.position.y = targetPositionY;
       this.seekToY(this.pixiApp.renderer.height - bottomMargin - targetPositionY);
@@ -864,7 +1026,7 @@ export class OjnChartRenderer {
       this.mainChartContainer.position.x = Math.min(
         Math.max(
           -posX / this.containerWidthShrinkRatio,
-          this.pixiApp.renderer.width - this.mainChartContainer.width - leftMargin - rightMargin
+          this.pixiApp.renderer.width - this.totalChartWidth - leftMargin - rightMargin
         ),
         0
       );
@@ -892,26 +1054,34 @@ export class OjnChartRenderer {
   }
 
   private onDragEnd(event: any): void {
+    let didClick = false;
     if (this.isDragging && event && event.global) {
       const dragEndX = event.global.x;
       const dragEndY = event.global.y;
       const dist = Math.hypot(dragEndX - this.dragStartX, dragEndY - this.dragStartY);
       
-      // Tap/click detection
+      // Tap/click detection - record what was clicked, handle after isDragging = false
       if (dist < 5 && this.mainChartContainer) {
         let clickedTarget = event.target;
         while (clickedTarget && clickedTarget !== this.mainChartContainer && clickedTarget.parent !== this.mainChartContainer) {
           clickedTarget = clickedTarget.parent;
         }
         if (clickedTarget && clickedTarget.measureIndex !== undefined) {
+          didClick = true;
+          // Clear drag state BEFORE seeking so updatePlayheadPosition runs unblocked
+          this.isDragging = false;
+          this.currentDragPosition = null;
+          this.activeDragTarget = null;
           this.seekToMeasureClick(event, clickedTarget, clickedTarget.measureIndex);
         }
       }
     }
 
-    this.isDragging = false;
-    this.currentDragPosition = null;
-    this.activeDragTarget = null;
+    if (!didClick) {
+      this.isDragging = false;
+      this.currentDragPosition = null;
+      this.activeDragTarget = null;
+    }
 
     // Trigger hook after drag
     this.options.onAfterDrag();
@@ -932,7 +1102,7 @@ export class OjnChartRenderer {
         const scrollRange = thumbnailHeightVal - viewBoxHeight;
         
         if (scrollRange > 0) {
-          deltaY *= -this.mainChartContainer.height / scrollRange;
+          deltaY *= -this.totalChartHeight / scrollRange;
         } else {
           deltaY = 0;
         }
@@ -946,7 +1116,7 @@ export class OjnChartRenderer {
           this.mainChartContainer.position.y + deltaY,
           0
         ),
-        this.mainChartContainer.height
+        this.totalChartHeight
       );
       this.updateDrawbox();
       this.currentDragPosition = localNewPos;
@@ -966,7 +1136,7 @@ export class OjnChartRenderer {
       this.mainChartContainer.position.x = Math.min(
         Math.max(
           this.mainChartContainer.position.x + deltaX,
-          this.pixiApp.renderer.width - this.mainChartContainer.width - leftMargin - rightMargin
+          this.pixiApp.renderer.width - this.totalChartWidth - leftMargin - rightMargin
         ),
         0
       );

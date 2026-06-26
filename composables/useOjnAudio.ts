@@ -18,6 +18,17 @@ export function useOjnAudio(
   let playheadAnimationFrameId: number | null = null;
   let masterGainNode: GainNode | null = null;
 
+  // Performance: sorted cache of notes for O(1) amortized scheduling
+  let sortedNotesCache: Array<any> | null = null;
+  let schedulePointer = 0; // Index into sortedNotesCache: all notes before this have been scheduled
+
+  // Use a plain Set (not Vue ref) to avoid reactive proxy overhead in the scheduling hot loop
+  let scheduledNoteIds = new Set<string>();
+
+  // Cached values set at playback start — avoids calling composables / scanning score every frame
+  let cachedTotalDurationMs = 0;
+  let hasStereoPane = false; // cached StereoPannerNode support
+
   const base64ToArrayBuffer = (base64String: string): ArrayBuffer => {
     const commaIndex = base64String.indexOf(",");
     const pureBase64 = commaIndex !== -1 ? base64String.substring(commaIndex + 1) : base64String;
@@ -50,6 +61,9 @@ export function useOjnAudio(
   const decodeAllSounds = async (): Promise<void> => {
     audioBuffers.value = {};
     isDecoding.value = false;
+    // Invalidate the sorted notes cache whenever chart data changes
+    sortedNotesCache = null;
+    schedulePointer = 0;
     
     const hitSounds = chartData.value?.hitSounds;
     if (!hitSounds || Object.keys(hitSounds).length === 0) {
@@ -125,9 +139,6 @@ export function useOjnAudio(
     }
   };
 
-  // Keep track of already scheduled note IDs to prevent duplicate scheduling
-  const scheduledNoteIds = ref<Set<string>>(new Set());
-
   const getActiveNotesForPlayback = () => {
     const hardData = chartData.value?.hard;
     if (!hardData) return [];
@@ -137,34 +148,42 @@ export function useOjnAudio(
     ];
   };
 
+  // Returns (and caches) a sorted copy of all notes for efficient scheduling.
+  const getSortedNotes = () => {
+    if (!sortedNotesCache) {
+      sortedNotesCache = getActiveNotesForPlayback().sort((a, b) => a.startTime - b.startTime);
+    }
+    return sortedNotesCache;
+  };
+
   const scheduleNotesInWindow = (currentPlaybackTimeMs: number): void => {
     const context = audioContext.value;
     if (!context || !isPlaying.value) return;
 
-    const allNotes = getActiveNotesForPlayback();
+    const allNotes = getSortedNotes();
     const lookAheadWindowMs = 2000; // 2 seconds look-ahead
     const endWindowMs = currentPlaybackTimeMs + lookAheadWindowMs;
+    // Cache these refs once for the loop body to avoid repeated .value proxy accesses
+    const buffers = audioBuffers.value;
+    const pattern = configuredPattern.value;
 
-    for (const note of allNotes) {
-      if (note.startTime < currentPlaybackTimeMs - 50) {
-        // Skip already-played notes
-        continue;
-      }
-      if (note.startTime > endWindowMs) {
-        // Too far in the future
-        continue;
-      }
-      if (scheduledNoteIds.value.has(note.id)) {
-        // Already scheduled
-        continue;
-      }
+    // Advance the pointer past notes that are too old to schedule
+    while (schedulePointer < allNotes.length && allNotes[schedulePointer].startTime < currentPlaybackTimeMs - 50) {
+      schedulePointer++;
+    }
 
-      const buffer = audioBuffers.value[note.hitSound];
+    // Schedule all notes within the look-ahead window starting from the pointer
+    for (let idx = schedulePointer; idx < allNotes.length; idx++) {
+      const note = allNotes[idx];
+      if (note.startTime > endWindowMs) break; // Sorted, so we can stop early
+      if (scheduledNoteIds.has(note.id)) continue; // Already scheduled
+
+      const buffer = buffers[note.hitSound];
       if (!buffer) continue;
 
       let panningValue = note.pan !== undefined ? note.pan : 0.0;
-      if (note.key !== undefined && configuredPattern.value) {
-        const visualColumn = configuredPattern.value.indexOf(note.key.toString());
+      if (note.key !== undefined && pattern) {
+        const visualColumn = pattern.indexOf(note.key.toString());
         if (visualColumn !== -1) {
           panningValue = (visualColumn - 3) / 3;
         }
@@ -176,8 +195,9 @@ export function useOjnAudio(
       const gainNode = context.createGain();
       gainNode.gain.value = note.volume !== undefined ? note.volume : 1.0;
 
-      const pannerNode = context.createStereoPanner ? context.createStereoPanner() : null;
-      if (pannerNode) {
+      // hasStereoPane is cached once at playback start
+      if (hasStereoPane) {
+        const pannerNode = (context as any).createStereoPanner() as StereoPannerNode;
         pannerNode.pan.value = panningValue;
         sourceNode.connect(pannerNode).connect(gainNode).connect(masterGainNode!);
       } else {
@@ -189,12 +209,15 @@ export function useOjnAudio(
 
       sourceNode.start(targetTime);
       activeAudioSources.push(sourceNode);
-      scheduledNoteIds.value.add(note.id);
+      scheduledNoteIds.add(note.id);
     }
   };
 
   const startPlayheadAnimation = (): void => {
     stopPlayheadAnimation();
+    let frameCount = 0;
+    // Capture totalDurationMs once — it won't change during a single playback session
+    const totalDurationMs = cachedTotalDurationMs;
     
     const updateLoop = () => {
       if (!isPlaying.value || !audioContext.value) {
@@ -202,9 +225,6 @@ export function useOjnAudio(
       }
 
       const elapsedMs = (audioContext.value.currentTime - startTimeOfPlayback) * 1000;
-      const selectedDifficulty = useSelectedDifficulty();
-      const fallbackDurationSec = chartData.value?.header?.difficulty?.[selectedDifficulty.value]?.duration || 0;
-      const totalDurationMs = getChartDurationMs() || fallbackDurationSec * 1000;
 
       if (elapsedMs >= totalDurationMs) {
         isPlaying.value = false;
@@ -220,6 +240,14 @@ export function useOjnAudio(
       seekOffset.value = elapsedMs;
       scheduleNotesInWindow(elapsedMs);
 
+      // Performance: prune ended audio source nodes every 120 frames (~2s at 60fps)
+      frameCount++;
+      if (frameCount % 120 === 0) {
+        activeAudioSources = activeAudioSources.filter((node) => {
+          try { return node.buffer !== null; } catch { return false; }
+        });
+      }
+
       if (onPlayheadTick) {
         onPlayheadTick(elapsedMs);
       }
@@ -232,23 +260,35 @@ export function useOjnAudio(
   const startAudioPlayback = (startTimeMs: number): void => {
     const context = initAudioContext();
     stopAllAudio();
-    scheduledNoteIds.value.clear();
+    scheduledNoteIds.clear();
+    // Reset the schedule pointer so we re-scan from the correct position
+    schedulePointer = 0;
+
+    // Cache total duration and panner availability once for the whole playback session
+    const selectedDifficulty = useSelectedDifficulty();
+    const fallbackDurationSec = chartData.value?.header?.difficulty?.[selectedDifficulty.value]?.duration || 0;
+    cachedTotalDurationMs = getChartDurationMs() || fallbackDurationSec * 1000;
+    hasStereoPane = typeof (context as any).createStereoPanner === 'function';
 
     isPlaying.value = true;
     seekOffset.value = startTimeMs;
     startTimeOfPlayback = context.currentTime - startTimeMs / 1000;
 
+    // Cache for use in the overlap loop below
+    const buffers = audioBuffers.value;
+    const pattern = configuredPattern.value;
+
     // Process overlapping sounds that started before the seek point but are still active
-    const allNotes = getActiveNotesForPlayback();
+    const allNotes = getSortedNotes();
     for (const note of allNotes) {
-      const buffer = audioBuffers.value[note.hitSound];
+      const buffer = buffers[note.hitSound];
       if (!buffer) continue;
 
       const soundDurationMs = buffer.duration * 1000;
       if (note.startTime <= startTimeMs && note.startTime + soundDurationMs > startTimeMs) {
         let panningValue = note.pan !== undefined ? note.pan : 0.0;
-        if (note.key !== undefined && configuredPattern.value) {
-          const visualColumn = configuredPattern.value.indexOf(note.key.toString());
+        if (note.key !== undefined && pattern) {
+          const visualColumn = pattern.indexOf(note.key.toString());
           if (visualColumn !== -1) {
             panningValue = (visualColumn - 3) / 3;
           }
@@ -261,8 +301,8 @@ export function useOjnAudio(
         const gainNode = context.createGain();
         gainNode.gain.value = note.volume !== undefined ? note.volume : 1.0;
 
-        const pannerNode = context.createStereoPanner ? context.createStereoPanner() : null;
-        if (pannerNode) {
+        if (hasStereoPane) {
+          const pannerNode = (context as any).createStereoPanner() as StereoPannerNode;
           pannerNode.pan.value = panningValue;
           sourceNode.connect(pannerNode).connect(gainNode).connect(masterGainNode!);
         } else {
@@ -271,11 +311,16 @@ export function useOjnAudio(
 
         sourceNode.start(context.currentTime, offsetSeconds);
         activeAudioSources.push(sourceNode);
-        scheduledNoteIds.value.add(note.id);
+        scheduledNoteIds.add(note.id);
       }
     }
 
-    // Schedule initial window of notes
+    // Advance pointer past notes already handled (before the seek point)
+    const sortedNotes = getSortedNotes();
+    schedulePointer = 0;
+    while (schedulePointer < sortedNotes.length && sortedNotes[schedulePointer].startTime < startTimeMs - 50) {
+      schedulePointer++;
+    }
     scheduleNotesInWindow(startTimeMs);
     startPlayheadAnimation();
   };
