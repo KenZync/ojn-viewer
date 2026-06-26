@@ -19,6 +19,7 @@ function OJMParser() {
 
   var acc_keybyte = 0xff;
   var acc_counter = 0;
+  var acc_keybyte_prev = 0;
 
   /** the xor mask used in the M30 format */
   var NAMI = Int8Array.from([0x6e, 0x61, 0x6d, 0x69]);
@@ -292,10 +293,9 @@ function OJMParser() {
   };
 
   var acc_xor = function (array) {
-    let temp = 0;
     let thisByte = 0;
     for (let i = 0; i < array.length; i++) {
-      temp = thisByte = array[i];
+      acc_keybyte_prev = thisByte = array[i];
 
       if (((acc_keybyte << acc_counter) & 0x80) != 0) {
         thisByte = ~thisByte;
@@ -305,7 +305,7 @@ function OJMParser() {
       acc_counter++;
       if (acc_counter > 7) {
         acc_counter = 0;
-        acc_keybyte = temp;
+        acc_keybyte = acc_keybyte_prev;
       }
     }
     return array;
