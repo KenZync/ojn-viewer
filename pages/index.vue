@@ -7,11 +7,11 @@
       >
         <div class="truncate mr-4">
           {{
-            `Lv.${headerData.difficulty.hard.level} ${jsonData.title} / ${
+            `Lv.${headerData.difficulty[selectedDifficulty].level} ${jsonData.title} / ${
               jsonData.artist
             } / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${
               jsonData.notes
-            } / Time: ${fancyTimeFormat(headerData.difficulty.hard.duration)}`
+            } / Time: ${fancyTimeFormat(headerData.difficulty[selectedDifficulty].duration)}`
           }}
         </div>
         <div class="flex items-center space-x-6 flex-shrink-0">
@@ -71,7 +71,7 @@
       </div>
       <Sidebar
         v-if="showPanel"
-        class="absolute bg-stone-700 top-0 right-0 px-5 w-48 h-screen flex flex-col text-white space-y-3 overflow-auto z-50"
+        class="absolute bg-stone-700 top-0 right-0 px-5 w-56 h-screen flex flex-col text-white space-y-3 overflow-auto z-50"
         :hit-sounds="hitSounds"
         :header-data="headerData"
         :is-playing="isPlaying"
@@ -85,6 +85,7 @@
         @update-scale-w="updateScaleW"
         @update-scale-h="updateScaleH"
         @update-note-height="updateNoteHeight"
+        @change-difficulty="onChangeDifficulty"
       />
       <div
         class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
@@ -116,6 +117,7 @@ const jsonData = ref<Ribbit>();
 const headerData = ref<OJNHeader>();
 const hard = ref<HardType>();
 const hitSounds = ref<HitSound>();
+const rawOjnBuffer = ref<ArrayBuffer | null>(null);
 
 const showPanel = ref(false);
 const loading = ref(false);
@@ -127,6 +129,7 @@ const verticalMode = useVerticalMode();
 const noteHeight = useNoteHeight();
 const scaleW = useScaleW();
 const scaleH = useScaleH();
+const selectedDifficulty = useSelectedDifficulty();
 
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
@@ -160,6 +163,7 @@ const {
   decodingTotal,
   volumeLevel,
   decodeAllSounds,
+  getChartDurationMs,
   pauseAudioPlayback,
   startAudioPlayback,
   stopSong,
@@ -269,8 +273,10 @@ const { data: ojnData } = useAsyncData(
       const downloadedOjn = await $fetch(ojnUrl, {
         responseType: "arrayBuffer",
       });
+      rawOjnBuffer.value = downloadedOjn as ArrayBuffer;
+      selectedDifficulty.value = "hard";
       
-      const convertedData = convert(downloadedOjn as ArrayBuffer, deathPoints.value, {});
+      const convertedData = convert(downloadedOjn as ArrayBuffer, deathPoints.value, {}, "hard");
       jsonData.value = convertedData.ribbit;
       headerData.value = convertedData.header;
       hard.value = convertedData.hard;
@@ -334,11 +340,13 @@ const toggleSetting = () => {
 
 const upload = async (uploadedFile: ConvertedOJN) => {
   deathPoints.value = {};
+  selectedDifficulty.value = "hard";
   loading.value = true;
   jsonData.value = uploadedFile.ribbit;
   headerData.value = uploadedFile.header;
   hard.value = uploadedFile.hard;
   hitSounds.value = uploadedFile.hitSounds;
+  rawOjnBuffer.value = uploadedFile.rawOjnBuffer || null;
   
   router.replace("/");
   stopSong();
@@ -435,6 +443,49 @@ const updateScaleH = () => {
 
 const updateNoteHeight = () => {
   triggerNoteRender();
+};
+
+const onChangeDifficulty = async (difficulty: "easy" | "normal" | "hard") => {
+  if (!rawOjnBuffer.value) return;
+  
+  const wasPlaying = isPlaying.value;
+  const currentOffset = seekOffset.value;
+  
+  if (wasPlaying) {
+    pauseAudioPlayback();
+  }
+  
+  selectedDifficulty.value = difficulty;
+  loading.value = true;
+  
+  try {
+    const convertedData = convert(rawOjnBuffer.value, deathPoints.value, hitSounds.value || {}, difficulty);
+    jsonData.value = convertedData.ribbit;
+    headerData.value = convertedData.header;
+    hard.value = convertedData.hard;
+    
+    await decodeAllSounds();
+    
+    // Calculate max chart duration and clamp seek offset
+    const maxDurationSec = headerData.value?.difficulty?.[difficulty]?.duration || 0;
+    const chartDurationMs = getChartDurationMs() || maxDurationSec * 1000;
+    const clampedOffset = Math.max(0, Math.min(currentOffset, chartDurationMs));
+    
+    // Seek back to the clamped offset in the new difficulty layout
+    seekTo(clampedOffset);
+    
+    if (wasPlaying) {
+      startAudioPlayback(clampedOffset);
+    }
+    
+    setTimeout(() => {
+      triggerNoteRender();
+    }, 5);
+  } catch (error) {
+    console.error("Failed to swap difficulty:", error);
+    alert("Failed to swap difficulty: " + error);
+    loading.value = false;
+  }
 };
 
 onMounted(() => {

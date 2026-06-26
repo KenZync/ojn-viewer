@@ -26,3 +26,8 @@ export const useNoteHeight = () => {
   return useState("noteHeight", () => 4);
 };
 
+export const useSelectedDifficulty = () => {
+  return useState<"easy" | "normal" | "hard">("selectedDifficulty", () => "hard");
+};
+
+

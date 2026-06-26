@@ -76,6 +76,46 @@
 
     <!-- Layout & Chart Modifiers -->
     <div class="mt-6 space-y-3 flex flex-col">
+      <!-- Difficulty Selection -->
+      <div class="space-y-1">
+        <div class="text-sm font-semibold text-stone-300">Difficulty</div>
+        <div class="grid grid-cols-3 gap-1">
+          <button
+            @click="$emit('changeDifficulty', 'easy')"
+            :class="[
+              selectedDifficulty === 'easy'
+                ? 'bg-emerald-600 text-white font-bold border-2 border-emerald-400'
+                : 'bg-zinc-800 text-emerald-400 hover:bg-zinc-700 border border-zinc-700'
+            ]"
+            class="py-1 px-1 rounded-md text-xs text-center transition-all duration-150"
+          >
+            EX
+          </button>
+          <button
+            @click="$emit('changeDifficulty', 'normal')"
+            :class="[
+              selectedDifficulty === 'normal'
+                ? 'bg-amber-600 text-white font-bold border-2 border-amber-400'
+                : 'bg-zinc-800 text-amber-400 hover:bg-zinc-700 border border-zinc-700'
+            ]"
+            class="py-1 px-1 rounded-md text-xs text-center transition-all duration-150"
+          >
+            NX
+          </button>
+          <button
+            @click="$emit('changeDifficulty', 'hard')"
+            :class="[
+              selectedDifficulty === 'hard'
+                ? 'bg-rose-600 text-white font-bold border-2 border-rose-400'
+                : 'bg-zinc-800 text-rose-400 hover:bg-zinc-700 border border-zinc-700'
+            ]"
+            class="py-1 px-1 rounded-md text-xs text-center transition-all duration-150"
+          >
+            HX
+          </button>
+        </div>
+      </div>
+
       <div class="text-sm font-semibold text-stone-300">Chart Settings</div>
       
       <!-- Long Notes Option -->
@@ -88,10 +128,10 @@
               'bg-zinc-600 text-white font-semibold shadow-sm': !noLN,
               'text-stone-400 hover:text-stone-200': noLN,
             }"
-            class="w-1/2 py-1 text-center rounded-md text-xs transition-all duration-150 flex items-center justify-center space-x-1"
+            class="w-1/2 py-1 px-0.5 text-center rounded-md text-xs transition-all duration-150 flex items-center justify-center space-x-0.5"
           >
-            <span v-if="!noLN" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>Show</span>
+            <span v-if="!noLN" class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+            <span class="truncate">Show</span>
           </button>
           <button
             @click="setNoLN(true)"
@@ -99,10 +139,10 @@
               'bg-zinc-600 text-white font-semibold shadow-sm': noLN,
               'text-stone-400 hover:text-stone-200': !noLN,
             }"
-            class="w-1/2 py-1 text-center rounded-md text-xs transition-all duration-150 flex items-center justify-center space-x-1"
+            class="w-1/2 py-1 px-0.5 text-center rounded-md text-xs transition-all duration-150 flex items-center justify-center space-x-0.5"
           >
-            <span v-if="noLN" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>Hide</span>
+            <span v-if="noLN" class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+            <span class="truncate">Hide</span>
           </button>
         </div>
       </div>
@@ -117,9 +157,9 @@
               'bg-zinc-600 text-white font-semibold shadow-sm': !verticalMode,
               'text-stone-400 hover:text-stone-200': verticalMode,
             }"
-            class="w-1/2 py-1 text-center rounded-md text-xs transition-all duration-150 flex items-center justify-center space-x-1"
+            class="w-1/2 py-1 px-1 text-center rounded-md text-[11px] transition-all duration-150 flex items-center justify-center space-x-1"
           >
-            <span v-if="!verticalMode" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span v-if="!verticalMode" class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
             <span>Horizontal</span>
           </button>
           <button
@@ -128,12 +168,35 @@
               'bg-zinc-600 text-white font-semibold shadow-sm': verticalMode,
               'text-stone-400 hover:text-stone-200': !verticalMode,
             }"
-            class="w-1/2 py-1 text-center rounded-md text-xs transition-all duration-150 flex items-center justify-center space-x-1"
+            class="w-1/2 py-1 px-1 text-center rounded-md text-[11px] transition-all duration-150 flex items-center justify-center space-x-1"
           >
-            <span v-if="verticalMode" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span v-if="verticalMode" class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
             <span>Vertical</span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Chart Metadata info -->
+    <div v-if="headerData" class="mt-6 border-t border-zinc-600 pt-4 space-y-2 text-sm text-stone-300">
+      <div class="text-sm font-semibold text-stone-200">Metadata</div>
+      <div class="flex flex-col" v-if="route.query.server && route.query.id">
+        <div class="flex justify-center my-2">
+          <img alt="ohm" src="/ohm.png" class="w-16" />
+        </div>
+        <RadioGroup
+          v-model="ohmMode"
+          @update:model-value="$emit('toggleOhmMode', ohmMode)"
+        />
+      </div>
+      <div>Song ID: {{ headerData.song_id }}</div>
+      <div v-if="headerData.bmp" class="space-y-1">
+        <div class="text-xs text-stone-400">BMP Info</div>
+        <img :src="headerData.bmp" alt="BMP" class="rounded border border-stone-600" />
+      </div>
+      <div v-if="headerData.image" class="space-y-1">
+        <div class="text-xs text-stone-400">Cover Image</div>
+        <img :src="headerData.image" alt="Image" class="rounded border border-stone-600" />
       </div>
     </div>
 
@@ -192,29 +255,6 @@
         />
       </div>
     </div>
-
-    <!-- Chart Metadata info -->
-    <div v-if="headerData" class="mt-6 border-t border-zinc-600 pt-4 space-y-2 text-sm text-stone-300">
-      <div class="text-sm font-semibold text-stone-200">Metadata</div>
-      <div class="flex flex-col" v-if="route.query.server && route.query.id">
-        <div class="flex justify-center my-2">
-          <img alt="ohm" src="/ohm.png" class="w-16" />
-        </div>
-        <RadioGroup
-          v-model="ohmMode"
-          @update:model-value="$emit('toggleOhmMode', ohmMode)"
-        />
-      </div>
-      <div>Song ID: {{ headerData.song_id }}</div>
-      <div v-if="headerData.bmp" class="space-y-1">
-        <div class="text-xs text-stone-400">BMP Info</div>
-        <img :src="headerData.bmp" alt="BMP" class="rounded border border-stone-600" />
-      </div>
-      <div v-if="headerData.image" class="space-y-1">
-        <div class="text-xs text-stone-400">Cover Image</div>
-        <img :src="headerData.image" alt="Image" class="rounded border border-stone-600" />
-      </div>
-    </div>
   </div>
 </template>
 
@@ -227,6 +267,8 @@ const props = defineProps<{
   isPlaying?: boolean;
 }>();
 
+const selectedDifficulty = useSelectedDifficulty();
+
 const emit = defineEmits<{
   close: [void];
   random: [value: boolean];
@@ -238,6 +280,7 @@ const emit = defineEmits<{
   updateScaleW: [value: number];
   updateScaleH: [value: number];
   updateNoteHeight: [value: number];
+  changeDifficulty: [value: "easy" | "normal" | "hard"];
 }>();
 
 const route = useRoute();

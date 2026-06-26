@@ -40,15 +40,12 @@ const keyMapping = {
   8: "19",
 };
 
-export const convert: (
+export const convert = (
   ojn: ArrayBufferLike,
   death: DeathPoint,
-  hitSounds: HitSound
-) => ConvertedOJN = (
-  ojn: ArrayBufferLike,
-  death: DeathPoint,
-  hitSounds: HitSound
-) => {
+  hitSounds: HitSound,
+  difficulty: "easy" | "normal" | "hard" = "hard"
+): ConvertedOJN => {
   var header: OJNHeader = {
     song_id: 0,
     signature: 0,
@@ -405,12 +402,11 @@ export const convert: (
 
   header.image = cover;
   header.bmp = bmp;
-  // let current_diff = "hard";
-  // for (let current_diff of ["easy", "normal", "hard"]) {
-  cursor = header.difficulty.hard.note_offset;
+  const diffDetails = header.difficulty[difficulty];
+  cursor = diffDetails.note_offset;
 
   let note = 0;
-  for (let i = 0; i < header.difficulty.hard.package_count; i++) {
+  for (let i = 0; i < diffDetails.package_count; i++) {
     let current_package: CurrentPackage = {
       measure: 0,
       channel: 0,
@@ -637,7 +633,7 @@ export const convert: (
     genre: genreMap[header.genre],
     keys: 7,
     lnmap: lnmap,
-    notes: header.difficulty.hard.note_count,
+    notes: header.difficulty[difficulty].note_count,
     score: score,
     title: header.title,
     total: "0",

@@ -54,6 +54,7 @@ interface ConvertedOJN {
   ribbit: Ribbit;
   hard: HardType;
   hitSounds?: HitSound;
+  rawOjnBuffer?: ArrayBuffer;
 }
 interface RibbitScore extends RibbitNote {
   length?: number;

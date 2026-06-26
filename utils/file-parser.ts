@@ -59,7 +59,7 @@ var readFileAsArrayBuffer = async function (file: Blob): Promise<ArrayBuffer> {
   });
 };
 
-var processO2jamFolderV2 = async function (files: any) {
+var processO2jamFolderV2 = async function (files: any, difficulty: "easy" | "normal" | "hard" = "hard") {
   let ojnFile;
   let ojmFile;
   let hitSounds = {};
@@ -75,12 +75,13 @@ var processO2jamFolderV2 = async function (files: any) {
   if (ojmFile) {
     hitSounds = OJMParser.parseContent(await readFileAsArrayBuffer(ojmFile));
   }
-  let output = convert(arrayBuffer, {}, hitSounds);
+  let output = convert(arrayBuffer, {}, hitSounds, difficulty);
+  output.rawOjnBuffer = arrayBuffer;
   return output;
 };
 
 export default {
-  async parseFiles(items: any, drop: boolean): Promise<ConvertedOJN> {
+  async parseFiles(items: any, drop: boolean, difficulty: "easy" | "normal" | "hard" = "hard"): Promise<ConvertedOJN> {
     let files = [];
     if (drop) {
       if (items.length == 0) throw "NO FILE";
@@ -98,7 +99,7 @@ export default {
       if (extension == null) continue;
       switch (extension[1]) {
         case "ojn":
-          return processO2jamFolderV2(files); // Make sure this function returns a ConvertedOJN[]
+          return processO2jamFolderV2(files, difficulty); // Make sure this function returns a ConvertedOJN[]
       }
     }
     throw "invalidformat";

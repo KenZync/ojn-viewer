@@ -134,7 +134,9 @@ export function useOjnAudio(
       }
 
       const elapsedMs = (audioContext.value.currentTime - startTimeOfPlayback) * 1000;
-      const totalDurationMs = getChartDurationMs() || (chartData.value?.header?.difficulty?.hard?.duration || 0) * 1000;
+      const selectedDifficulty = useSelectedDifficulty();
+      const fallbackDurationSec = chartData.value?.header?.difficulty?.[selectedDifficulty.value]?.duration || 0;
+      const totalDurationMs = getChartDurationMs() || fallbackDurationSec * 1000;
 
       if (elapsedMs >= totalDurationMs) {
         isPlaying.value = false;
@@ -307,6 +309,7 @@ export function useOjnAudio(
     decodingTotal,
     volumeLevel,
     decodeAllSounds,
+    getChartDurationMs,
     startAudioPlayback,
     pauseAudioPlayback,
     stopSong,
