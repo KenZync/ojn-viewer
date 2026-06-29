@@ -613,8 +613,8 @@ export class OjnChartRenderer {
         );
 
         bpmText.anchor.set(0.5);
-        bpmText.y =
-          calculatedHeight - rowHeight * Number(bpmNode[0]) - lineWidth;
+        bpmText.x = scaleW * (measureLeftLaneSize[7] + 2);
+        bpmText.y = calculatedHeight - rowHeight * Number(bpmNode[0]) - lineWidth;
         measureContainer.addChild(bpmText);
       });
     });
