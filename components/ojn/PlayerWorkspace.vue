@@ -85,7 +85,11 @@ const loadDeathPointPlayer = async () => {
 };
 
 const deathPointPlayer = computed(() => {
-  return failData.value;
+  const playerName = Array.isArray(route.query.player) ? route.query.player[0] : route.query.player;
+  if (playerName) {
+    return searchDeathPlayer(failData.value, playerName);
+  }
+  return {};
 });
 
 // Chart Renderer State
