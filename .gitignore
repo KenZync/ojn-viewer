@@ -96,3 +96,6 @@ sw.*
 
 # Netlify
 .netlify
+
+# Temporary Scratch Scripts
+scratch/

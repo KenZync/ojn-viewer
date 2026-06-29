@@ -9,7 +9,7 @@ import {
   leftMargin,
   headerHeight,
 } from "~/constants";
-import { searchStringInDeathPoint } from "~/utils/search";
+import { searchStringInDeathPoint } from "~/utils/helpers/search";
 
 export interface OjnRendererOptions {
   scaleW: number;
@@ -62,7 +62,8 @@ export class OjnChartRenderer {
 
   // Pre-cached timing data for findMeasureAndOffsetAtTime to avoid
   // calling .reduce() on every animation frame.
-  private measureTimingCache: Array<{ startTime: number; endTime: number }> = [];
+  private measureTimingCache: Array<{ startTime: number; endTime: number }> =
+    [];
 
   // Last container position used for culling — skip redundant culls when nothing moved.
   private lastCullX = Infinity;
@@ -120,7 +121,10 @@ export class OjnChartRenderer {
 
   public resize(): void {
     if (!this.pixiApp) return;
-    this.pixiApp.renderer.resize(window.innerWidth, window.innerHeight - headerHeight);
+    this.pixiApp.renderer.resize(
+      window.innerWidth,
+      window.innerHeight - headerHeight,
+    );
     if (this.currentChartData) {
       this.render(this.currentChartData);
     }
@@ -140,7 +144,11 @@ export class OjnChartRenderer {
 
     // Pre-build shared TextStyle objects once per render pass to avoid
     // allocating a new TextStyle for every measure / BPM marker.
-    const finalScaleWForStyle = chartData.ribbit ? (this.options.verticalMode ? this.options.scaleW * 2 : this.options.scaleW) : this.options.scaleW;
+    const finalScaleWForStyle = chartData.ribbit
+      ? this.options.verticalMode
+        ? this.options.scaleW * 2
+        : this.options.scaleW
+      : this.options.scaleW;
     this.labelTextStyle = new PIXI.TextStyle({
       fontSize: finalScaleWForStyle * 2,
       fontWeight: "bold",
@@ -165,13 +173,21 @@ export class OjnChartRenderer {
 
     this.mainChartContainer = new PIXI.Container();
 
-    const finalScaleW = this.options.verticalMode ? this.options.scaleW * 2 : this.options.scaleW;
+    const finalScaleW = this.options.verticalMode
+      ? this.options.scaleW * 2
+      : this.options.scaleW;
     const finalColumnWidth = measureGridSize[7] * finalScaleW;
 
     const initialPosX = leftMargin;
-    const initialPosY = this.pixiApp.renderer.height - (this.options.verticalMode ? bottomMargin : (this.thumbnailHeight + bottomMargin));
-    
-    let currentPosX = this.options.verticalMode ? (this.pixiApp.renderer.width - finalColumnWidth) / 2 : -15;
+    const initialPosY =
+      this.pixiApp.renderer.height -
+      (this.options.verticalMode
+        ? bottomMargin
+        : this.thumbnailHeight + bottomMargin);
+
+    let currentPosX = this.options.verticalMode
+      ? (this.pixiApp.renderer.width - finalColumnWidth) / 2
+      : -15;
     let currentPosY = initialPosY;
 
     this.lastMeasureWidth = 0;
@@ -192,16 +208,21 @@ export class OjnChartRenderer {
     this.lastCullY = Infinity;
 
     // Track chart extents directly to avoid a getBounds() call after render
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
 
     for (let measureIndex = 0; measureIndex < score.length; measureIndex++) {
       const currentScore = score[measureIndex];
       const measureLength = currentScore.length || unit;
       const expectedHeight = measureLength * this.options.scaleH;
-      
-      const stretchRatio = this.options.verticalMode 
-        ? 1 
-        : (expectedHeight > initialPosY ? (initialPosY - 1) / expectedHeight : 1);
+
+      const stretchRatio = this.options.verticalMode
+        ? 1
+        : expectedHeight > initialPosY
+          ? (initialPosY - 1) / expectedHeight
+          : 1;
 
       const measureContainer = this.buildMeasureContainer(
         measureIndex,
@@ -213,14 +234,17 @@ export class OjnChartRenderer {
         measureLength,
         keysMapping,
         unit,
-        stretchRatio
+        stretchRatio,
       );
 
       // Compute position for the current measure based on its own height/width
       if (this.options.verticalMode) {
         currentPosY -= this.lastMeasureHeight;
       } else {
-        if (currentPosY === initialPosY || currentPosY - this.lastMeasureHeight > 0) {
+        if (
+          currentPosY === initialPosY ||
+          currentPosY - this.lastMeasureHeight > 0
+        ) {
           currentPosY -= this.lastMeasureHeight - 1;
         } else {
           currentPosY = initialPosY - this.lastMeasureHeight + 1;
@@ -247,7 +271,10 @@ export class OjnChartRenderer {
         for (let t = 0; t < timingLines.length; t++) {
           duration += timingLines[t][3] as number;
         }
-        this.measureTimingCache[measureIndex] = { startTime, endTime: startTime + duration };
+        this.measureTimingCache[measureIndex] = {
+          startTime,
+          endTime: startTime + duration,
+        };
       } else {
         this.measureTimingCache[measureIndex] = { startTime: -1, endTime: -1 };
       }
@@ -264,17 +291,17 @@ export class OjnChartRenderer {
 
     if (this.options.verticalMode) {
       this.mainChartContainer.hitArea = new PIXI.Rectangle(
-        0, 
-        initialPosY - this.totalChartHeight, 
-        finalColumnWidth, 
-        this.totalChartHeight + bottomMargin
+        0,
+        initialPosY - this.totalChartHeight,
+        finalColumnWidth,
+        this.totalChartHeight + bottomMargin,
       );
     } else {
       this.mainChartContainer.hitArea = new PIXI.Rectangle(
-        0, 
-        0, 
-        this.totalChartWidth, 
-        this.totalChartHeight + 50
+        0,
+        0,
+        this.totalChartWidth,
+        this.totalChartHeight + 50,
       );
     }
 
@@ -282,11 +309,17 @@ export class OjnChartRenderer {
     this.mainChartContainer.position.y = 0;
 
     // Create Thumbnail
-    this.thumbnailContainer = this.buildThumbnailContainer(this.pixiApp.renderer, this.mainChartContainer);
-    
+    this.thumbnailContainer = this.buildThumbnailContainer(
+      this.pixiApp.renderer,
+      this.mainChartContainer,
+    );
+
     if (this.options.verticalMode) {
       const thumbnailWidth = 60;
-      this.thumbnailContainer.position.x = Math.max(0, currentPosX - thumbnailWidth - 10);
+      this.thumbnailContainer.position.x = Math.max(
+        0,
+        currentPosX - thumbnailWidth - 10,
+      );
       this.thumbnailContainer.position.y = 0;
     } else {
       this.thumbnailContainer.position.x = 0;
@@ -300,9 +333,19 @@ export class OjnChartRenderer {
     const previewStart = 35;
 
     this.playheadPreviewGraphics = new PIXI.Graphics();
-    this.playheadPreviewGraphics.lineStyle(previewLineWidth, schemes.default.previewLine, 1);
-    this.playheadPreviewGraphics.moveTo(playheadWidth - 1, this.playheadHeight - previewLineWidth);
-    this.playheadPreviewGraphics.lineTo(previewStart - 1, this.playheadHeight - previewLineWidth);
+    this.playheadPreviewGraphics.lineStyle(
+      previewLineWidth,
+      schemes.default.previewLine,
+      1,
+    );
+    this.playheadPreviewGraphics.moveTo(
+      playheadWidth - 1,
+      this.playheadHeight - previewLineWidth,
+    );
+    this.playheadPreviewGraphics.lineTo(
+      previewStart - 1,
+      this.playheadHeight - previewLineWidth,
+    );
 
     this.pixiApp.stage.addChild(this.mainChartContainer);
 
@@ -358,7 +401,7 @@ export class OjnChartRenderer {
     measureLength: number,
     keysMapping: string[],
     unit: number,
-    stretchRatio: number
+    stretchRatio: number,
   ): PIXI.Container {
     const lineWidth = 1;
     const lineStart = 35;
@@ -386,10 +429,13 @@ export class OjnChartRenderer {
     // Draw beat division lines
     for (let beat = 1; (beat * unit) / 16 < measureLength; beat++) {
       const isQuarter = beat % 4 === 0;
-      const lineColor = isQuarter ? schemes.default.quarterLine : schemes.default.sixteenthLine;
+      const lineColor = isQuarter
+        ? schemes.default.quarterLine
+        : schemes.default.sixteenthLine;
 
       graphics.lineStyle(lineWidth, lineColor, 1);
-      const lineY = calculatedHeight - (rowHeight * beat * unit) / 16 - lineWidth;
+      const lineY =
+        calculatedHeight - (rowHeight * beat * unit) / 16 - lineWidth;
       graphics.moveTo(lineStart - 1, lineY);
       graphics.lineTo(calculatedWidth, lineY);
     }
@@ -400,20 +446,26 @@ export class OjnChartRenderer {
     graphics.lineStyle(0, undefined, 1);
     graphics.moveTo(scaleW * labelColumnIdx, 0);
     graphics.lineTo(scaleW * labelColumnIdx, calculatedHeight - lineWidth);
-    graphics.lineTo(scaleW * (4 + labelColumnIdx), calculatedHeight - lineWidth);
+    graphics.lineTo(
+      scaleW * (4 + labelColumnIdx),
+      calculatedHeight - lineWidth,
+    );
     graphics.lineTo(scaleW * (4 + labelColumnIdx), 0);
     graphics.endFill();
 
     if (measureLength >= unit / 4 / scaleH) {
       labelColumnIdx += 2;
       // Reuse the shared TextStyle object to avoid allocating a new one per measure
-      const labelText = new PIXI.Text(measureIndex.toString(), this.labelTextStyle ?? {
-        fontSize: scaleW * 2,
-        fontWeight: "bold",
-        fill: schemes.default.labelText,
-        stroke: schemes.default.labelFill,
-        strokeThickness: 2,
-      });
+      const labelText = new PIXI.Text(
+        measureIndex.toString(),
+        this.labelTextStyle ?? {
+          fontSize: scaleW * 2,
+          fontWeight: "bold",
+          fill: schemes.default.labelText,
+          stroke: schemes.default.labelFill,
+          strokeThickness: 2,
+        },
+      );
       labelText.anchor.set(0.5);
       labelText.x = scaleW * labelColumnIdx;
       labelText.y = calculatedHeight / 2;
@@ -450,10 +502,17 @@ export class OjnChartRenderer {
                 graphics.beginFill(keyColorLNConfig[keyIterationIndex]);
                 graphics.lineStyle(0, 0, 0);
                 graphics.drawRect(
-                  currentDrawXIndex * scaleW - (currentDrawXIndex === 0 ? lineWidth : 0) + (schemes.default.lnWidthRatio * scaleW) / 2,
-                  calculatedHeight - rowHeight * lnBegin - noteHeight - lineWidth,
-                  2 * scaleW - (currentDrawXIndex === 0 ? 0 : lineWidth) - schemes.default.lnWidthRatio * scaleW,
-                  noteHeight
+                  currentDrawXIndex * scaleW -
+                    (currentDrawXIndex === 0 ? lineWidth : 0) +
+                    (schemes.default.lnWidthRatio * scaleW) / 2,
+                  calculatedHeight -
+                    rowHeight * lnBegin -
+                    noteHeight -
+                    lineWidth,
+                  2 * scaleW -
+                    (currentDrawXIndex === 0 ? 0 : lineWidth) -
+                    schemes.default.lnWidthRatio * scaleW,
+                  noteHeight,
                 );
                 graphics.endFill();
               }
@@ -466,10 +525,16 @@ export class OjnChartRenderer {
               graphics.beginFill(keyColorLNConfig[keyIterationIndex]);
               graphics.lineStyle(0, 0, 0);
               graphics.drawRect(
-                currentDrawXIndex * scaleW - (currentDrawXIndex === 0 ? lineWidth : 0) + (schemes.default.lnWidthRatio * scaleW) / 2,
+                currentDrawXIndex * scaleW -
+                  (currentDrawXIndex === 0 ? lineWidth : 0) +
+                  (schemes.default.lnWidthRatio * scaleW) / 2,
                 calculatedHeight - rowHeight * lnEnd - lineWidth,
-                2 * scaleW - (currentDrawXIndex === 0 ? 0 : lineWidth) - schemes.default.lnWidthRatio * scaleW,
-                rowHeight * (lnEnd - lnBegin) + (lnBegin === 0 ? lineWidth : 0) - lineWidth
+                2 * scaleW -
+                  (currentDrawXIndex === 0 ? 0 : lineWidth) -
+                  schemes.default.lnWidthRatio * scaleW,
+                rowHeight * (lnEnd - lnBegin) +
+                  (lnBegin === 0 ? lineWidth : 0) -
+                  lineWidth,
               );
               graphics.endFill();
             }
@@ -484,10 +549,13 @@ export class OjnChartRenderer {
           graphics.beginFill(keyColorConfig[keyIterationIndex]);
           graphics.lineStyle(0, 0, 0);
           graphics.drawRect(
-            currentDrawXIndex * scaleW - (currentDrawXIndex === 0 ? lineWidth : 0),
-            calculatedHeight - (rowHeight * positionData[0] + noteHeight) - lineWidth,
+            currentDrawXIndex * scaleW -
+              (currentDrawXIndex === 0 ? lineWidth : 0),
+            calculatedHeight -
+              (rowHeight * positionData[0] + noteHeight) -
+              lineWidth,
             2 * scaleW - (currentDrawXIndex === 0 ? 0 : lineWidth),
-            noteHeight
+            noteHeight,
           );
           graphics.endFill();
         });
@@ -511,21 +579,29 @@ export class OjnChartRenderer {
         if (
           channelName === "99" &&
           this.options.ohmMode === "you" &&
-          !searchStringInDeathPoint(this.options.deathPointPlayer, bpmNode[1].toString())
+          !searchStringInDeathPoint(
+            this.options.deathPointPlayer,
+            bpmNode[1].toString(),
+          )
         ) {
           return;
         }
 
         const isDeathPoint = channelName === "99";
         const lineThickness = schemes.default.bpmLineH;
-        
-        graphics.lineStyle(lineThickness, isDeathPoint ? schemes.default.mineRedLine : schemes.default.bpmLine, 1);
-        const markerY = calculatedHeight - rowHeight * Number(bpmNode[0]) - lineThickness;
+
+        graphics.lineStyle(
+          lineThickness,
+          isDeathPoint ? schemes.default.mineRedLine : schemes.default.bpmLine,
+          1,
+        );
+        const markerY =
+          calculatedHeight - rowHeight * Number(bpmNode[0]) - lineThickness;
         graphics.moveTo(lineStart, markerY);
         graphics.lineTo(scaleW * measureLeftLaneSize[7], markerY);
 
-        const textLabelValue = isDeathPoint 
-          ? bpmNode[1].toString() 
+        const textLabelValue = isDeathPoint
+          ? bpmNode[1].toString()
           : (Math.round(Number(bpmNode[1]) * 10) / 10).toString();
 
         // Reuse the shared TextStyle objects to avoid per-marker allocations
@@ -533,12 +609,12 @@ export class OjnChartRenderer {
           textLabelValue,
           isDeathPoint
             ? (this.deathTextStyle ?? undefined)
-            : (this.bpmTextStyle ?? undefined)
+            : (this.bpmTextStyle ?? undefined),
         );
 
         bpmText.anchor.set(0.5);
-        bpmText.x = scaleW * (measureLeftLaneSize[7] + 2);
-        bpmText.y = calculatedHeight - rowHeight * Number(bpmNode[0]) - lineWidth;
+        bpmText.y =
+          calculatedHeight - rowHeight * Number(bpmNode[0]) - lineWidth;
         measureContainer.addChild(bpmText);
       });
     });
@@ -548,14 +624,19 @@ export class OjnChartRenderer {
     (measureContainer as any).measureIndex = measureIndex;
     (measureContainer as any).isMeasure = true;
     measureContainer.eventMode = "static";
-    measureContainer.hitArea = new PIXI.Rectangle(0, 0, calculatedWidth, calculatedHeight);
+    measureContainer.hitArea = new PIXI.Rectangle(
+      0,
+      0,
+      calculatedWidth,
+      calculatedHeight,
+    );
 
     return measureContainer;
   }
 
   private buildThumbnailContainer(
     renderer: PIXI.IRenderer,
-    stage: PIXI.Container
+    stage: PIXI.Container,
   ): PIXI.Container {
     const lineWidth = 1;
     const container = new PIXI.Container();
@@ -592,10 +673,14 @@ export class OjnChartRenderer {
 
     // Draw sprite rendering of chart stage
     const texture = renderer.generateTexture(stage, {
-      resolution: 2 * (this.options.verticalMode ? this.containerHeightShrinkRatio : this.containerWidthShrinkRatio),
+      resolution:
+        2 *
+        (this.options.verticalMode
+          ? this.containerHeightShrinkRatio
+          : this.containerWidthShrinkRatio),
       scaleMode: PIXI.SCALE_MODES.NEAREST,
     });
-    
+
     const sprite = new PIXI.Sprite(texture);
     if (this.options.verticalMode) {
       sprite.width = thumbnailWidth;
@@ -615,7 +700,7 @@ export class OjnChartRenderer {
     this.grayMaskGraphics = new PIXI.Graphics();
     this.grayMaskGraphics.beginFill(0xffffff);
     this.grayMaskGraphics.lineStyle(lineWidth, 0x404040, 1);
-    
+
     if (this.options.verticalMode) {
       // Above viewport box
       this.grayMaskGraphics.moveTo(0, 0);
@@ -657,14 +742,14 @@ export class OjnChartRenderer {
         -50,
         -thumbnailHeightVal,
         thumbnailWidth + 100,
-        2 * thumbnailHeightVal + 100
+        2 * thumbnailHeightVal + 100,
       );
     } else {
       this.grayMaskGraphics.hitArea = new PIXI.Rectangle(
         -renderer.width,
         0,
         2 * renderer.width,
-        this.thumbnailHeight + 50
+        this.thumbnailHeight + 50,
       );
     }
 
@@ -696,7 +781,10 @@ export class OjnChartRenderer {
     } else {
       outlineFrame.moveTo(lineWidth, 0);
       outlineFrame.lineTo(renderer.width * this.containerWidthShrinkRatio, 0);
-      outlineFrame.lineTo(renderer.width * this.containerWidthShrinkRatio, this.thumbnailHeight);
+      outlineFrame.lineTo(
+        renderer.width * this.containerWidthShrinkRatio,
+        this.thumbnailHeight,
+      );
       outlineFrame.lineTo(lineWidth, this.thumbnailHeight);
       outlineFrame.lineTo(lineWidth, 0);
     }
@@ -706,13 +794,18 @@ export class OjnChartRenderer {
 
     if (this.options.verticalMode) {
       const viewBoxHeight = renderer.height * this.containerHeightShrinkRatio;
-      outlineFrame.hitArea = new PIXI.Rectangle(-50, 0, thumbnailWidth + 100, viewBoxHeight);
+      outlineFrame.hitArea = new PIXI.Rectangle(
+        -50,
+        0,
+        thumbnailWidth + 100,
+        viewBoxHeight,
+      );
     } else {
       outlineFrame.hitArea = new PIXI.Rectangle(
         lineWidth,
         0,
         renderer.width * this.containerWidthShrinkRatio - lineWidth,
-        this.thumbnailHeight + 50
+        this.thumbnailHeight + 50,
       );
     }
 
@@ -737,19 +830,30 @@ export class OjnChartRenderer {
   }
 
   public updatePlayheadPosition(timeMs: number): void {
-    if (!this.playheadPreviewGraphics || !this.mainChartContainer || !this.currentChartData || !this.pixiApp) return;
+    if (
+      !this.playheadPreviewGraphics ||
+      !this.mainChartContainer ||
+      !this.currentChartData ||
+      !this.pixiApp
+    )
+      return;
 
     const mappingDetails = this.findMeasureAndOffsetAtTime(timeMs);
     if (!mappingDetails) return;
 
     const { measureIndex, beatInMeasure, measureLength } = mappingDetails;
 
-    const measureContainer = this.mainChartContainer.children[measureIndex] as PIXI.Container;
-    if (!measureContainer || measureContainer === this.playheadPreviewGraphics) return;
+    const measureContainer = this.mainChartContainer.children[
+      measureIndex
+    ] as PIXI.Container;
+    if (!measureContainer || measureContainer === this.playheadPreviewGraphics)
+      return;
 
     // measureLocalY is the measure's Y in the local space of mainChartContainer.
     const measureLocalY = measureContainer.position.y;
-    const measureHeight = (measureContainer as any).measureHeight || (this.currentChartData.ribbit.unit * this.options.scaleH);
+    const measureHeight =
+      (measureContainer as any).measureHeight ||
+      this.currentChartData.ribbit.unit * this.options.scaleH;
     const measureWidth = (measureContainer as any).measureWidth || 0;
     const yOffset = (beatInMeasure / measureLength) * measureHeight;
 
@@ -762,7 +866,10 @@ export class OjnChartRenderer {
         //   => containerY = posYinit - targetLocalY
         const targetLocalY = measureLocalY + measureHeight - yOffset;
         const newContainerY = posYinit - targetLocalY;
-        this.mainChartContainer.position.y = Math.min(Math.max(newContainerY, 0), this.totalChartHeight);
+        this.mainChartContainer.position.y = Math.min(
+          Math.max(newContainerY, 0),
+          this.totalChartHeight,
+        );
         this.mainChartContainer.position.x = 0;
         this.updateDrawbox();
       }
@@ -774,13 +881,17 @@ export class OjnChartRenderer {
       this.playheadPreviewGraphics.y = targetY - this.playheadHeight;
 
       if (!this.isDragging) {
-        const targetScrollX = -measureX + (this.pixiApp.renderer.width / 2) - (measureWidth / 2);
+        const targetScrollX =
+          -measureX + this.pixiApp.renderer.width / 2 - measureWidth / 2;
         this.mainChartContainer.position.x = Math.min(
           Math.max(
             targetScrollX,
-            this.pixiApp.renderer.width - this.totalChartWidth - leftMargin - rightMargin
+            this.pixiApp.renderer.width -
+              this.totalChartWidth -
+              leftMargin -
+              rightMargin,
           ),
-          0
+          0,
         );
         this.updateDrawbox();
       }
@@ -788,8 +899,9 @@ export class OjnChartRenderer {
   }
 
   private findMeasureAndOffsetAtTime(timeMs: number) {
-    if (!this.currentChartData || !this.currentChartData.ribbit.score) return null;
-    
+    if (!this.currentChartData || !this.currentChartData.ribbit.score)
+      return null;
+
     const score = this.currentChartData.ribbit.score;
     const unit = this.currentChartData.ribbit.unit;
     const cache = this.measureTimingCache;
@@ -856,7 +968,11 @@ export class OjnChartRenderer {
     const lastMeasure = score[lastIdx];
     if (lastMeasure) {
       const length = lastMeasure.length || unit;
-      return { measureIndex: lastIdx, beatInMeasure: length, measureLength: length };
+      return {
+        measureIndex: lastIdx,
+        beatInMeasure: length,
+        measureLength: length,
+      };
     }
     return null;
   }
@@ -875,7 +991,7 @@ export class OjnChartRenderer {
       if (measure.measureIndex === undefined) continue;
 
       const measureY = measure.position.y;
-      const measureHeight = measure.measureHeight || (unit * this.options.scaleH);
+      const measureHeight = measure.measureHeight || unit * this.options.scaleH;
 
       if (targetY >= measureY && targetY <= measureY + measureHeight) {
         targetMeasure = measure;
@@ -886,10 +1002,12 @@ export class OjnChartRenderer {
 
     if (targetMeasureIndex === -1) return;
 
-    const measureHeight = targetMeasure.measureHeight || (unit * this.options.scaleH);
+    const measureHeight =
+      targetMeasure.measureHeight || unit * this.options.scaleH;
     const localY = targetY - targetMeasure.position.y;
     const measureLength = score[targetMeasureIndex].length || unit;
-    const beatInMeasure = ((measureHeight - localY) / measureHeight) * measureLength;
+    const beatInMeasure =
+      ((measureHeight - localY) / measureHeight) * measureLength;
 
     const timingLines = score[targetMeasureIndex]["88"];
     if (!timingLines || timingLines.length === 0) return;
@@ -903,7 +1021,8 @@ export class OjnChartRenderer {
       const timeCount = line[4] as number;
 
       if (beatInMeasure >= beatNow && beatInMeasure <= beatNext) {
-        const elapsed = ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
+        const elapsed =
+          ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
         targetTime = timeCount + elapsed;
         break;
       }
@@ -912,7 +1031,11 @@ export class OjnChartRenderer {
     this.options.onSeek(targetTime);
   }
 
-  private seekToMeasureClick(event: any, measureContainer: any, measureIndex: number): void {
+  private seekToMeasureClick(
+    event: any,
+    measureContainer: any,
+    measureIndex: number,
+  ): void {
     const localPos = event.getLocalPosition(measureContainer);
     const localY = localPos.y;
     const measureHeight = measureContainer.measureHeight;
@@ -923,7 +1046,8 @@ export class OjnChartRenderer {
     if (!score || !unit) return;
 
     const measureLength = score[measureIndex].length || unit;
-    const beatInMeasure = ((measureHeight - localY) / measureHeight) * measureLength;
+    const beatInMeasure =
+      ((measureHeight - localY) / measureHeight) * measureLength;
 
     const timingLines = score[measureIndex]["88"];
     if (!timingLines || timingLines.length === 0) return;
@@ -937,7 +1061,8 @@ export class OjnChartRenderer {
       const timeCount = line[4] as number;
 
       if (beatInMeasure >= beatNow && beatInMeasure <= beatNext) {
-        const elapsed = ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
+        const elapsed =
+          ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
         targetTime = timeCount + elapsed;
         break;
       }
@@ -947,17 +1072,26 @@ export class OjnChartRenderer {
   }
 
   private updateDrawbox(): void {
-    if (!this.viewBoxContainer || !this.mainChartContainer || !this.pixiApp) return;
+    if (!this.viewBoxContainer || !this.mainChartContainer || !this.pixiApp)
+      return;
 
     if (this.options.verticalMode) {
-      const viewBoxHeight = this.pixiApp.renderer.height * this.containerHeightShrinkRatio;
+      const viewBoxHeight =
+        this.pixiApp.renderer.height * this.containerHeightShrinkRatio;
       const thumbnailHeightVal = this.pixiApp.renderer.height - bottomMargin;
       // Use totalChartHeight instead of mainChartContainer.height (avoids PIXI bounds recalc)
-      const targetY = (thumbnailHeightVal - viewBoxHeight) * (1 - this.mainChartContainer.position.y / this.totalChartHeight);
-      this.viewBoxContainer.position.y = Math.min(Math.max(targetY, 0), thumbnailHeightVal - viewBoxHeight);
+      const targetY =
+        (thumbnailHeightVal - viewBoxHeight) *
+        (1 - this.mainChartContainer.position.y / this.totalChartHeight);
+      this.viewBoxContainer.position.y = Math.min(
+        Math.max(targetY, 0),
+        thumbnailHeightVal - viewBoxHeight,
+      );
       this.viewBoxContainer.position.x = 0;
     } else {
-      this.viewBoxContainer.position.x = (-leftMargin - this.mainChartContainer.position.x) * this.containerWidthShrinkRatio;
+      this.viewBoxContainer.position.x =
+        (-leftMargin - this.mainChartContainer.position.x) *
+        this.containerWidthShrinkRatio;
       this.viewBoxContainer.position.y = 0;
     }
 
@@ -993,42 +1127,58 @@ export class OjnChartRenderer {
 
         // Use renderable instead of visible so PIXI still counts this child
         // in bounds calculations (visible=false would shrink container bounds).
-        child.renderable = globalYBottom >= -150 && globalYTop <= rendererHeight + 150;
+        child.renderable =
+          globalYBottom >= -150 && globalYTop <= rendererHeight + 150;
       } else {
         const globalXLeft = containerX + child.position.x;
         const globalXRight = globalXLeft + measureWidth;
-        child.renderable = globalXRight >= -300 && globalXLeft <= rendererWidth + 300;
+        child.renderable =
+          globalXRight >= -300 && globalXLeft <= rendererWidth + 300;
       }
     }
   }
 
   private onThumbnailClick(event: any): void {
-    if (event.target !== this.grayMaskGraphics || !this.mainChartContainer || !this.pixiApp) return;
+    if (
+      event.target !== this.grayMaskGraphics ||
+      !this.mainChartContainer ||
+      !this.pixiApp
+    )
+      return;
 
     this.currentDragPosition = event.getLocalPosition(this.thumbnailContainer);
     if (!this.currentDragPosition) return;
 
     if (this.options.verticalMode) {
       const thumbnailHeightVal = this.pixiApp.renderer.height - bottomMargin;
-      const viewBoxHeight = this.pixiApp.renderer.height * this.containerHeightShrinkRatio;
+      const viewBoxHeight =
+        this.pixiApp.renderer.height * this.containerHeightShrinkRatio;
       const scrollRange = thumbnailHeightVal - viewBoxHeight;
       const posY = this.currentDragPosition.y - viewBoxHeight / 2;
       const posY_clamped = Math.min(Math.max(posY, 0), scrollRange);
-      
+
       let targetPositionY = 0;
       if (scrollRange > 0) {
-        targetPositionY = this.totalChartHeight * (1 - posY_clamped / scrollRange);
+        targetPositionY =
+          this.totalChartHeight * (1 - posY_clamped / scrollRange);
       }
       this.mainChartContainer.position.y = targetPositionY;
-      this.seekToY(this.pixiApp.renderer.height - bottomMargin - targetPositionY);
+      this.seekToY(
+        this.pixiApp.renderer.height - bottomMargin - targetPositionY,
+      );
     } else {
-      const posX = this.currentDragPosition.x - (this.pixiApp.renderer.width * this.containerWidthShrinkRatio) / 2;
+      const posX =
+        this.currentDragPosition.x -
+        (this.pixiApp.renderer.width * this.containerWidthShrinkRatio) / 2;
       this.mainChartContainer.position.x = Math.min(
         Math.max(
           -posX / this.containerWidthShrinkRatio,
-          this.pixiApp.renderer.width - this.totalChartWidth - leftMargin - rightMargin
+          this.pixiApp.renderer.width -
+            this.totalChartWidth -
+            leftMargin -
+            rightMargin,
         ),
-        0
+        0,
       );
     }
     this.updateDrawbox();
@@ -1041,10 +1191,18 @@ export class OjnChartRenderer {
     // Trigger hook before drag
     this.options.onBeforeDrag();
 
-    if (this.activeDragTarget && this.activeDragTarget.parent && this.activeDragTarget.parent.parent === this.thumbnailContainer) {
-      this.currentDragPosition = event.getLocalPosition(this.thumbnailContainer);
+    if (
+      this.activeDragTarget &&
+      this.activeDragTarget.parent &&
+      this.activeDragTarget.parent.parent === this.thumbnailContainer
+    ) {
+      this.currentDragPosition = event.getLocalPosition(
+        this.thumbnailContainer,
+      );
     } else {
-      this.currentDragPosition = event.getLocalPosition(this.activeDragTarget.parent);
+      this.currentDragPosition = event.getLocalPosition(
+        this.activeDragTarget.parent,
+      );
     }
 
     if (event && event.global) {
@@ -1058,12 +1216,19 @@ export class OjnChartRenderer {
     if (this.isDragging && event && event.global) {
       const dragEndX = event.global.x;
       const dragEndY = event.global.y;
-      const dist = Math.hypot(dragEndX - this.dragStartX, dragEndY - this.dragStartY);
-      
+      const dist = Math.hypot(
+        dragEndX - this.dragStartX,
+        dragEndY - this.dragStartY,
+      );
+
       // Tap/click detection - record what was clicked, handle after isDragging = false
       if (dist < 5 && this.mainChartContainer) {
         let clickedTarget = event.target;
-        while (clickedTarget && clickedTarget !== this.mainChartContainer && clickedTarget.parent !== this.mainChartContainer) {
+        while (
+          clickedTarget &&
+          clickedTarget !== this.mainChartContainer &&
+          clickedTarget.parent !== this.mainChartContainer
+        ) {
           clickedTarget = clickedTarget.parent;
         }
         if (clickedTarget && clickedTarget.measureIndex !== undefined) {
@@ -1072,7 +1237,11 @@ export class OjnChartRenderer {
           this.isDragging = false;
           this.currentDragPosition = null;
           this.activeDragTarget = null;
-          this.seekToMeasureClick(event, clickedTarget, clickedTarget.measureIndex);
+          this.seekToMeasureClick(
+            event,
+            clickedTarget,
+            clickedTarget.measureIndex,
+          );
         }
       }
     }
@@ -1088,7 +1257,13 @@ export class OjnChartRenderer {
   }
 
   private onDragMove(event: any): void {
-    if (!this.mainChartContainer || !this.isDragging || !this.currentDragPosition || !this.pixiApp) return;
+    if (
+      !this.mainChartContainer ||
+      !this.isDragging ||
+      !this.currentDragPosition ||
+      !this.pixiApp
+    )
+      return;
 
     let localNewPos;
     if (this.options.verticalMode) {
@@ -1096,11 +1271,12 @@ export class OjnChartRenderer {
       if (this.activeDragTarget.parent.parent === this.thumbnailContainer) {
         localNewPos = event.getLocalPosition(this.thumbnailContainer);
         deltaY = -this.currentDragPosition.y + localNewPos.y;
-        
+
         const thumbnailHeightVal = this.pixiApp.renderer.height - bottomMargin;
-        const viewBoxHeight = this.pixiApp.renderer.height * this.containerHeightShrinkRatio;
+        const viewBoxHeight =
+          this.pixiApp.renderer.height * this.containerHeightShrinkRatio;
         const scrollRange = thumbnailHeightVal - viewBoxHeight;
-        
+
         if (scrollRange > 0) {
           deltaY *= -this.totalChartHeight / scrollRange;
         } else {
@@ -1112,16 +1288,17 @@ export class OjnChartRenderer {
       }
 
       this.mainChartContainer.position.y = Math.min(
-        Math.max(
-          this.mainChartContainer.position.y + deltaY,
-          0
-        ),
-        this.totalChartHeight
+        Math.max(this.mainChartContainer.position.y + deltaY, 0),
+        this.totalChartHeight,
       );
       this.updateDrawbox();
       this.currentDragPosition = localNewPos;
 
-      this.seekToY(this.pixiApp.renderer.height - bottomMargin - this.mainChartContainer.position.y);
+      this.seekToY(
+        this.pixiApp.renderer.height -
+          bottomMargin -
+          this.mainChartContainer.position.y,
+      );
     } else {
       let deltaX = 0;
       if (this.activeDragTarget.parent.parent === this.thumbnailContainer) {
@@ -1136,9 +1313,12 @@ export class OjnChartRenderer {
       this.mainChartContainer.position.x = Math.min(
         Math.max(
           this.mainChartContainer.position.x + deltaX,
-          this.pixiApp.renderer.width - this.totalChartWidth - leftMargin - rightMargin
+          this.pixiApp.renderer.width -
+            this.totalChartWidth -
+            leftMargin -
+            rightMargin,
         ),
-        0
+        0,
       );
       this.updateDrawbox();
       this.currentDragPosition = localNewPos;
@@ -1159,7 +1339,11 @@ export class OjnChartRenderer {
   public destroy(): void {
     this.clearRenderedAssets();
     if (this.pixiApp) {
-      this.pixiApp.destroy(true, { children: true, texture: true, baseTexture: true });
+      this.pixiApp.destroy(true, {
+        children: true,
+        texture: true,
+        baseTexture: true,
+      });
       this.pixiApp = null;
     }
   }

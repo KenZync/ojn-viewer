@@ -1,127 +1,35 @@
-<template>
-  <div>
-    <ClientOnly>
-      <div
-        v-if="jsonData && headerData"
-        class="flex justify-between items-center h-[50px] bg-black text-white text-xl font-bold px-4"
-      >
-        <div class="truncate mr-4">
-          {{
-            `Lv.${headerData.difficulty[selectedDifficulty].level} ${jsonData.title} / ${
-              jsonData.artist
-            } / obj : ${jsonData.obj} / bpm: ${jsonData.bpm} / Notes: ${
-              jsonData.notes
-            } / Time: ${fancyTimeFormat(headerData.difficulty[selectedDifficulty].duration)}`
-          }}
-        </div>
-        <div class="flex items-center space-x-6 flex-shrink-0">
-          <div class="flex items-center space-x-2 text-sm select-none">
-            <span class="text-stone-400 font-medium">Vol:</span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              v-model="volumeLevel"
-              class="w-20 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-emerald-400"
-            />
-            <span class="w-8 text-right font-medium text-stone-300">{{ Math.round(volumeLevel * 100) }}%</span>
-          </div>
-          <button @click="togglePlay" class="text-emerald-400 hover:text-emerald-300 transition-colors">
-            {{ isPlaying ? 'Pause (Space)' : 'Play (Space)' }}
-          </button>
-          <button @click="toggleSetting" class="hover:text-stone-300 transition-colors">Setting</button>
-        </div>
-      </div>
-      <div
-        v-else
-        class="min-h-screen bg-zinc-900 flex justify-center items-center text-white font-bold flex-col w-full p-4 select-none"
-      >
-        <DropZone
-          class="w-full max-w-xl text-center"
-          @files-dropped="onMainFilesDropped"
-          #default="{ dropZoneActive }"
-        >
-          <div
-            :class="{
-              'border-emerald-400 bg-zinc-800 scale-[1.02] shadow-emerald-950/30': dropZoneActive,
-              'border-zinc-700 hover:border-zinc-500 bg-zinc-900/50': !dropZoneActive
-            }"
-            class="border-4 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center transition-all duration-200 shadow-2xl space-y-6"
-          >
-            <TitleScreen />
-            <div class="text-sm font-medium text-stone-400 max-w-md">
-              Drag & Drop your <span class="font-mono text-emerald-400 font-bold">.ojn</span> or <span class="font-mono text-emerald-400 font-bold">.ojm</span> files here, or browse to load a chart.
-            </div>
-            <label
-              for="main-file-input"
-              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition-colors cursor-pointer shadow-md active:scale-95 duration-100"
-            >
-              Browse Files
-              <input
-                id="main-file-input"
-                type="file"
-                class="hidden"
-                @change="onMainInputChange"
-                multiple
-              />
-            </label>
-          </div>
-        </DropZone>
-      </div>
-      <Sidebar
-        v-if="showPanel"
-        class="absolute bg-stone-700 top-0 right-0 px-5 w-56 h-screen flex flex-col text-white space-y-3 overflow-auto z-50"
-        :hit-sounds="hitSounds"
-        :header-data="headerData"
-        :is-playing="isPlaying"
-        @close="toggleSetting"
-        @random="random"
-        @upload="upload"
-        @toggle-ohm-mode="toggleOhmMode"
-        @play-song="playSong"
-        @toggle-no-ln="toggleNoLN"
-        @toggle-vertical-mode="toggleVerticalMode"
-        @update-scale-w="updateScaleW"
-        @update-scale-h="updateScaleH"
-        @update-note-height="updateNoteHeight"
-        @change-difficulty="onChangeDifficulty"
-      />
-      <div
-        class="fixed inset-0 overflow-y-auto z-[200] bg-black bg-opacity-50"
-        v-if="loading || isDecoding"
-      >
-        <div class="flex h-screen items-center flex-col justify-center text-white space-y-4">
-          <LoadingSpinner />
-          <div class="text-xl font-bold" v-if="isDecoding">
-            Decoding Audio: {{ decodingProgress }} / {{ decodingTotal }}
-          </div>
-        </div>
-      </div>
-    </ClientOnly>
-    <div ref="pixiContainer"></div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { OjnChartRenderer } from "~/utils/chart-renderer";
-import FileParser from "~/utils/file-parser";
-import OJMParser from "~/utils/ojm-parser";
+import { parseOpi, type OpiArchive } from "~/utils/parsers/opi-parser";
+import FileParser from "~/utils/parsers/file-parser";
+import { convert } from "~/utils/parsers/ojn-parser";
+import { shuffle } from "~/utils/helpers/random";
+import { fancyTimeFormat } from "~/utils/helpers/formatter";
 
-const router = useRouter();
 const route = useRoute();
-const pixiContainer = ref<HTMLElement>();
 
-// Model States
-const jsonData = ref<Ribbit>();
-const headerData = ref<OJNHeader>();
-const hard = ref<HardType>();
-const hitSounds = ref<HitSound>();
-const rawOjnBuffer = ref<ArrayBuffer | null>(null);
+// Unified Dashboard States
+const currentView = ref<'landing' | 'player' | 'dressing' | 'godtool'>('landing');
+const loadedChart = ref<ConvertedOJN | null>(null);
+const loadedGodtool = ref<OpiArchive | null>(null);
 
-const showPanel = ref(false);
+const showOpaModal = ref(false);
+const pendingOpaFile = ref<File | null>(null);
+
 const loading = ref(false);
 
+// Refs for workspace components
+const dressingWorkspaceRef = ref<any>(null);
+
+const { isArchiveLoaded, parseAvatarArchive, clearEquipments } = useAvatarState();
+
+const activeWorkspaceLabel = computed(() => {
+  if (currentView.value === 'player') return 'O2Jam Rhythm Chart Player';
+  if (currentView.value === 'dressing') return 'O2Jam Closet Customizer';
+  if (currentView.value === 'godtool') return 'GodTool OPI Inspector';
+  return '';
+});
+
+// Audio Hook states
 const seed = useSeed();
 const ohmMode = useOhm();
 const noLN = useNoLN();
@@ -135,26 +43,11 @@ const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
 });
 
-const deathPoints = ref<DeathPoint>({});
-const deathPointPlayer = computed(() => {
-  if (deathPoints.value && route.query.player) {
-    return searchDeathPlayer(deathPoints.value, route.query.player?.toString());
-  }
-  return {};
-});
-
-// Setup audio controller hook
 const chartDataRef = computed<ConvertedOJN | undefined>(() => {
-  if (!jsonData.value || !headerData.value || !hard.value) return undefined;
-  return {
-    header: headerData.value,
-    ribbit: jsonData.value,
-    hard: hard.value,
-    hitSounds: hitSounds.value,
-  };
+  if (!loadedChart.value) return undefined;
+  return loadedChart.value;
 });
 
-let wasPlayingBeforeDrag = false;
 const {
   isPlaying,
   seekOffset,
@@ -172,160 +65,212 @@ const {
 } = useOjnAudio(
   chartDataRef,
   pattern,
-  (timeMs) => {
-    chartRenderer.value?.updatePlayheadPosition(timeMs);
-  }
+  () => {}
 );
 
-// Chart Renderer State
-const chartRenderer = shallowRef<OjnChartRenderer | null>(null);
+// Drag & Drop visual state helpers
+const isDragActive = ref(false);
+let dragCounter = 0;
 
-const initChartRenderer = () => {
-  if (!pixiContainer.value) return;
-  if (chartRenderer.value) {
-    chartRenderer.value.destroy();
+const onDragEnter = (e: DragEvent) => {
+  e.preventDefault();
+  dragCounter++;
+  isDragActive.value = true;
+};
+
+const onDragLeave = (e: DragEvent) => {
+  e.preventDefault();
+  dragCounter--;
+  if (dragCounter === 0) {
+    isDragActive.value = false;
   }
+};
 
-  chartRenderer.value = new OjnChartRenderer(pixiContainer.value, {
-    scaleW: scaleW.value,
-    scaleH: scaleH.value,
-    noteHeight: noteHeight.value,
-    verticalMode: verticalMode.value,
-    noLN: noLN.value,
-    ohmMode: ohmMode.value,
-    pattern: pattern.value,
-    deathPointPlayer: deathPointPlayer.value,
-    onSeek: (timeMs) => {
-      chartRenderer.value?.resetSeekCache();
-      seekTo(timeMs);
-    },
-    onBeforeDrag: () => {
-      if (isPlaying.value) {
-        wasPlayingBeforeDrag = true;
-        pauseAudioPlayback();
-      } else {
-        wasPlayingBeforeDrag = false;
-      }
-    },
-    onAfterDrag: () => {
-      if (wasPlayingBeforeDrag) {
-        startAudioPlayback(seekOffset.value);
-        wasPlayingBeforeDrag = false;
-      }
-    }
+const onDragOver = (e: DragEvent) => {
+  e.preventDefault();
+};
+
+const onDrop = async (e: DragEvent) => {
+  e.preventDefault();
+  isDragActive.value = false;
+  dragCounter = 0;
+  
+  const filesList = e.dataTransfer?.items || e.dataTransfer?.files;
+  if (filesList && filesList.length > 0) {
+    await handleDroppedItems(filesList);
+  }
+};
+
+const getFileFromEntry = (entry: any): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    entry.file((file: File) => resolve(file), (err: any) => reject(err));
   });
 };
 
-const triggerNoteRender = () => {
-  if (!chartRenderer.value) {
-    initChartRenderer();
-  }
-
-  if (chartRenderer.value && jsonData.value && headerData.value && hard.value) {
-    chartRenderer.value.updateOptions({
-      scaleW: scaleW.value,
-      scaleH: scaleH.value,
-      noteHeight: noteHeight.value,
-      verticalMode: verticalMode.value,
-      noLN: noLN.value,
-      ohmMode: ohmMode.value,
-      pattern: pattern.value,
-      deathPointPlayer: deathPointPlayer.value,
-    });
-
-    const scrollPosition = chartRenderer.value.getScrollPosition();
-    
-    chartRenderer.value.render({
-      header: headerData.value,
-      ribbit: jsonData.value,
-      hard: hard.value,
-      hitSounds: hitSounds.value,
-    });
-
-    if (!verticalMode.value) {
-      chartRenderer.value.setScrollPosition(scrollPosition);
-    }
-
-    chartRenderer.value.updatePlayheadPosition(seekOffset.value);
-  }
-  loading.value = false;
+const readFileBuffer = (file: File): Promise<ArrayBuffer> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+    reader.onerror = (e) => reject(e.target?.error);
+    reader.readAsArrayBuffer(file);
+  });
 };
 
-// URL parameters remote fetch handler
-const { data: ojnData } = useAsyncData(
-  "ojn",
-  async () => {
-    if (!route.query.server || !route.query.id) {
-      return;
-    }
-    
-    loading.value = true;
-    if (route.query.server === "dmjam") {
-      try {
-        const failData = await $fetch(`/api/${route.query.server}/fail/${route.query.id}`);
-        deathPoints.value = failData as DeathPoint;
-      } catch (err) {
-        console.warn("Failed to fetch deathpoints:", err);
+const handleDroppedItems = async (items: any) => {
+  const entries: any[] = [];
+  const files: File[] = [];
+  let isDirectory = false;
+  
+  if (items[0] && ('webkitGetAsEntry' in items[0] || items[0] instanceof DataTransferItem)) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry();
+        if (entry) {
+          entries.push(entry);
+          if (entry.isDirectory) isDirectory = true;
+        }
       }
     }
-
-    try {
-      const ojnUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${route.query.id}.ojn`;
-      const downloadedOjn = await $fetch(ojnUrl, {
-        responseType: "arrayBuffer",
-      });
-      rawOjnBuffer.value = downloadedOjn as ArrayBuffer;
-      selectedDifficulty.value = "hard";
-      
-      const convertedData = convert(downloadedOjn as ArrayBuffer, deathPoints.value, {}, "hard");
-      jsonData.value = convertedData.ribbit;
-      headerData.value = convertedData.header;
-      hard.value = convertedData.hard;
-      hitSounds.value = convertedData.hitSounds;
-      showPanel.value = true;
-
-      setTimeout(() => {
-        triggerNoteRender();
-      }, 5);
-    } catch (error) {
-      alert("OJN NOT FOUND " + error);
-      loading.value = false;
+  } else {
+    for (let i = 0; i < items.length; i++) {
+      files.push(items[i]);
     }
-  },
-  { server: false }
-);
-
-const handlePlaySongToggle = async () => {
-  if (!jsonData.value || loading.value || isDecoding.value) return;
-
-  if (isPlaying.value) {
-    pauseAudioPlayback();
-    return;
   }
 
-  // Fetch OJM hit sound file if not yet loaded for DMJam
-  if (
-    route.query.server === "dmjam" &&
-    route.query.id &&
-    (!hitSounds.value || Object.keys(hitSounds.value).length === 0)
-  ) {
+  let hasOjn = false;
+  let hasOpa = false;
+  let hasOpi = false;
+  let opaFileEntry: any = null;
+  let opiFileEntry: any = null;
+
+  if (entries.length > 0) {
+    if (isDirectory) {
+      hasOjn = true;
+    } else {
+      for (const entry of entries) {
+        const name = entry.name.toLowerCase();
+        if (name.endsWith('.ojn') || name.endsWith('.ojm')) hasOjn = true;
+        if (name.endsWith('.opa')) { hasOpa = true; opaFileEntry = entry; }
+        if (name.endsWith('.opi')) { hasOpi = true; opiFileEntry = entry; }
+      }
+    }
+  } else {
+    for (const file of files) {
+      const name = file.name.toLowerCase();
+      if (name.endsWith('.ojn') || name.endsWith('.ojm')) hasOjn = true;
+      if (name.endsWith('.opa')) { hasOpa = true; opaFileEntry = file; }
+      if (name.endsWith('.opi')) { hasOpi = true; opiFileEntry = file; }
+    }
+  }
+
+  if (hasOjn) {
     loading.value = true;
     try {
-      const ojmUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${route.query.id}.ojm`;
-      const downloadedOjm = await $fetch(ojmUrl, {
-        responseType: "arrayBuffer",
-      });
-      hitSounds.value = OJMParser.parseContent(downloadedOjm as ArrayBuffer) as HitSound;
+      const inputItems = entries.length > 0 ? entries : files;
+      const output = await FileParser.parseFiles(inputItems, entries.length > 0);
+      loadedChart.value = output;
+      stopSong();
       await decodeAllSounds();
-    } catch (error) {
-      console.error("Failed to download or parse OJM:", error);
-      alert("OJM download failed: " + error);
-      return;
+      currentView.value = 'player';
+    } catch (err) {
+      alert("Failed to parse rhythm chart: " + err);
     } finally {
       loading.value = false;
     }
+  } else if (hasOpa) {
+    const rawFile = entries.length > 0 ? await getFileFromEntry(opaFileEntry) : opaFileEntry;
+    if (rawFile) {
+      pendingOpaFile.value = rawFile;
+      showOpaModal.value = true;
+    }
+  } else if (hasOpi) {
+    loading.value = true;
+    const rawFile = entries.length > 0 ? await getFileFromEntry(opiFileEntry) : opiFileEntry;
+    if (rawFile) {
+      try {
+        const buffer = await readFileBuffer(rawFile);
+        loadedGodtool.value = parseOpi(buffer);
+        currentView.value = 'godtool';
+      } catch (err) {
+        alert("Failed to parse OPI archive: " + err);
+      } finally {
+        loading.value = false;
+      }
+    }
+  } else {
+    alert("Unsupported file format! Please drop a valid O2Jam resource file (.ojn, .ojm, .opa, .opi).");
   }
+};
 
+const handleOpaChoice = async (choice: 'dressing' | 'godtool') => {
+  if (!pendingOpaFile.value) return;
+  showOpaModal.value = false;
+  loading.value = true;
+  
+  const rawFile = pendingOpaFile.value;
+  pendingOpaFile.value = null;
+  
+  try {
+    const buffer = await readFileBuffer(rawFile);
+    if (choice === 'dressing') {
+      await parseAvatarArchive(buffer);
+      currentView.value = 'dressing';
+    } else {
+      loadedGodtool.value = parseOpi(buffer);
+      currentView.value = 'godtool';
+    }
+  } catch (err) {
+    alert("Parsing failed: " + err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const cancelOpaChoice = () => {
+  showOpaModal.value = false;
+  pendingOpaFile.value = null;
+};
+
+const onMainInputChange = async (event: any) => {
+  if (event.target.files && event.target.files.length > 0) {
+    await handleDroppedItems(event.target.files);
+  }
+};
+
+const onMainFilesDropped = async (event: any) => {
+  if (event.dataTransfer?.files && event.dataTransfer?.files.length > 0) {
+    await handleDroppedItems(event.dataTransfer.files);
+  }
+};
+
+const exitToLanding = () => {
+  currentView.value = 'landing';
+};
+
+const unloadActiveWorkspace = () => {
+  if (currentView.value === 'player') {
+    stopSong();
+    loadedChart.value = null;
+  } else if (currentView.value === 'dressing') {
+    clearEquipments();
+    isArchiveLoaded.value = false;
+  } else if (currentView.value === 'godtool') {
+    loadedGodtool.value = null;
+  }
+  currentView.value = 'landing';
+};
+
+// Player Settings Controls handlers
+const showSettings = ref(false);
+const toggleSetting = () => {
+  if (loadedChart.value) {
+    showSettings.value = !showSettings.value;
+  }
+};
+
+const handlePlaySongToggle = () => {
+  if (!loadedChart.value || loading.value || isDecoding.value) return;
   togglePlay();
 };
 
@@ -333,121 +278,29 @@ const playSong = () => {
   handlePlaySongToggle();
 };
 
-const toggleSetting = () => {
-  if (jsonData.value) {
-    showPanel.value = !showPanel.value;
-  }
-};
-
 const upload = async (uploadedFile: ConvertedOJN) => {
-  deathPoints.value = {};
-  selectedDifficulty.value = "hard";
   loading.value = true;
-  jsonData.value = uploadedFile.ribbit;
-  headerData.value = uploadedFile.header;
-  hard.value = uploadedFile.hard;
-  hitSounds.value = uploadedFile.hitSounds;
-  rawOjnBuffer.value = uploadedFile.rawOjnBuffer || null;
-  
-  router.replace("/");
+  loadedChart.value = uploadedFile;
   stopSong();
-  
   await decodeAllSounds();
-  
-  showPanel.value = true;
-  setTimeout(() => {
-    triggerNoteRender();
-  }, 5);
-};
-
-const handleFileInputProcess = async (event: any) => {
-  let fileList;
-  let isDropped = false;
-  if (event.target.files) {
-    fileList = event.target.files;
-  } else {
-    fileList = event.dataTransfer.items;
-    isDropped = true;
-  }
-
-  try {
-    let parsedFiles = [];
-    if (isDropped) {
-      for (const item of fileList) {
-        if (item != null && item.kind === "file") {
-          parsedFiles.push(item.webkitGetAsEntry());
-        }
-      }
-    } else {
-      parsedFiles = fileList;
-    }
-    
-    const output = await FileParser.parseFiles(parsedFiles, isDropped);
-    upload(output);
-  } catch (err) {
-    alert("Parsing failed: " + err);
-  }
-};
-
-const onMainInputChange = async (event: any) => {
-  await handleFileInputProcess(event);
-};
-
-const onMainFilesDropped = async (event: any) => {
-  await handleFileInputProcess(event);
+  loading.value = false;
 };
 
 const random = (isRandom: boolean) => {
   if (isRandom) {
     seed.value = shuffle("1234567".split("")).join("");
   }
-  
-  loading.value = true;
-  setTimeout(() => {
-    triggerNoteRender();
-  }, 5);
 };
 
-const toggleOhmMode = (ohmModeValue: string) => {
-  if (ohmModeValue === "you" && Object.keys(deathPointPlayer.value).length === 0) {
-    alert("NO DATA");
-    return;
-  }
-  
-  loading.value = true;
-  setTimeout(() => {
-    triggerNoteRender();
-  }, 200);
-};
-
-const toggleNoLN = () => {
-  loading.value = true;
-  setTimeout(() => {
-    triggerNoteRender();
-  }, 200);
-};
-
-const toggleVerticalMode = () => {
-  loading.value = true;
-  setTimeout(() => {
-    triggerNoteRender();
-  }, 200);
-};
-
-const updateScaleW = () => {
-  triggerNoteRender();
-};
-
-const updateScaleH = () => {
-  triggerNoteRender();
-};
-
-const updateNoteHeight = () => {
-  triggerNoteRender();
-};
+const toggleOhmMode = (ohmModeValue: string) => {};
+const toggleNoLN = () => {};
+const toggleVerticalMode = () => {};
+const updateScaleW = () => {};
+const updateScaleH = () => {};
+const updateNoteHeight = () => {};
 
 const onChangeDifficulty = async (difficulty: OjnDifficulty) => {
-  if (!rawOjnBuffer.value) return;
+  if (!loadedChart.value || !loadedChart.value.rawOjnBuffer) return;
   
   const wasPlaying = isPlaying.value;
   const currentOffset = seekOffset.value;
@@ -460,64 +313,449 @@ const onChangeDifficulty = async (difficulty: OjnDifficulty) => {
   loading.value = true;
   
   try {
-    const convertedData = convert(rawOjnBuffer.value, deathPoints.value, hitSounds.value || {}, difficulty);
-    jsonData.value = convertedData.ribbit;
-    headerData.value = convertedData.header;
-    hard.value = convertedData.hard;
+    const convertedData = convert(loadedChart.value.rawOjnBuffer, {}, loadedChart.value.hitSounds || {}, difficulty);
+    loadedChart.value = {
+      ...loadedChart.value,
+      ribbit: convertedData.ribbit,
+      header: convertedData.header,
+      hard: convertedData.hard,
+    };
     
     await decodeAllSounds();
     
-    // Calculate max chart duration and clamp seek offset
-    const maxDurationSec = headerData.value?.difficulty?.[difficulty]?.duration || 0;
+    const maxDurationSec = loadedChart.value.header?.difficulty?.[difficulty]?.duration || 0;
     const chartDurationMs = getChartDurationMs() || maxDurationSec * 1000;
     const clampedOffset = Math.max(0, Math.min(currentOffset, chartDurationMs));
     
-    // Seek back to the clamped offset in the new difficulty layout
-    chartRenderer.value?.resetSeekCache();
     seekTo(clampedOffset);
     
     if (wasPlaying) {
       startAudioPlayback(clampedOffset);
     }
-    
-    setTimeout(() => {
-      triggerNoteRender();
-    }, 5);
   } catch (error) {
     console.error("Failed to swap difficulty:", error);
     alert("Failed to swap difficulty: " + error);
+  } finally {
     loading.value = false;
   }
 };
 
-onMounted(() => {
-  window.addEventListener("resize", onResize);
-  window.addEventListener("keydown", handleKeyDown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("resize", onResize);
-  window.removeEventListener("keydown", handleKeyDown);
-  
-  if (chartRenderer.value) {
-    chartRenderer.value.destroy();
-    chartRenderer.value = null;
+let wasPlayingBeforeDrag = false;
+const onBeforeDrag = () => {
+  if (isPlaying.value) {
+    wasPlayingBeforeDrag = true;
+    pauseAudioPlayback();
+  } else {
+    wasPlayingBeforeDrag = false;
   }
-});
+};
 
+const onAfterDrag = () => {
+  if (wasPlayingBeforeDrag) {
+    startAudioPlayback(seekOffset.value);
+    wasPlayingBeforeDrag = false;
+  }
+};
+
+// Keyboard listener
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.code === "Space") {
     if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
       return;
     }
     e.preventDefault();
-    handlePlaySongToggle();
+    if (currentView.value === 'player') {
+      handlePlaySongToggle();
+    }
   }
 };
 
-const onResize = () => {
-  setTimeout(() => {
-    chartRenderer.value?.resize();
-  }, 200);
+// Robust sanitization function for song metadata
+const sanitizeMetadataString = (str: string | undefined | null): string => {
+  if (!str) return "";
+  // Strip control bytes
+  let clean = str.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+  // Strip trailing replacement characters, block boxes, box drawing, or trailing whitespace
+  clean = clean.replace(/[\uFFFD\u2500-\u25FF\s]+$/, "");
+  // Strip leading replacement characters or whitespace
+  clean = clean.replace(/^[\uFFFD\s]+/, "");
+  return clean.trim();
 };
+
+const sanitizedTitle = computed(() => {
+  return sanitizeMetadataString(loadedChart.value?.header?.title);
+});
+
+const sanitizedArtist = computed(() => {
+  return sanitizeMetadataString(loadedChart.value?.header?.artist);
+});
+
+const sanitizedNoter = computed(() => {
+  return sanitizeMetadataString(
+    loadedChart.value?.ribbit?.obj || loadedChart.value?.header?.noter
+  );
+});
+
+const formattedBpm = computed(() => {
+  const bpm = loadedChart.value?.header?.bpm ?? loadedChart.value?.ribbit?.bpm;
+  if (bpm == null || Number.isNaN(bpm)) return "—";
+  return (Math.round(bpm * 100) / 100).toString();
+});
+
+onMounted(() => {
+  window.addEventListener("keydown", handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeyDown);
+  stopSong();
+});
 </script>
+
+<template>
+  <div 
+    class="h-screen w-screen bg-zinc-950 text-white font-sans flex flex-col overflow-hidden select-none relative"
+    @dragenter="onDragEnter"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
+  >
+    <!-- Screen-wide Global Drag Over Overlay -->
+    <div 
+      v-show="isDragActive"
+      class="absolute inset-0 bg-emerald-950/20 border-4 border-dashed border-emerald-500 backdrop-blur-sm z-[300] flex flex-col items-center justify-center pointer-events-none transition-all duration-150"
+    >
+      <div class="bg-zinc-950/80 border border-zinc-800 p-8 rounded-2xl flex flex-col items-center space-y-4 shadow-2xl scale-[1.05] transition-transform">
+        <div class="h-16 w-16 rounded-full bg-emerald-600/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        </div>
+        <div class="text-center">
+          <h3 class="text-lg font-bold text-zinc-200">Drop files anywhere to open</h3>
+          <p class="text-xs text-zinc-500 mt-1">Supports .ojn, .ojm, .opa, and .opi container files</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Choice routing Modal for .opa files -->
+    <div 
+      v-if="showOpaModal && pendingOpaFile"
+      class="fixed inset-0 bg-black/60 backdrop-blur-md z-[250] flex items-center justify-center p-4 transition-all"
+    >
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl scale-[1.02]">
+        <div class="flex items-center space-x-3.5">
+          <div class="h-12 w-12 rounded-xl bg-purple-600/10 text-purple-400 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-md font-bold text-zinc-200 truncate max-w-[280px]" :title="pendingOpaFile.name">
+              {{ pendingOpaFile.name }}
+            </h3>
+            <p class="text-xs text-zinc-500">Avatar item archive file detected</p>
+          </div>
+        </div>
+
+        <div class="text-xs text-zinc-400 leading-relaxed bg-zinc-950/40 p-3 rounded-lg border border-zinc-850">
+          How would you like to inspect this archive? Choose **Closet Studio** to try on sprite equipment layers, or **GodTool Explorer** to inspect raw sprite frames and boundary definitions.
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button 
+            @click="handleOpaChoice('dressing')"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl py-3 px-4 text-xs font-semibold shadow-lg shadow-emerald-950/30 transition-all active:scale-95 duration-100 flex flex-col items-center justify-center space-y-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span>Closet Studio</span>
+          </button>
+
+          <button 
+            @click="handleOpaChoice('godtool')"
+            class="bg-zinc-800 hover:bg-zinc-750 text-zinc-200 border border-zinc-700 rounded-xl py-3 px-4 text-xs font-semibold shadow-lg transition-all active:scale-95 duration-100 flex flex-col items-center justify-center space-y-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <span>GodTool Explorer</span>
+          </button>
+        </div>
+
+        <button 
+          @click="cancelOpaChoice"
+          class="w-full text-center text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-colors pt-2"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- Unified Global Header -->
+    <header 
+      v-show="currentView !== 'landing'"
+      class="flex justify-between items-center h-[60px] bg-zinc-900 border-b border-zinc-800 px-6 flex-shrink-0 z-20 text-white"
+    >
+      <!-- Left side: Song details (for player) OR Tool title (for dressing/godtool) -->
+      <div class="flex items-center min-w-0">
+        <div v-if="currentView === 'player' && loadedChart" class="flex items-center space-x-4 min-w-0">
+          <!-- Level / Difficulty Badge on Leftest -->
+          <span 
+            :class="{
+              'bg-rose-500/10 text-rose-400 border border-rose-500/20': selectedDifficulty === 'hard',
+              'bg-amber-500/10 text-amber-400 border border-amber-500/20': selectedDifficulty === 'normal',
+              'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': selectedDifficulty === 'easy'
+            }"
+            class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 border"
+          >
+            {{ selectedDifficulty }} Lv.{{ loadedChart.header?.difficulty?.[selectedDifficulty]?.level || 0 }}
+          </span>
+
+          <div class="flex flex-col text-left min-w-0">
+            <div class="flex items-center space-x-3 min-w-0">
+              <!-- Song Title -->
+              <span class="text-white text-base font-extrabold tracking-wide truncate max-w-[320px]" :title="sanitizedTitle">
+                {{ sanitizedTitle }}
+              </span>
+              <!-- Divider dot -->
+              <span class="text-zinc-700 select-none">•</span>
+              <!-- Chart metadata chips -->
+              <div class="flex items-center space-x-3 text-xs flex-shrink-0">
+                <span v-if="sanitizedNoter" class="flex items-center space-x-1 max-w-[140px]">
+                  <span class="text-zinc-500 font-medium">Obj:</span>
+                  <span class="text-zinc-100 font-mono font-bold truncate" :title="sanitizedNoter">{{ sanitizedNoter }}</span>
+                </span>
+                <span class="flex items-center space-x-1">
+                  <span class="text-zinc-500 font-medium">BPM:</span>
+                  <span class="text-zinc-100 font-mono font-bold">{{ formattedBpm }}</span>
+                </span>
+                <span class="flex items-center space-x-1">
+                  <span class="text-zinc-500 font-medium">Notes:</span>
+                  <span class="text-zinc-100 font-mono font-bold">{{ loadedChart.header?.difficulty?.[selectedDifficulty]?.note_count || 0 }}</span>
+                </span>
+                <span class="flex items-center space-x-1">
+                  <span class="text-zinc-500 font-medium">Time:</span>
+                  <span class="text-zinc-100 font-mono font-bold">{{ fancyTimeFormat(loadedChart.header?.difficulty?.[selectedDifficulty]?.duration || 0) }}</span>
+                </span>
+              </div>
+            </div>
+            <!-- Artist -->
+            <span class="text-zinc-400 text-xs mt-0.5 truncate max-w-[360px]" :title="sanitizedArtist">
+              {{ sanitizedArtist }}
+            </span>
+          </div>
+        </div>
+        <div v-else class="flex flex-col text-left">
+          <span class="text-white text-sm font-extrabold tracking-wide uppercase">
+            {{ activeWorkspaceLabel }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Right side actions: workspace specific controls followed by far-right Exit button -->
+      <div class="flex items-center space-x-6 flex-shrink-0 pl-4">
+        <!-- Player Controls inside header -->
+        <div v-show="currentView === 'player' && loadedChart" class="flex items-center space-x-6 flex-shrink-0">
+          <div class="flex items-center space-x-2 text-xs select-none">
+            <span class="text-zinc-400 font-bold uppercase tracking-wider">Vol</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              v-model="volumeLevel"
+              class="w-24 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            />
+            <span class="w-8 text-right font-mono font-bold text-white">{{ Math.round(volumeLevel * 100) }}%</span>
+          </div>
+
+          <button 
+            @click="handlePlaySongToggle" 
+            class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-950/20 transition-all flex items-center space-x-1.5 active:scale-95 duration-100"
+          >
+            <span>{{ isPlaying ? 'Pause' : 'Play' }}</span>
+            <span class="text-[9px] opacity-75 font-mono">(Space)</span>
+          </button>
+
+          <button 
+            @click="toggleSetting" 
+            class="bg-zinc-800 hover:bg-zinc-700 text-white px-3.5 py-2 border border-zinc-700 rounded-xl text-xs font-bold transition-all active:scale-95 duration-100"
+          >
+            Setting
+          </button>
+        </div>
+
+        <!-- Dressing Closet Controls inside header -->
+        <div v-show="currentView === 'dressing'" class="flex items-center space-x-3">
+          <button 
+            @click="dressingWorkspaceRef?.exportPng"
+            class="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 flex items-center space-x-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Export PNG</span>
+          </button>
+          <button 
+            @click="dressingWorkspaceRef?.clearEquipments"
+            class="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 flex items-center space-x-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Reset Outfit</span>
+          </button>
+        </div>
+
+        <!-- Exit/Unload button (far rightest) -->
+        <button 
+          @click="unloadActiveWorkspace"
+          class="px-3.5 py-2 bg-zinc-950 border border-zinc-850 hover:border-red-950/40 text-white hover:text-red-400 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center space-x-1.5"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span>Home</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Workspace view selector -->
+    <div class="flex-grow flex overflow-hidden w-full relative">
+      <!-- 1. Landing View portal -->
+      <div 
+        v-if="currentView === 'landing'"
+        class="flex-grow flex justify-center items-center p-6 bg-zinc-950"
+      >
+        <DropZone 
+          class="w-full max-w-2xl text-center" 
+          @files-dropped="onMainFilesDropped" 
+          #default="{ dropZoneActive }"
+        >
+          <div
+            :class="{
+              'border-emerald-500 bg-zinc-900/60 scale-[1.01] shadow-emerald-950/20': dropZoneActive,
+              'border-zinc-855 hover:border-zinc-800 bg-zinc-900/10': !dropZoneActive
+            }"
+            class="border-2 border-dashed rounded-3xl p-16 flex flex-col items-center justify-center transition-all duration-200 shadow-2xl space-y-8 text-center w-full"
+          >
+            <!-- Title / Logo block -->
+            <TitleScreen />
+
+            <div class="space-y-2.5 max-w-md mx-auto">
+              <h2 class="text-xl font-bold tracking-wide text-zinc-100">All-in-One Asset Hub</h2>
+              <p class="text-xs text-zinc-500 leading-relaxed font-medium">
+                Drag & Drop any O2Jam resource file here:
+              </p>
+              <div class="flex justify-center gap-1.5 flex-wrap pt-2">
+                <span class="text-[10px] bg-emerald-600/10 text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 rounded-full font-mono font-bold">.ojn / .ojm</span>
+                <span class="text-[10px] bg-purple-600/10 text-purple-400 border border-purple-500/25 px-2.5 py-0.5 rounded-full font-mono font-bold">.opa (Avatar)</span>
+                <span class="text-[10px] bg-blue-600/10 text-blue-400 border border-blue-500/25 px-2.5 py-0.5 rounded-full font-mono font-bold">.opi (Skins)</span>
+              </div>
+            </div>
+
+            <!-- Browse button fallback -->
+            <div class="flex justify-center pt-2">
+              <label
+                for="dashboard-file-input"
+                class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-950/30 active:scale-95 duration-100 cursor-pointer"
+              >
+                Browse Game Resource
+                <input
+                  id="dashboard-file-input"
+                  type="file"
+                  class="hidden"
+                  @change="onMainInputChange"
+                  multiple
+                />
+              </label>
+            </div>
+            
+            <!-- Quick entry to existing states if loaded -->
+            <div 
+              v-if="loadedChart || isArchiveLoaded || loadedGodtool"
+              class="flex flex-col items-center space-y-3 pt-6 border-t border-zinc-900 w-full max-w-sm"
+            >
+              <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-600">Active Workspaces</span>
+              <div class="flex gap-2 w-full justify-center">
+                <button 
+                  v-if="loadedChart" 
+                  @click="currentView = 'player'"
+                  class="flex-grow bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-semibold transition-all text-emerald-400"
+                >
+                  Rhythm Player
+                </button>
+                <button 
+                  v-if="isArchiveLoaded" 
+                  @click="currentView = 'dressing'"
+                  class="flex-grow bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-semibold transition-all text-purple-400"
+                >
+                  Avatar Closet
+                </button>
+                <button 
+                  v-if="loadedGodtool" 
+                  @click="currentView = 'godtool'"
+                  class="flex-grow bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-semibold transition-all text-blue-400"
+                >
+                  OPI Inspector
+                </button>
+              </div>
+            </div>
+          </div>
+        </DropZone>
+      </div>
+
+      <!-- 2. Player workspace view -->
+      <PlayerWorkspace 
+        v-else-if="currentView === 'player' && loadedChart"
+        :chart-data="loadedChart"
+        :seek-offset="seekOffset"
+        v-model:show-panel="showSettings"
+        @seek="seekTo"
+        @beforeDrag="onBeforeDrag"
+        @afterDrag="onAfterDrag"
+        @random="random"
+        @toggleOhmMode="toggleOhmMode"
+        @toggleNoLN="toggleNoLN"
+        @toggleVerticalMode="toggleVerticalMode"
+        @updateScaleW="updateScaleW"
+        @updateScaleH="updateScaleH"
+        @updateNoteHeight="updateNoteHeight"
+        @changeDifficulty="onChangeDifficulty"
+        @exit="exitToLanding"
+      />
+
+      <!-- 3. Dressing customizer view -->
+      <DressingWorkspace 
+        v-else-if="currentView === 'dressing' && isArchiveLoaded"
+        ref="dressingWorkspaceRef"
+        @exit="exitToLanding"
+      />
+
+      <!-- 4. Godtool inspector view -->
+      <GodtoolWorkspace 
+        v-else-if="currentView === 'godtool' && loadedGodtool"
+        :initial-archive="loadedGodtool"
+        @exit="exitToLanding"
+      />
+    </div>
+
+    <!-- Loader spinning overlay -->
+    <div
+      class="fixed inset-0 overflow-y-auto z-[300] bg-black/60 backdrop-blur-sm"
+      v-if="loading || isDecoding"
+    >
+      <div class="flex h-screen items-center flex-col justify-center text-white space-y-4">
+        <LoadingSpinner />
+        <div class="text-[15px] font-bold tracking-wide text-zinc-300" v-if="isDecoding">
+          Decoding Audio: {{ decodingProgress }} / {{ decodingTotal }}
+        </div>
+        <div class="text-[15px] font-bold tracking-wide text-zinc-300" v-else>
+          Processing game resource...
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

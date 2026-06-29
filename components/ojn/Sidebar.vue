@@ -31,49 +31,6 @@
       </button>
     </div>
 
-    <!-- Drag & Drop Zone -->
-    <div class="mt-6">
-      <DropZone
-        class="drop-area text-center"
-        @files-dropped="onInputChange"
-        #default="{ dropZoneActive }"
-      >
-        <div class="flex items-center justify-center">
-          <label
-            for="file-input"
-            class="text-stone-300 border-dashed border-2 border-stone-500 hover:border-stone-300 cursor-pointer py-4 px-2 w-full rounded transition-colors text-xs"
-          >
-            <span v-if="dropZoneActive">
-              <div>Drop Them Here</div>
-            </span>
-            <span v-else>
-              <div>Drag & Drop</div>
-              <div class="text-stone-400 font-semibold mt-1">.ojn / .ojm files</div>
-            </span>
-
-            <input
-              class="hidden"
-              type="file"
-              id="file-input"
-              @change="onInputChange"
-              multiple
-            />
-          </label>
-        </div>
-      </DropZone>
-    </div>
-
-    <!-- Playback Control -->
-    <div class="mt-6 space-y-2" v-if="hitSounds && Object.keys(hitSounds).length !== 0">
-      <div class="text-sm font-semibold text-stone-300">Playback</div>
-      <button
-        @click="$emit('playSong')"
-        class="w-full border border-zinc-500 rounded-lg text-center font-bold bg-zinc-700 hover:bg-zinc-600 py-2 text-sm transition-colors"
-      >
-        {{ isPlaying ? 'Pause Song' : 'Play Song' }}
-      </button>
-    </div>
-
     <!-- Layout & Chart Modifiers -->
     <div class="mt-6 space-y-3 flex flex-col">
       <!-- Difficulty Selection -->
@@ -259,12 +216,8 @@
 </template>
 
 <script setup lang="ts">
-import FileParser from "~/utils/file-parser";
-
 const props = defineProps<{
   headerData?: OJNHeader;
-  hitSounds?: HitSound;
-  isPlaying?: boolean;
 }>();
 
 const selectedDifficulty = useSelectedDifficulty();
@@ -272,9 +225,7 @@ const selectedDifficulty = useSelectedDifficulty();
 const emit = defineEmits<{
   close: [void];
   random: [value: boolean];
-  upload: [value: ConvertedOJN];
   toggleOhmMode: [value: string];
-  playSong: [void];
   toggleNoLn: [void];
   toggleVerticalMode: [void];
   updateScaleW: [value: number];
@@ -315,31 +266,4 @@ const setVerticalMode = (vertical: boolean) => {
   }
 };
 
-const onInputChange = async (e: any) => {
-  let originalFiles;
-  let drop = false;
-  if (e.target.files) {
-    originalFiles = e.target.files;
-  } else {
-    originalFiles = e.dataTransfer.items;
-    drop = true;
-  }
-
-  try {
-    let files = [];
-    if (drop) {
-      for (let item of originalFiles) {
-        if (item != null && item.kind == "file")
-          files.push(item.webkitGetAsEntry());
-      }
-    } else {
-      files = originalFiles;
-    }
-    let output: ConvertedOJN = await FileParser.parseFiles(files, drop);
-    emit("upload", output);
-  } catch (err) {
-    alert("err" + err);
-  } finally {
-  }
-};
 </script>

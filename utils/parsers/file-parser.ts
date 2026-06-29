@@ -1,4 +1,5 @@
-import OJMParser from "~/utils/ojm-parser";
+import OJMParser from "~/utils/parsers/ojm-parser";
+import { convert } from "./ojn-parser";
 var getFileEntriesFromDirectory = async function (
   directory: FileSystemDirectoryEntry
 ) {
