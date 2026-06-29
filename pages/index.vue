@@ -116,6 +116,46 @@ const readFileBuffer = (file: File): Promise<ArrayBuffer> => {
   });
 };
 
+const loadChartFromRoute = async () => {
+  const rawServer = Array.isArray(route.query.server) ? route.query.server[0] : route.query.server;
+  const rawId = Array.isArray(route.query.id) ? route.query.id[0] : route.query.id;
+
+  if (!rawServer || !rawId) return false;
+
+  const server = String(rawServer).toLowerCase();
+  const chartId = String(rawId);
+  const supportedServers = new Set(["dmjam", "nsjam", "ojn"]);
+
+  if (!supportedServers.has(server)) return false;
+
+  loading.value = true;
+  try {
+    const downloadUrl = await $fetch<string>(`/api/${server}/${chartId}`);
+    if (!downloadUrl) throw new Error("No download URL returned");
+
+    const response = await fetch(downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download chart (${response.status})`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const converted = convert(arrayBuffer, {}, {}, selectedDifficulty.value);
+    converted.rawOjnBuffer = arrayBuffer;
+
+    loadedChart.value = converted;
+    stopSong();
+    await decodeAllSounds();
+    currentView.value = 'player';
+    return true;
+  } catch (err) {
+    console.error("Failed to load chart from route:", err);
+    alert("Failed to open chart from URL: " + err);
+    return false;
+  } finally {
+    loading.value = false;
+  }
+};
+
 const handleDroppedItems = async (items: any) => {
   const entries: any[] = [];
   const files: File[] = [];
@@ -402,8 +442,19 @@ const formattedBpm = computed(() => {
   return (Math.round(bpm * 100) / 100).toString();
 });
 
+watch(
+  () => [route.query.server, route.query.id],
+  async () => {
+    if (!loadedChart.value) {
+      await loadChartFromRoute();
+    }
+  },
+  { flush: 'post' }
+);
+
 onMounted(() => {
   window.addEventListener("keydown", handleKeyDown);
+  void loadChartFromRoute();
 });
 
 onUnmounted(() => {

@@ -49,6 +49,7 @@ const emit = defineEmits([
 
 const route = useRoute();
 const pixiContainer = ref<HTMLElement>();
+const failData = ref<DeathPoint>({});
 
 const seed = useSeed();
 const ohmMode = useOhm();
@@ -62,13 +63,71 @@ const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
 });
 
-const deathPointPlayer = computed(() => {
-  // Extract deathpoints from chartData
-  const deathPoints = props.chartData.header ? {} : {}; // parent should provide fails
-  if (route.query.player) {
-    // we can search or pass via prop, but let's let it run
+const normalizeFailData = (payload: unknown): DeathPoint => {
+  const values: string[] = [];
+
+  const collectValues = (value: unknown): string[] => {
+    if (typeof value === "string") {
+      return value
+        .split(/\r?\n|,/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(value)) {
+      return value.flatMap((entry) => collectValues(entry));
+    }
+
+    if (value && typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      const preferredKeys = ["data", "results", "fail", "players", "items", "list", "values"];
+
+      for (const key of preferredKeys) {
+        if (record[key] !== undefined) {
+          return collectValues(record[key]);
+        }
+      }
+
+      return Object.values(record).flatMap((entry) => collectValues(entry));
+    }
+
+    return [];
+  };
+
+  const parsedValues = collectValues(payload);
+  parsedValues.forEach((value, index) => {
+    if (value) {
+      values.push(value);
+    }
+  });
+
+  return values.reduce<DeathPoint>((acc, value, index) => {
+    acc[index] = value;
+    return acc;
+  }, {});
+};
+
+const loadDeathPointPlayer = async () => {
+  const server = Array.isArray(route.query.server) ? route.query.server[0] : route.query.server;
+  const requestedId = Array.isArray(route.query.id) ? route.query.id[0] : route.query.id;
+  const playerName = Array.isArray(route.query.player) ? route.query.player[0] : route.query.player;
+
+  if (!server || !requestedId || !playerName || String(server).toLowerCase() !== "dmjam") {
+    failData.value = {};
+    return;
   }
-  return {};
+
+  try {
+    const payload = await $fetch(`/api/dmjam/fail/${requestedId}`);
+    failData.value = normalizeFailData(payload);
+  } catch (error) {
+    console.error("Failed to load DMJam fail data:", error);
+    failData.value = {};
+  }
+};
+
+const deathPointPlayer = computed(() => {
+  return failData.value;
 });
 
 // Chart Renderer State
@@ -161,6 +220,14 @@ const onResize = () => {
     chartRenderer.value?.resize();
   }, 200);
 };
+
+watch(
+  () => [route.query.server, route.query.id, route.query.player],
+  () => {
+    void loadDeathPointPlayer();
+  },
+  { immediate: true }
+);
 
 onMounted(() => {
   window.addEventListener("resize", onResize);
