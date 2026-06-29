@@ -262,7 +262,7 @@ const unloadActiveWorkspace = () => {
 };
 
 // Player Settings Controls handlers
-const showSettings = ref(false);
+const showSettings = ref(true);
 const toggleSetting = () => {
   if (loadedChart.value) {
     showSettings.value = !showSettings.value;
@@ -496,7 +496,7 @@ onUnmounted(() => {
     <!-- Unified Global Header -->
     <header 
       v-show="currentView !== 'landing'"
-      class="flex justify-between items-center h-[60px] bg-zinc-900 border-b border-zinc-800 px-6 flex-shrink-0 z-20 text-white"
+      class="flex justify-between items-center h-[60px] bg-zinc-900 border-b border-zinc-800 px-6 flex-shrink-0 z-20 text-white select-text text-xl font-sans"
     >
       <!-- Left side: Song details (for player) OR Tool title (for dressing/godtool) -->
       <div class="flex items-center min-w-0">
@@ -508,47 +508,45 @@ onUnmounted(() => {
               'bg-amber-500/10 text-amber-400 border border-amber-500/20': selectedDifficulty === 'normal',
               'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': selectedDifficulty === 'easy'
             }"
-            class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 border"
+            class="px-3 py-1 rounded-full text-xl font-bold uppercase tracking-wider flex-shrink-0 border"
           >
             {{ selectedDifficulty }} Lv.{{ loadedChart.header?.difficulty?.[selectedDifficulty]?.level || 0 }}
           </span>
 
-          <div class="flex flex-col text-left min-w-0">
-            <div class="flex items-center space-x-3 min-w-0">
-              <!-- Song Title -->
-              <span class="text-white text-base font-extrabold tracking-wide truncate max-w-[320px]" :title="sanitizedTitle">
-                {{ sanitizedTitle }}
-              </span>
-              <!-- Divider dot -->
-              <span class="text-zinc-700 select-none">•</span>
-              <!-- Chart metadata chips -->
-              <div class="flex items-center space-x-3 text-xs flex-shrink-0">
-                <span v-if="sanitizedNoter" class="flex items-center space-x-1 max-w-[140px]">
-                  <span class="text-zinc-500 font-medium">Obj:</span>
-                  <span class="text-zinc-100 font-mono font-bold truncate" :title="sanitizedNoter">{{ sanitizedNoter }}</span>
-                </span>
-                <span class="flex items-center space-x-1">
-                  <span class="text-zinc-500 font-medium">BPM:</span>
-                  <span class="text-zinc-100 font-mono font-bold">{{ formattedBpm }}</span>
-                </span>
-                <span class="flex items-center space-x-1">
-                  <span class="text-zinc-500 font-medium">Notes:</span>
-                  <span class="text-zinc-100 font-mono font-bold">{{ loadedChart.header?.difficulty?.[selectedDifficulty]?.note_count || 0 }}</span>
-                </span>
-                <span class="flex items-center space-x-1">
-                  <span class="text-zinc-500 font-medium">Time:</span>
-                  <span class="text-zinc-100 font-mono font-bold">{{ fancyTimeFormat(loadedChart.header?.difficulty?.[selectedDifficulty]?.duration || 0) }}</span>
-                </span>
-              </div>
-            </div>
+          <div class="flex items-center text-left min-w-0 space-x-3 text-xl">
+            <!-- Song Title -->
+            <span class="text-white font-extrabold tracking-wide truncate max-w-[240px] select-text" :title="sanitizedTitle">
+              {{ sanitizedTitle }}
+            </span>
             <!-- Artist -->
-            <span class="text-zinc-400 text-xs mt-0.5 truncate max-w-[360px]" :title="sanitizedArtist">
+            <span class="text-zinc-400 truncate max-w-[200px] select-text" :title="sanitizedArtist">
               {{ sanitizedArtist }}
             </span>
+            <!-- Divider dot -->
+            <span class="text-zinc-700 select-none">•</span>
+            <!-- Chart metadata chips -->
+            <div class="flex items-center space-x-3 flex-shrink-0">
+              <span v-if="sanitizedNoter" class="flex items-center space-x-1 max-w-[140px]">
+                <span class="text-zinc-500 font-medium">obj:</span>
+              <span class="text-zinc-100 font-bold truncate" :title="sanitizedNoter">{{ sanitizedNoter }}</span>
+            </span>
+            <span class="flex items-center space-x-1">
+              <span class="text-zinc-500 font-medium">BPM:</span>
+              <span class="text-zinc-100 font-bold">{{ formattedBpm }}</span>
+            </span>
+            <span class="flex items-center space-x-1">
+              <span class="text-zinc-500 font-medium">Notes:</span>
+              <span class="text-zinc-100 font-bold">{{ loadedChart.header?.difficulty?.[selectedDifficulty]?.note_count || 0 }}</span>
+            </span>
+            <span class="flex items-center space-x-1">
+              <span class="text-zinc-500 font-medium">Time:</span>
+              <span class="text-zinc-100 font-bold">{{ fancyTimeFormat(loadedChart.header?.difficulty?.[selectedDifficulty]?.duration || 0) }}</span>
+              </span>
+            </div>
           </div>
         </div>
         <div v-else class="flex flex-col text-left">
-          <span class="text-white text-sm font-extrabold tracking-wide uppercase">
+          <span class="text-white text-xl font-extrabold tracking-wide uppercase">
             {{ activeWorkspaceLabel }}
           </span>
         </div>
@@ -558,7 +556,7 @@ onUnmounted(() => {
       <div class="flex items-center space-x-6 flex-shrink-0 pl-4">
         <!-- Player Controls inside header -->
         <div v-show="currentView === 'player' && loadedChart" class="flex items-center space-x-6 flex-shrink-0">
-          <div class="flex items-center space-x-2 text-xs select-none">
+          <div class="flex items-center space-x-2 text-xl select-none">
             <span class="text-zinc-400 font-bold uppercase tracking-wider">Vol</span>
             <input
               type="range"
@@ -566,22 +564,22 @@ onUnmounted(() => {
               max="1"
               step="0.01"
               v-model="volumeLevel"
-              class="w-24 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              class="w-24 h-1.5 bg-zinc-700/90 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
-            <span class="w-8 text-right font-mono font-bold text-white">{{ Math.round(volumeLevel * 100) }}%</span>
+            <span class="w-8 text-right font-bold text-white">{{ Math.round(volumeLevel * 100) }}%</span>
           </div>
 
           <button 
             @click="handlePlaySongToggle" 
-            class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-950/20 transition-all flex items-center space-x-1.5 active:scale-95 duration-100"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-lg font-semibold shadow-md shadow-emerald-950/20 transition-all flex items-center space-x-1 active:scale-95 duration-100"
           >
             <span>{{ isPlaying ? 'Pause' : 'Play' }}</span>
-            <span class="text-[9px] opacity-75 font-mono">(Space)</span>
+            <span class="text-[9px] opacity-75 font-medium">(Space)</span>
           </button>
 
           <button 
             @click="toggleSetting" 
-            class="bg-zinc-800 hover:bg-zinc-700 text-white px-3.5 py-2 border border-zinc-700 rounded-xl text-xs font-bold transition-all active:scale-95 duration-100"
+            class="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 border border-zinc-700 rounded-xl text-lg font-semibold transition-all active:scale-95 duration-100"
           >
             Setting
           </button>
@@ -591,7 +589,7 @@ onUnmounted(() => {
         <div v-show="currentView === 'dressing'" class="flex items-center space-x-3">
           <button 
             @click="dressingWorkspaceRef?.exportPng"
-            class="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 flex items-center space-x-1"
+            class="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl text-xl font-bold shadow-lg transition-all active:scale-95 flex items-center space-x-1"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -600,7 +598,7 @@ onUnmounted(() => {
           </button>
           <button 
             @click="dressingWorkspaceRef?.clearEquipments"
-            class="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 flex items-center space-x-1"
+            class="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl text-xl font-bold shadow-lg transition-all active:scale-95 flex items-center space-x-1"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -612,12 +610,12 @@ onUnmounted(() => {
         <!-- Exit/Unload button (far rightest) -->
         <button 
           @click="unloadActiveWorkspace"
-          class="px-3.5 py-2 bg-zinc-950 border border-zinc-850 hover:border-red-950/40 text-white hover:text-red-400 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center space-x-1.5"
+          aria-label="Home"
+          class="px-3.5 py-2 bg-zinc-950 border border-zinc-850 hover:border-red-950/40 text-white hover:text-red-400 rounded-xl text-xl font-bold transition-all active:scale-95 flex items-center justify-center"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
-          <span>Home</span>
         </button>
       </div>
     </header>
@@ -647,7 +645,7 @@ onUnmounted(() => {
             <div class="space-y-2.5 max-w-md mx-auto">
               <h2 class="text-xl font-bold tracking-wide text-zinc-100">All-in-One Asset Hub</h2>
               <p class="text-xs text-zinc-500 leading-relaxed font-medium">
-                Drag & Drop any O2Jam resource file here:
+                Drag & Drop any resource file here:
               </p>
               <div class="flex justify-center gap-1.5 flex-wrap pt-2">
                 <span class="text-[10px] bg-emerald-600/10 text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 rounded-full font-mono font-bold">.ojn / .ojm</span>

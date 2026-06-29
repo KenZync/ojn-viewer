@@ -10,10 +10,7 @@
     <!-- Seed Selection -->
     <div class="mt-4 space-y-2">
       <div class="text-sm font-semibold text-stone-300">Seed / Ringcon</div>
-      <form
-        class="flex w-full space-x-2"
-        @submit.prevent="$emit('random', false)"
-      >
+      <div class="flex w-full space-x-2">
         <input v-model="seed" placeholder="seed" class="w-full text-black px-2 py-1 rounded text-sm bg-zinc-100 focus:bg-white focus:outline-none" />
         <img
           alt="random_ring"
@@ -21,14 +18,7 @@
           class="w-8 h-8 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
           @click="$emit('random', true)"
         />
-      </form>
-      <button
-        type="submit"
-        @click="$emit('random', false)"
-        class="w-full border border-zinc-500 rounded-lg text-center font-bold bg-zinc-700 hover:bg-zinc-600 py-1 text-xs transition-colors"
-      >
-        Apply Seed
-      </button>
+      </div>
     </div>
 
     <!-- Layout & Chart Modifiers -->
@@ -46,7 +36,7 @@
             ]"
             class="py-1 px-1 rounded-md text-xs text-center transition-all duration-150"
           >
-            EX
+            EX - {{ headerData?.difficulty?.easy?.level ?? '–' }}
           </button>
           <button
             @click="$emit('changeDifficulty', 'normal')"
@@ -57,7 +47,7 @@
             ]"
             class="py-1 px-1 rounded-md text-xs text-center transition-all duration-150"
           >
-            NX
+            NX - {{ headerData?.difficulty?.normal?.level ?? '–' }}
           </button>
           <button
             @click="$emit('changeDifficulty', 'hard')"
@@ -68,7 +58,7 @@
             ]"
             class="py-1 px-1 rounded-md text-xs text-center transition-all duration-150"
           >
-            HX
+            HX - {{ headerData?.difficulty?.hard?.level ?? '–' }}
           </button>
         </div>
       </div>
