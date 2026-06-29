@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import { OjnChartRenderer } from "~/utils/renderers/chart-renderer";
-import { searchDeathPlayer } from "~/utils/helpers/search";
+import { searchDeathPlayer, normalizeFailData } from "~/utils/helpers/search";
 
 interface Props {
   chartData: ConvertedOJN;
@@ -63,58 +63,7 @@ const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
 });
 
-const normalizeFailData = (payload: unknown): DeathPoint => {
-  const findFailDictionary = (value: unknown): Record<string, string> | null => {
-    if (!value || typeof value !== "object") return null;
 
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        const res = findFailDictionary(item);
-        if (res) return res;
-      }
-      return null;
-    }
-
-    const record = value as Record<string, unknown>;
-    const keys = Object.keys(record);
-    if (keys.length > 0 && keys.every(k => !isNaN(Number(k)))) {
-      const result: Record<string, string> = {};
-      for (const [k, v] of Object.entries(record)) {
-        if (typeof v === "string") {
-          result[k] = v;
-        }
-      }
-      return result;
-    }
-
-    const preferredKeys = ["data", "results", "fail", "players", "items", "list", "values"];
-    for (const key of preferredKeys) {
-      if (record[key] !== undefined) {
-        const res = findFailDictionary(record[key]);
-        if (res) return res;
-      }
-    }
-
-    for (const key of keys) {
-      const res = findFailDictionary(record[key]);
-      if (res) return res;
-    }
-
-    return null;
-  };
-
-  const dict = findFailDictionary(payload);
-  if (!dict) return {};
-
-  const result: DeathPoint = {};
-  for (const [key, val] of Object.entries(dict)) {
-    const numericKey = parseInt(key, 10);
-    if (!isNaN(numericKey)) {
-      result[numericKey] = val;
-    }
-  }
-  return result;
-};
 
 const loadDeathPointPlayer = async () => {
   const server = Array.isArray(route.query.server) ? route.query.server[0] : route.query.server;

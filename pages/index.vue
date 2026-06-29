@@ -3,6 +3,7 @@ import { parseOpi, type OpiArchive } from "~/utils/parsers/opi-parser";
 import FileParser from "~/utils/parsers/file-parser";
 import OJMParser from "~/utils/parsers/ojm-parser";
 import { convert } from "~/utils/parsers/ojn-parser";
+import { normalizeFailData } from "~/utils/helpers/search";
 import { shuffle } from "~/utils/helpers/random";
 import { fancyTimeFormat } from "~/utils/helpers/formatter";
 
@@ -133,6 +134,7 @@ const loadChartFromRoute = async () => {
   try {
     let arrayBuffer: ArrayBuffer;
     let hitSounds = {};
+    let deathPoints = {};
 
     if (server === "dmjam") {
       const ojnUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${chartId}.ojn`;
@@ -152,6 +154,13 @@ const loadChartFromRoute = async () => {
       } catch (err) {
         console.warn("Failed to fetch or parse OJM:", err);
       }
+
+      try {
+        const failPayload = await $fetch(`/api/dmjam/fail/${chartId}`);
+        deathPoints = normalizeFailData(failPayload);
+      } catch (err) {
+        console.warn("Failed to fetch fail/death points:", err);
+      }
     } else {
       const downloadUrl = await $fetch<string>(`/api/${server}/${chartId}`);
       if (!downloadUrl) throw new Error("No download URL returned");
@@ -163,9 +172,10 @@ const loadChartFromRoute = async () => {
       arrayBuffer = await response.arrayBuffer();
     }
 
-    const converted = convert(arrayBuffer, {}, hitSounds, selectedDifficulty.value);
+    const converted = convert(arrayBuffer, deathPoints, hitSounds, selectedDifficulty.value);
     converted.rawOjnBuffer = arrayBuffer;
     converted.hitSounds = hitSounds;
+    converted.deathPoints = deathPoints;
 
     loadedChart.value = converted;
     stopSong();
@@ -378,7 +388,12 @@ const onChangeDifficulty = async (difficulty: OjnDifficulty) => {
   loading.value = true;
   
   try {
-    const convertedData = convert(loadedChart.value.rawOjnBuffer, {}, loadedChart.value.hitSounds || {}, difficulty);
+    const convertedData = convert(
+      loadedChart.value.rawOjnBuffer,
+      loadedChart.value.deathPoints || {},
+      loadedChart.value.hitSounds || {},
+      difficulty
+    );
     loadedChart.value = {
       ...loadedChart.value,
       ribbit: convertedData.ribbit,
