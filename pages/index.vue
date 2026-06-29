@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { parseOpi, type OpiArchive } from "~/utils/parsers/opi-parser";
 import FileParser from "~/utils/parsers/file-parser";
+import OJMParser from "~/utils/parsers/ojm-parser";
 import { convert } from "~/utils/parsers/ojn-parser";
 import { shuffle } from "~/utils/helpers/random";
 import { fancyTimeFormat } from "~/utils/helpers/formatter";
@@ -130,17 +131,41 @@ const loadChartFromRoute = async () => {
 
   loading.value = true;
   try {
-    const downloadUrl = await $fetch<string>(`/api/${server}/${chartId}`);
-    if (!downloadUrl) throw new Error("No download URL returned");
+    let arrayBuffer: ArrayBuffer;
+    let hitSounds = {};
 
-    const response = await fetch(downloadUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download chart (${response.status})`);
+    if (server === "dmjam") {
+      const ojnUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${chartId}.ojn`;
+      const response = await fetch(ojnUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download chart (${response.status})`);
+      }
+      arrayBuffer = await response.arrayBuffer();
+
+      try {
+        const ojmUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${chartId}.ojm`;
+        const ojmResponse = await fetch(ojmUrl);
+        if (ojmResponse.ok) {
+          const ojmBuffer = await ojmResponse.arrayBuffer();
+          hitSounds = OJMParser.parseContent(ojmBuffer);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch or parse OJM:", err);
+      }
+    } else {
+      const downloadUrl = await $fetch<string>(`/api/${server}/${chartId}`);
+      if (!downloadUrl) throw new Error("No download URL returned");
+
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download chart (${response.status})`);
+      }
+      arrayBuffer = await response.arrayBuffer();
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const converted = convert(arrayBuffer, {}, {}, selectedDifficulty.value);
+    const converted = convert(arrayBuffer, {}, hitSounds, selectedDifficulty.value);
     converted.rawOjnBuffer = arrayBuffer;
+    converted.hitSounds = hitSounds;
 
     loadedChart.value = converted;
     stopSong();
