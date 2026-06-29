@@ -64,47 +64,56 @@ const pattern = computed(() => {
 });
 
 const normalizeFailData = (payload: unknown): DeathPoint => {
-  const values: string[] = [];
-
-  const collectValues = (value: unknown): string[] => {
-    if (typeof value === "string") {
-      return value
-        .split(/\r?\n|,/)
-        .map((entry) => entry.trim())
-        .filter(Boolean);
-    }
+  const findFailDictionary = (value: unknown): Record<string, string> | null => {
+    if (!value || typeof value !== "object") return null;
 
     if (Array.isArray(value)) {
-      return value.flatMap((entry) => collectValues(entry));
+      for (const item of value) {
+        const res = findFailDictionary(item);
+        if (res) return res;
+      }
+      return null;
     }
 
-    if (value && typeof value === "object") {
-      const record = value as Record<string, unknown>;
-      const preferredKeys = ["data", "results", "fail", "players", "items", "list", "values"];
-
-      for (const key of preferredKeys) {
-        if (record[key] !== undefined) {
-          return collectValues(record[key]);
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record);
+    if (keys.length > 0 && keys.every(k => !isNaN(Number(k)))) {
+      const result: Record<string, string> = {};
+      for (const [k, v] of Object.entries(record)) {
+        if (typeof v === "string") {
+          result[k] = v;
         }
       }
-
-      return Object.values(record).flatMap((entry) => collectValues(entry));
+      return result;
     }
 
-    return [];
+    const preferredKeys = ["data", "results", "fail", "players", "items", "list", "values"];
+    for (const key of preferredKeys) {
+      if (record[key] !== undefined) {
+        const res = findFailDictionary(record[key]);
+        if (res) return res;
+      }
+    }
+
+    for (const key of keys) {
+      const res = findFailDictionary(record[key]);
+      if (res) return res;
+    }
+
+    return null;
   };
 
-  const parsedValues = collectValues(payload);
-  parsedValues.forEach((value, index) => {
-    if (value) {
-      values.push(value);
-    }
-  });
+  const dict = findFailDictionary(payload);
+  if (!dict) return {};
 
-  return values.reduce<DeathPoint>((acc, value, index) => {
-    acc[index] = value;
-    return acc;
-  }, {});
+  const result: DeathPoint = {};
+  for (const [key, val] of Object.entries(dict)) {
+    const numericKey = parseInt(key, 10);
+    if (!isNaN(numericKey)) {
+      result[numericKey] = val;
+    }
+  }
+  return result;
 };
 
 const loadDeathPointPlayer = async () => {
