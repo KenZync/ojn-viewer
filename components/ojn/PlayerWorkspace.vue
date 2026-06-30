@@ -8,6 +8,8 @@
       v-if="showPanel"
       class="absolute bg-zinc-900 border-l border-zinc-800 top-0 right-0 px-6 w-64 h-full flex flex-col text-white space-y-4 overflow-y-auto z-20 shadow-2xl transition-all duration-300"
       :header-data="chartData.header"
+      :is-playing="isPlaying"
+      v-model:volume-level="volumeLevel"
       @close="emit('update:showPanel', false)"
       @random="emit('random', $event)"
       @toggle-ohm-mode="emit('toggleOhmMode', $event)"
@@ -17,6 +19,8 @@
       @update-scale-h="emit('updateScaleH')"
       @update-note-height="emit('updateNoteHeight')"
       @change-difficulty="emit('changeDifficulty', $event)"
+      @toggle-play="emit('togglePlay')"
+      @exit="emit('exit')"
     />
   </div>
 </template>
@@ -29,11 +33,14 @@ interface Props {
   chartData: ConvertedOJN;
   seekOffset: number;
   showPanel: boolean;
+  isPlaying: boolean;
+  volumeLevel: number;
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits([
   "update:showPanel",
+  "update:volumeLevel",
   "seek",
   "beforeDrag",
   "afterDrag",
@@ -44,8 +51,15 @@ const emit = defineEmits([
   "updateScaleW",
   "updateScaleH",
   "updateNoteHeight",
-  "changeDifficulty"
+  "changeDifficulty",
+  "togglePlay",
+  "exit"
 ]);
+
+const volumeLevel = computed({
+  get: () => props.volumeLevel,
+  set: (val) => emit("update:volumeLevel", val),
+});
 
 const route = useRoute();
 const pixiContainer = ref<HTMLElement>();

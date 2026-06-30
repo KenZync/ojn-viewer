@@ -47,9 +47,50 @@ export function useOjnAudio(
       audioContext.value = new (window.AudioContext || (window as any).webkitAudioContext)();
       masterGainNode = null;
     }
-    if (audioContext.value.state === "suspended") {
-      audioContext.value.resume();
+    const context = audioContext.value;
+    if (context.state === "suspended") {
+      context.resume().then(() => {
+        try {
+          // Play silent buffer to force unlock on iOS Safari/WebKit
+          const buffer = context.createBuffer(1, 1, 22050);
+          const source = context.createBufferSource();
+          source.buffer = buffer;
+          source.connect(context.destination);
+          source.start(0);
+        } catch (e) {
+          console.warn("Failed to play silent buffer to unlock AudioContext:", e);
+        }
+      });
+
+      // One-time user gesture listeners to guarantee unlock on iOS
+      const unlock = () => {
+        if (context.state === "suspended") {
+          context.resume().then(() => {
+            try {
+              const buffer = context.createBuffer(1, 1, 22050);
+              const source = context.createBufferSource();
+              source.buffer = buffer;
+              source.connect(context.destination);
+              source.start(0);
+            } catch {}
+            removeListeners();
+          });
+        } else {
+          removeListeners();
+        }
+      };
+      const removeListeners = () => {
+        window.removeEventListener("click", unlock);
+        window.removeEventListener("touchstart", unlock);
+        window.removeEventListener("touchend", unlock);
+        window.removeEventListener("keydown", unlock);
+      };
+      window.addEventListener("click", unlock, { capture: true, once: true });
+      window.addEventListener("touchstart", unlock, { capture: true, once: true });
+      window.addEventListener("touchend", unlock, { capture: true, once: true });
+      window.addEventListener("keydown", unlock, { capture: true, once: true });
     }
+
     if (!masterGainNode && audioContext.value) {
       masterGainNode = audioContext.value.createGain();
       masterGainNode.gain.value = volumeLevel.value;
@@ -257,8 +298,11 @@ export function useOjnAudio(
     playheadAnimationFrameId = requestAnimationFrame(updateLoop);
   };
 
-  const startAudioPlayback = (startTimeMs: number): void => {
+  const startAudioPlayback = async (startTimeMs: number): Promise<void> => {
     const context = initAudioContext();
+    if (context.state === "suspended") {
+      await context.resume().catch(() => {});
+    }
     stopAllAudio();
     scheduledNoteIds.clear();
     // Reset the schedule pointer so we re-scan from the correct position

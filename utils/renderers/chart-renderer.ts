@@ -28,6 +28,7 @@ export interface OjnRendererOptions {
 export class OjnChartRenderer {
   private containerElement: HTMLElement;
   private pixiApp: PIXI.Application | null = null;
+  private initPromise: Promise<void>;
   private mainChartContainer: PIXI.Container | null = null;
   private thumbnailContainer: PIXI.Container | null = null;
   private viewBoxContainer: PIXI.Container | null = null;
@@ -99,38 +100,41 @@ export class OjnChartRenderer {
   constructor(container: HTMLElement, options: OjnRendererOptions) {
     this.containerElement = container;
     this.options = options;
-    this.initializePixi();
+    this.initPromise = this.initializePixi();
   }
 
-  private initializePixi(): void {
-    PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
-    PIXI.settings.ROUND_PIXELS = true;
+  private async initializePixi(): Promise<void> {
+    PIXI.TextureStyle.defaultOptions.scaleMode = 'nearest';
 
-    this.pixiApp = new PIXI.Application({
+    this.pixiApp = new PIXI.Application();
+    await this.pixiApp.init({
       backgroundColor: schemes.default.backgroundFill,
       height: window.innerHeight - headerHeight,
       width: window.innerWidth,
+      roundPixels: false,
     });
 
-    this.containerElement.appendChild(this.pixiApp.view as unknown as Node);
+    this.containerElement.appendChild(this.pixiApp.canvas as unknown as Node);
   }
 
   public updateOptions(newOptions: Partial<OjnRendererOptions>): void {
     this.options = { ...this.options, ...newOptions };
   }
 
-  public resize(): void {
+  public async resize(): Promise<void> {
+    await this.initPromise;
     if (!this.pixiApp) return;
     this.pixiApp.renderer.resize(
       window.innerWidth,
       window.innerHeight - headerHeight,
     );
     if (this.currentChartData) {
-      this.render(this.currentChartData);
+      await this.render(this.currentChartData);
     }
   }
 
-  public render(chartData: ConvertedOJN): void {
+  public async render(chartData: ConvertedOJN): Promise<void> {
+    await this.initPromise;
     if (!this.pixiApp || !chartData.ribbit) return;
     this.currentChartData = chartData;
 
@@ -153,22 +157,28 @@ export class OjnChartRenderer {
       fontSize: finalScaleWForStyle * 2,
       fontWeight: "bold",
       fill: schemes.default.labelText,
-      stroke: schemes.default.labelFill,
-      strokeThickness: 2,
+      stroke: {
+        color: schemes.default.labelFill,
+        width: 2,
+      },
     });
     this.bpmTextStyle = new PIXI.TextStyle({
       fontSize: finalScaleWForStyle * 1.5,
       fontWeight: "bold",
       fill: schemes.default.bpmText,
-      stroke: schemes.default.bpmTextStroke,
-      strokeThickness: schemes.default.bpmTextStroke !== null ? 2 : 0,
+      stroke: schemes.default.bpmTextStroke !== null ? {
+        color: schemes.default.bpmTextStroke,
+        width: 2,
+      } : undefined,
     });
     this.deathTextStyle = new PIXI.TextStyle({
       fontSize: finalScaleWForStyle * 1.5,
       fontWeight: "bold",
       fill: schemes.default.mineRedLine,
-      stroke: schemes.default.lnoteWhiteFill,
-      strokeThickness: 2,
+      stroke: {
+        color: schemes.default.lnoteWhiteFill,
+        width: 2,
+      },
     });
 
     this.mainChartContainer = new PIXI.Container();
@@ -252,16 +262,19 @@ export class OjnChartRenderer {
         }
       }
 
-      measureContainer.cacheAsBitmap = false;
-      measureContainer.position.x = currentPosX;
-      measureContainer.position.y = currentPosY;
+      const roundedX = Math.round(currentPosX);
+      const roundedY = Math.round(currentPosY);
+
+      measureContainer.cacheAsTexture(false);
+      measureContainer.position.x = roundedX;
+      measureContainer.position.y = roundedY;
       this.mainChartContainer.addChild(measureContainer);
 
       // Track chart extents without calling getBounds()
-      minX = Math.min(minX, currentPosX);
-      minY = Math.min(minY, currentPosY);
-      maxX = Math.max(maxX, currentPosX + this.lastMeasureWidth);
-      maxY = Math.max(maxY, currentPosY + this.lastMeasureHeight);
+      minX = Math.min(minX, roundedX);
+      minY = Math.min(minY, roundedY);
+      maxX = Math.max(maxX, roundedX + this.lastMeasureWidth);
+      maxY = Math.max(maxY, roundedY + this.lastMeasureHeight);
 
       // Build timing cache entry for this measure (avoids .reduce() every frame)
       const timingLines = currentScore["88"];
@@ -279,6 +292,8 @@ export class OjnChartRenderer {
         this.measureTimingCache[measureIndex] = { startTime: -1, endTime: -1 };
       }
     }
+
+
 
     // Store true chart dimensions computed from layout (avoids expensive getBounds())
     this.totalChartWidth = maxX - minX;
@@ -333,11 +348,6 @@ export class OjnChartRenderer {
     const previewStart = 35;
 
     this.playheadPreviewGraphics = new PIXI.Graphics();
-    this.playheadPreviewGraphics.lineStyle(
-      previewLineWidth,
-      schemes.default.previewLine,
-      1,
-    );
     this.playheadPreviewGraphics.moveTo(
       playheadWidth - 1,
       this.playheadHeight - previewLineWidth,
@@ -346,6 +356,11 @@ export class OjnChartRenderer {
       previewStart - 1,
       this.playheadHeight - previewLineWidth,
     );
+    this.playheadPreviewGraphics.stroke({
+      width: previewLineWidth,
+      color: schemes.default.previewLine,
+      alpha: 1,
+    });
 
     this.pixiApp.stage.addChild(this.mainChartContainer);
 
@@ -409,22 +424,22 @@ export class OjnChartRenderer {
     const graphics = new PIXI.Graphics();
     measureContainer.addChild(graphics);
 
-    const calculatedHeight = measureLength * scaleH * stretchRatio;
+    const calculatedHeight = Math.round(measureLength * scaleH * stretchRatio);
     const calculatedWidth = measureGridSize[7] * scaleW;
     const rowHeight = calculatedHeight / measureLength;
 
     // Draw grid lanes
+    graphics.beginPath();
     let columnIndex = 5;
-    graphics.lineStyle(lineWidth, schemes.default.laneLine, 1);
+    const totalKeys = 7;
     graphics.moveTo(scaleW * columnIndex, 0);
     graphics.lineTo(scaleW * columnIndex, calculatedHeight - lineWidth);
-
-    const totalKeys = 7;
     for (let keyIdx = 0; keyIdx < totalKeys; keyIdx++) {
       columnIndex += 2;
       graphics.moveTo(scaleW * columnIndex, 0);
       graphics.lineTo(scaleW * columnIndex, calculatedHeight - lineWidth);
     }
+    graphics.stroke({ width: lineWidth, color: schemes.default.laneLine, alpha: 1 });
 
     // Draw beat division lines
     for (let beat = 1; (beat * unit) / 16 < measureLength; beat++) {
@@ -433,17 +448,17 @@ export class OjnChartRenderer {
         ? schemes.default.quarterLine
         : schemes.default.sixteenthLine;
 
-      graphics.lineStyle(lineWidth, lineColor, 1);
       const lineY =
         calculatedHeight - (rowHeight * beat * unit) / 16 - lineWidth;
+      graphics.beginPath();
       graphics.moveTo(lineStart - 1, lineY);
       graphics.lineTo(calculatedWidth, lineY);
+      graphics.stroke({ width: lineWidth, color: lineColor, alpha: 1 });
     }
 
     // Draw label fill and text
     let labelColumnIdx = 2 * totalKeys + 5;
-    graphics.beginFill(schemes.default.labelFill);
-    graphics.lineStyle(0, undefined, 1);
+    graphics.beginPath();
     graphics.moveTo(scaleW * labelColumnIdx, 0);
     graphics.lineTo(scaleW * labelColumnIdx, calculatedHeight - lineWidth);
     graphics.lineTo(
@@ -451,21 +466,23 @@ export class OjnChartRenderer {
       calculatedHeight - lineWidth,
     );
     graphics.lineTo(scaleW * (4 + labelColumnIdx), 0);
-    graphics.endFill();
+    graphics.fill({ color: schemes.default.labelFill });
 
     if (measureLength >= unit / 4 / scaleH) {
       labelColumnIdx += 2;
       // Reuse the shared TextStyle object to avoid allocating a new one per measure
-      const labelText = new PIXI.Text(
-        measureIndex.toString(),
-        this.labelTextStyle ?? {
+      const labelText = new PIXI.Text({
+        text: measureIndex.toString(),
+        style: this.labelTextStyle ?? {
           fontSize: scaleW * 2,
           fontWeight: "bold",
           fill: schemes.default.labelText,
-          stroke: schemes.default.labelFill,
-          strokeThickness: 2,
+          stroke: {
+            color: schemes.default.labelFill,
+            width: 2,
+          },
         },
-      );
+      });
       labelText.anchor.set(0.5);
       labelText.x = scaleW * labelColumnIdx;
       labelText.y = calculatedHeight / 2;
@@ -473,12 +490,13 @@ export class OjnChartRenderer {
     }
 
     // Draw measure border
-    graphics.lineStyle(lineWidth, schemes.default.outerBound, 1);
+    graphics.beginPath();
     graphics.moveTo(lineStart - 1, 0);
     graphics.lineTo(calculatedWidth + lineWidth, 0);
     graphics.lineTo(calculatedWidth + lineWidth, calculatedHeight - lineWidth);
     graphics.lineTo(lineStart - 1, calculatedHeight - lineWidth);
     graphics.lineTo(lineStart - 1, 0);
+    graphics.stroke({ width: lineWidth, color: schemes.default.outerBound, alpha: 1 });
 
     // Use pre-computed static color arrays (avoids per-measure array allocation)
     const keyColorConfig = OjnChartRenderer.KEY_COLOR_CONFIG;
@@ -499,9 +517,8 @@ export class OjnChartRenderer {
             if (area[0][0] === measureIndex) {
               lnBegin = Number(area[0][1]);
               if (this.options.noLN) {
-                graphics.beginFill(keyColorLNConfig[keyIterationIndex]);
-                graphics.lineStyle(0, 0, 0);
-                graphics.drawRect(
+                graphics.beginPath();
+                graphics.rect(
                   currentDrawXIndex * scaleW -
                     (currentDrawXIndex === 0 ? lineWidth : 0) +
                     (schemes.default.lnWidthRatio * scaleW) / 2,
@@ -514,7 +531,7 @@ export class OjnChartRenderer {
                     schemes.default.lnWidthRatio * scaleW,
                   noteHeight,
                 );
-                graphics.endFill();
+                graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
               }
             }
             if (area[1][0] === measureIndex) {
@@ -522,9 +539,8 @@ export class OjnChartRenderer {
             }
 
             if (!this.options.noLN) {
-              graphics.beginFill(keyColorLNConfig[keyIterationIndex]);
-              graphics.lineStyle(0, 0, 0);
-              graphics.drawRect(
+              graphics.beginPath();
+              graphics.rect(
                 currentDrawXIndex * scaleW -
                   (currentDrawXIndex === 0 ? lineWidth : 0) +
                   (schemes.default.lnWidthRatio * scaleW) / 2,
@@ -536,7 +552,7 @@ export class OjnChartRenderer {
                   (lnBegin === 0 ? lineWidth : 0) -
                   lineWidth,
               );
-              graphics.endFill();
+              graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
             }
           }
         });
@@ -546,9 +562,8 @@ export class OjnChartRenderer {
       if (keyName in score) {
         score[keyName].forEach((noteNode) => {
           const positionData = noteNode as number[];
-          graphics.beginFill(keyColorConfig[keyIterationIndex]);
-          graphics.lineStyle(0, 0, 0);
-          graphics.drawRect(
+          graphics.beginPath();
+          graphics.rect(
             currentDrawXIndex * scaleW -
               (currentDrawXIndex === 0 ? lineWidth : 0),
             calculatedHeight -
@@ -557,7 +572,7 @@ export class OjnChartRenderer {
             2 * scaleW - (currentDrawXIndex === 0 ? 0 : lineWidth),
             noteHeight,
           );
-          graphics.endFill();
+          graphics.fill({ color: keyColorConfig[keyIterationIndex] });
         });
       }
 
@@ -590,27 +605,28 @@ export class OjnChartRenderer {
         const isDeathPoint = channelName === "99";
         const lineThickness = schemes.default.bpmLineH;
 
-        graphics.lineStyle(
-          lineThickness,
-          isDeathPoint ? schemes.default.mineRedLine : schemes.default.bpmLine,
-          1,
-        );
         const markerY =
           calculatedHeight - rowHeight * Number(bpmNode[0]) - lineThickness;
+        graphics.beginPath();
         graphics.moveTo(lineStart, markerY);
         graphics.lineTo(scaleW * measureLeftLaneSize[7], markerY);
+        graphics.stroke({
+          width: lineThickness,
+          color: isDeathPoint ? schemes.default.mineRedLine : schemes.default.bpmLine,
+          alpha: 1,
+        });
 
         const textLabelValue = isDeathPoint
           ? bpmNode[1].toString()
           : (Math.round(Number(bpmNode[1]) * 10) / 10).toString();
 
         // Reuse the shared TextStyle objects to avoid per-marker allocations
-        const bpmText = new PIXI.Text(
-          textLabelValue,
-          isDeathPoint
+        const bpmText = new PIXI.Text({
+          text: textLabelValue,
+          style: isDeathPoint
             ? (this.deathTextStyle ?? undefined)
             : (this.bpmTextStyle ?? undefined),
-        );
+        });
 
         bpmText.anchor.set(0.5);
         bpmText.x = scaleW * (measureLeftLaneSize[7] + 2);
@@ -644,6 +660,19 @@ export class OjnChartRenderer {
     const thumbnailWidth = 60;
     const thumbnailHeightVal = renderer.height - bottomMargin;
 
+    if (
+      stage.width <= 0 ||
+      stage.height <= 0 ||
+      renderer.width <= 0 ||
+      renderer.height <= 0 ||
+      !isFinite(stage.width) ||
+      !isFinite(stage.height) ||
+      !isFinite(renderer.width) ||
+      !isFinite(renderer.height)
+    ) {
+      return container;
+    }
+
     if (this.options.verticalMode) {
       this.containerHeightShrinkRatio = thumbnailHeightVal / stage.height;
       this.containerWidthShrinkRatio = thumbnailWidth / stage.width;
@@ -654,8 +683,6 @@ export class OjnChartRenderer {
 
     // Draw frame border
     const boundaryGraphics = new PIXI.Graphics();
-    boundaryGraphics.beginFill(0x000000);
-    boundaryGraphics.lineStyle(lineWidth, 0x404040, 1);
     boundaryGraphics.moveTo(0, 0);
 
     if (this.options.verticalMode) {
@@ -668,17 +695,34 @@ export class OjnChartRenderer {
       boundaryGraphics.lineTo(0, this.thumbnailHeight);
     }
     boundaryGraphics.lineTo(0, 0);
-    boundaryGraphics.endFill();
+    boundaryGraphics.fill({ color: 0x000000 });
+    boundaryGraphics.stroke({ width: lineWidth, color: 0x404040, alpha: 1 });
     container.addChild(boundaryGraphics);
 
-    // Draw sprite rendering of chart stage
-    const texture = renderer.generateTexture(stage, {
-      resolution:
-        2 *
-        (this.options.verticalMode
-          ? this.containerHeightShrinkRatio
-          : this.containerWidthShrinkRatio),
-      scaleMode: PIXI.SCALE_MODES.NEAREST,
+    // Compute safe resolution to avoid exceeding WebGL max texture size limit (2048px)
+    let resolution =
+      2 *
+      (this.options.verticalMode
+        ? this.containerHeightShrinkRatio
+        : this.containerWidthShrinkRatio);
+
+    if (!isFinite(resolution) || resolution <= 0) {
+      resolution = 1;
+    }
+
+    const maxTextureSize = 2048;
+    const targetWidth = stage.width * resolution;
+    const targetHeight = stage.height * resolution;
+    const maxDim = Math.max(targetWidth, targetHeight);
+    if (maxDim > maxTextureSize) {
+      resolution = resolution * (maxTextureSize / maxDim);
+    }
+
+    // Draw sprite rendering of chart stage using PixiJS v8 textureGenerator
+    const texture = renderer.generateTexture({
+      target: stage,
+      resolution: resolution,
+      textureSourceOptions: { scaleMode: 'nearest' }
     });
 
     const sprite = new PIXI.Sprite(texture);
@@ -690,16 +734,12 @@ export class OjnChartRenderer {
       sprite.height = this.thumbnailHeight;
     }
 
-    if (renderer.type !== PIXI.RENDERER_TYPE.CANVAS) {
-      container.addChild(sprite);
-    }
+    container.addChild(sprite);
 
     this.viewBoxContainer = new PIXI.Container();
 
     // Setup viewport boundary overlays
     this.grayMaskGraphics = new PIXI.Graphics();
-    this.grayMaskGraphics.beginFill(0xffffff);
-    this.grayMaskGraphics.lineStyle(lineWidth, 0x404040, 1);
 
     if (this.options.verticalMode) {
       // Above viewport box
@@ -732,7 +772,8 @@ export class OjnChartRenderer {
       this.grayMaskGraphics.lineTo(offsetWidth, this.thumbnailHeight);
       this.grayMaskGraphics.lineTo(offsetWidth, 0);
     }
-    this.grayMaskGraphics.endFill();
+    this.grayMaskGraphics.fill({ color: 0xffffff });
+    this.grayMaskGraphics.stroke({ width: lineWidth, color: 0x404040, alpha: 1 });
     this.grayMaskGraphics.alpha = 0.4;
     this.grayMaskGraphics.cursor = "pointer";
     this.grayMaskGraphics.eventMode = "static";
@@ -769,7 +810,6 @@ export class OjnChartRenderer {
 
     // Frame white line
     const outlineFrame = new PIXI.Graphics();
-    outlineFrame.lineStyle(lineWidth, 0xffffff, 1);
 
     if (this.options.verticalMode) {
       const viewBoxHeight = renderer.height * this.containerHeightShrinkRatio;
@@ -788,6 +828,7 @@ export class OjnChartRenderer {
       outlineFrame.lineTo(lineWidth, this.thumbnailHeight);
       outlineFrame.lineTo(lineWidth, 0);
     }
+    outlineFrame.stroke({ width: lineWidth, color: 0xffffff, alpha: 1 });
 
     outlineFrame.cursor = "pointer";
     outlineFrame.eventMode = "static";
@@ -829,7 +870,8 @@ export class OjnChartRenderer {
     this.lastKnownMeasureIndex = 0;
   }
 
-  public updatePlayheadPosition(timeMs: number): void {
+  public async updatePlayheadPosition(timeMs: number): Promise<void> {
+    await this.initPromise;
     if (
       !this.playheadPreviewGraphics ||
       !this.mainChartContainer ||
@@ -1329,20 +1371,20 @@ export class OjnChartRenderer {
     return this.mainChartContainer?.position.x ?? 0;
   }
 
-  public setScrollPosition(x: number): void {
+  public async setScrollPosition(x: number): Promise<void> {
+    await this.initPromise;
     if (this.mainChartContainer && !this.options.verticalMode) {
       this.mainChartContainer.position.x = x;
       this.updateDrawbox();
     }
   }
 
-  public destroy(): void {
+  public async destroy(): Promise<void> {
+    await this.initPromise;
     this.clearRenderedAssets();
     if (this.pixiApp) {
       this.pixiApp.destroy(true, {
         children: true,
-        texture: true,
-        baseTexture: true,
       });
       this.pixiApp = null;
     }

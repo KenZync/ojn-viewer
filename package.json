@@ -9,16 +9,15 @@
   },
   "devDependencies": {
     "@hypernym/nuxt-anime": "^2.1.0",
-    "@nuxtjs/tailwindcss": "^6.8.0",
-    "@tailwindcss/forms": "^0.5.6",
-    "@types/pixi.js": "^5.0.0",
-    "nuxt": "^3.7.1"
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "@tailwindcss/forms": "^0.5.11",
+    "nuxt": "^4.4.8"
   },
   "dependencies": {
-    "box-node-sdk": "^3.2.0",
-    "iconv-lite": "^0.6.3",
-    "nuxt-headlessui": "^1.1.4",
-    "pixi.js": "^7.2.4",
+    "box-node-sdk": "^10.12.0",
+    "iconv-lite": "^0.7.2",
+    "nuxt-headlessui": "^1.2.2",
+    "pixi.js": "^8.19.0",
     "struct-fu": "^1.2.1"
   }
 }
