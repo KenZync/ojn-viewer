@@ -163,25 +163,7 @@
       <!-- RIGHT/CENTER SIDE: VISUALIZER (Main Player) -->
       <div class="flex-grow h-2/3 md:h-full relative flex flex-col bg-zinc-950">
         <div class="flex-grow w-full relative flex items-center justify-center bg-zinc-950">
-          <!-- Floating Beautiful Now Playing Card -->
-          <div 
-            v-if="loadedChart" 
-            class="absolute top-4 left-4 bg-zinc-900/90 border border-zinc-800/80 rounded-xl p-3.5 backdrop-blur-md z-10 flex items-center space-x-3.5 shadow-xl max-w-sm select-text border-l-4 border-l-emerald-500"
-          >
-            <div class="h-10 w-10 rounded-lg bg-emerald-600/10 border border-emerald-500/25 flex flex-col items-center justify-center flex-shrink-0 text-emerald-400">
-              <span class="text-[9px] font-bold uppercase tracking-wider select-none">LV</span>
-              <span class="text-sm font-extrabold select-none">{{ chartLevel }}</span>
-            </div>
-            <div class="min-w-0">
-              <h4 class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider select-none">Now Playing</h4>
-              <p class="text-sm font-bold text-white truncate max-w-[200px]" :title="loadedChart.header.title">
-                {{ loadedChart.header.title }}
-              </p>
-              <p class="text-xs text-zinc-400 truncate max-w-[200px]" :title="loadedChart.header.artist">
-                {{ loadedChart.header.artist }}
-              </p>
-            </div>
-          </div>
+
 
           <!-- Fetching overlay -->
           <div 
@@ -504,12 +486,6 @@ const sendChatMessage = () => {
       nickname: nickname.value,
       text: chatInput.value
     });
-    chatHistory.value.push({
-      nickname: nickname.value,
-      text: chatInput.value,
-      timestamp: new Date().toLocaleTimeString()
-    });
-    scrollChatToBottom();
   }
   chatInput.value = "";
 };
@@ -552,7 +528,12 @@ watch(isPlaying, (playing) => {
 const loadRadioTrack = async (musicCode: number, offsetSeconds: number) => {
   loadingSong.value = true;
   stopSong();
-  loadedChart.value = null;
+  
+  // To prevent the settings sidebar from disappearing, we keep the previous chart loaded
+  // until the new chart assets are loaded, instead of setting loadedChart to null.
+  if (!loadedChart.value) {
+    loadedChart.value = null;
+  }
 
   try {
     const converted = await fetchAndParseDMJamTrack(musicCode, selectedDifficulty.value);
@@ -574,7 +555,7 @@ const loadRadioTrack = async (musicCode: number, offsetSeconds: number) => {
 
     // Broadcast what is currently playing as a system chat message
     const timeFormatted = fancyTimeFormat(durationSec);
-    const desc = `${converted.header.title} by ${converted.header.artist} (Level: ${chartLevel.value}) | Obj: ${converted.header.noter} | BPM: ${converted.header.bpm} | Time: ${timeFormatted}`;
+    const desc = `${converted.header.title} by ${converted.header.artist} (Level: ${chartLevel.value}) | obj: ${converted.header.noter} | BPM: ${converted.header.bpm} | Time: ${timeFormatted}`;
     broadcastChat("System", `Now playing: ${desc}`, true);
   } catch (err) {
     console.error("Failed loading radio track:", err);
