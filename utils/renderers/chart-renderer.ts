@@ -186,7 +186,9 @@ export class OjnChartRenderer {
     const finalScaleW = this.options.verticalMode
       ? this.options.scaleW * 2
       : this.options.scaleW;
-    const finalColumnWidth = measureGridSize[7] * finalScaleW;
+    const finalColumnWidth = this.options.verticalMode
+      ? (measureGridSize[7] - 5) * finalScaleW
+      : measureGridSize[7] * finalScaleW;
 
     const initialPosX = leftMargin;
     const initialPosY =
@@ -306,7 +308,7 @@ export class OjnChartRenderer {
 
     if (this.options.verticalMode) {
       this.mainChartContainer.hitArea = new PIXI.Rectangle(
-        0,
+        currentPosX,
         initialPosY - this.totalChartHeight,
         finalColumnWidth,
         this.totalChartHeight + bottomMargin,
@@ -344,8 +346,10 @@ export class OjnChartRenderer {
     // Create playhead preview
     const previewLineWidth = 1;
     this.playheadHeight = unit * this.options.scaleH;
-    const playheadWidth = measureGridSize[7] * finalScaleW;
-    const previewStart = 35;
+    const playheadWidth = this.options.verticalMode
+      ? (measureGridSize[7] - 5) * finalScaleW
+      : measureGridSize[7] * finalScaleW;
+    const previewStart = this.options.verticalMode ? 0 : 35;
 
     this.playheadPreviewGraphics = new PIXI.Graphics();
     this.playheadPreviewGraphics.moveTo(
@@ -419,18 +423,20 @@ export class OjnChartRenderer {
     stretchRatio: number,
   ): PIXI.Container {
     const lineWidth = 1;
-    const lineStart = 35;
+    const lineStart = this.options.verticalMode ? 0 : 35;
     const measureContainer = new PIXI.Container();
     const graphics = new PIXI.Graphics();
     measureContainer.addChild(graphics);
 
     const calculatedHeight = Math.round(measureLength * scaleH * stretchRatio);
-    const calculatedWidth = measureGridSize[7] * scaleW;
+    const calculatedWidth = this.options.verticalMode
+      ? (measureGridSize[7] - 5) * scaleW
+      : measureGridSize[7] * scaleW;
     const rowHeight = calculatedHeight / measureLength;
 
     // Draw grid lanes
     graphics.beginPath();
-    let columnIndex = 5;
+    let columnIndex = this.options.verticalMode ? 0 : 5;
     const totalKeys = 7;
     graphics.moveTo(scaleW * columnIndex, 0);
     graphics.lineTo(scaleW * columnIndex, calculatedHeight - lineWidth);
@@ -457,7 +463,9 @@ export class OjnChartRenderer {
     }
 
     // Draw label fill and text
-    let labelColumnIdx = 2 * totalKeys + 5;
+    let labelColumnIdx = this.options.verticalMode
+      ? 2 * totalKeys
+      : 2 * totalKeys + 5;
     graphics.beginPath();
     graphics.moveTo(scaleW * labelColumnIdx, 0);
     graphics.lineTo(scaleW * labelColumnIdx, calculatedHeight - lineWidth);
@@ -503,7 +511,7 @@ export class OjnChartRenderer {
     const keyColorLNConfig = OjnChartRenderer.KEY_COLOR_LN_CONFIG;
 
     // keysMapping is now passed in pre-computed — no need to rebuild it here
-    let currentDrawXIndex = 5;
+    let currentDrawXIndex = this.options.verticalMode ? 0 : 5;
     let keyIterationIndex = 0;
 
     keysMapping.forEach((keyName) => {
@@ -604,12 +612,15 @@ export class OjnChartRenderer {
 
         const isDeathPoint = channelName === "99";
         const lineThickness = schemes.default.bpmLineH;
+        const leftLaneSize = this.options.verticalMode
+          ? measureLeftLaneSize[7] - 5
+          : measureLeftLaneSize[7];
 
         const markerY =
           calculatedHeight - rowHeight * Number(bpmNode[0]) - lineThickness;
         graphics.beginPath();
         graphics.moveTo(lineStart, markerY);
-        graphics.lineTo(scaleW * measureLeftLaneSize[7], markerY);
+        graphics.lineTo(scaleW * leftLaneSize, markerY);
         graphics.stroke({
           width: lineThickness,
           color: isDeathPoint ? schemes.default.mineRedLine : schemes.default.bpmLine,
@@ -629,7 +640,7 @@ export class OjnChartRenderer {
         });
 
         bpmText.anchor.set(0.5);
-        bpmText.x = scaleW * (measureLeftLaneSize[7] + 2);
+        bpmText.x = scaleW * (leftLaneSize + 2);
         bpmText.y = calculatedHeight - rowHeight * Number(bpmNode[0]) - lineWidth;
         measureContainer.addChild(bpmText);
       });
