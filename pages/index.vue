@@ -6,7 +6,6 @@ import { convert } from "~/utils/parsers/ojn-parser";
 import { normalizeFailData } from "~/utils/helpers/search";
 import { shuffle } from "~/utils/helpers/random";
 import { fancyTimeFormat } from "~/utils/helpers/formatter";
-import { fetchAndParseDMJamTrack } from "~/utils/helpers/chart-loader";
 
 const route = useRoute();
 
@@ -133,10 +132,35 @@ const loadChartFromRoute = async () => {
 
   loading.value = true;
   try {
-    let converted: ConvertedOJN;
+    let arrayBuffer: ArrayBuffer;
+    let hitSounds = {};
+    let deathPoints = {};
 
     if (server === "dmjam") {
-      converted = await fetchAndParseDMJamTrack(Number(chartId), selectedDifficulty.value);
+      const ojnUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${chartId}.ojn`;
+      const response = await fetch(ojnUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download chart (${response.status})`);
+      }
+      arrayBuffer = await response.arrayBuffer();
+
+      try {
+        const ojmUrl = `https://ojn-api.dmjam.net/ojn-api/o2ma${chartId}.ojm`;
+        const ojmResponse = await fetch(ojmUrl);
+        if (ojmResponse.ok) {
+          const ojmBuffer = await ojmResponse.arrayBuffer();
+          hitSounds = OJMParser.parseContent(ojmBuffer);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch or parse OJM:", err);
+      }
+
+      try {
+        const failPayload = await $fetch(`/api/dmjam/fail/${chartId}`);
+        deathPoints = normalizeFailData(failPayload);
+      } catch (err) {
+        console.warn("Failed to fetch fail/death points:", err);
+      }
     } else {
       const downloadUrl = await $fetch<string>(`/api/${server}/${chartId}`);
       if (!downloadUrl) throw new Error("No download URL returned");
@@ -145,10 +169,13 @@ const loadChartFromRoute = async () => {
       if (!response.ok) {
         throw new Error(`Failed to download chart (${response.status})`);
       }
-      const arrayBuffer = await response.arrayBuffer();
-      converted = convert(arrayBuffer, {}, {}, selectedDifficulty.value);
-      converted.rawOjnBuffer = arrayBuffer;
+      arrayBuffer = await response.arrayBuffer();
     }
+
+    const converted = convert(arrayBuffer, deathPoints, hitSounds, selectedDifficulty.value);
+    converted.rawOjnBuffer = arrayBuffer;
+    converted.hitSounds = hitSounds;
+    converted.deathPoints = deathPoints;
 
     loadedChart.value = converted;
     stopSong();

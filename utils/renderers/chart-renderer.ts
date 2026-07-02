@@ -109,8 +109,8 @@ export class OjnChartRenderer {
     this.pixiApp = new PIXI.Application();
     await this.pixiApp.init({
       backgroundColor: schemes.default.backgroundFill,
-      height: this.containerElement.clientHeight || (window.innerHeight - headerHeight),
-      width: this.containerElement.clientWidth || window.innerWidth,
+      height: window.innerHeight - headerHeight,
+      width: window.innerWidth,
       roundPixels: false,
     });
 
@@ -125,8 +125,8 @@ export class OjnChartRenderer {
     await this.initPromise;
     if (!this.pixiApp) return;
     this.pixiApp.renderer.resize(
-      this.containerElement.clientWidth || window.innerWidth,
-      this.containerElement.clientHeight || (window.innerHeight - headerHeight),
+      window.innerWidth,
+      window.innerHeight - headerHeight,
     );
     if (this.currentChartData) {
       await this.render(this.currentChartData);
@@ -196,7 +196,7 @@ export class OjnChartRenderer {
         : this.thumbnailHeight + bottomMargin);
 
     let currentPosX = this.options.verticalMode
-      ? (this.pixiApp.renderer.width / 2 - 12 * finalScaleW)
+      ? (this.pixiApp.renderer.width - finalColumnWidth) / 2
       : -15;
     let currentPosY = initialPosY;
 
@@ -345,7 +345,7 @@ export class OjnChartRenderer {
     const previewLineWidth = 1;
     this.playheadHeight = unit * this.options.scaleH;
     const playheadWidth = measureGridSize[7] * finalScaleW;
-    const previewStart = this.options.verticalMode ? (finalScaleW * 5) : 35;
+    const previewStart = 35;
 
     this.playheadPreviewGraphics = new PIXI.Graphics();
     this.playheadPreviewGraphics.moveTo(
@@ -419,7 +419,7 @@ export class OjnChartRenderer {
     stretchRatio: number,
   ): PIXI.Container {
     const lineWidth = 1;
-    const lineStart = this.options.verticalMode ? (scaleW * 5) : 35;
+    const lineStart = 35;
     const measureContainer = new PIXI.Container();
     const graphics = new PIXI.Graphics();
     measureContainer.addChild(graphics);

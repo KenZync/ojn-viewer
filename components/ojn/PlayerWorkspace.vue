@@ -1,7 +1,7 @@
 <template>
   <div class="relative w-full h-full flex flex-col overflow-hidden bg-zinc-950">
     <!-- PIXI rendering mount container -->
-    <div ref="pixiContainer" class="flex-grow w-full relative overflow-hidden bg-zinc-950"></div>
+    <div ref="pixiContainer" class="flex-grow w-full bg-zinc-950"></div>
 
     <!-- Settings Sidebar Panel -->
     <Sidebar
@@ -135,10 +135,6 @@ const initChartRenderer = () => {
       emit("afterDrag");
     }
   });
-
-  // Call resize immediately to ensure visualizer canvas height matches 
-  // container clientHeight, preventing offset/cut-off at the bottom.
-  chartRenderer.value.resize();
 };
 
 const triggerNoteRender = () => {
@@ -195,7 +191,11 @@ watch([scaleW, scaleH, noteHeight, verticalMode, noLN, ohmMode, seed], () => {
   });
 });
 
-let resizeObserver: ResizeObserver | null = null;
+const onResize = () => {
+  setTimeout(() => {
+    chartRenderer.value?.resize();
+  }, 200);
+};
 
 watch(
   () => [route.query.server, route.query.id, route.query.player],
@@ -206,36 +206,17 @@ watch(
 );
 
 onMounted(() => {
-  if (pixiContainer.value) {
-    resizeObserver = new ResizeObserver(() => {
-      chartRenderer.value?.resize();
-    });
-    resizeObserver.observe(pixiContainer.value);
-  }
+  window.addEventListener("resize", onResize);
   nextTick(() => {
     triggerNoteRender();
   });
 });
 
 onUnmounted(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-    resizeObserver = null;
-  }
+  window.removeEventListener("resize", onResize);
   if (chartRenderer.value) {
     chartRenderer.value.destroy();
     chartRenderer.value = null;
   }
 });
 </script>
-
-<style scoped>
-:deep(canvas) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
-}
-</style>
