@@ -484,8 +484,10 @@ const initPeerJS = async () => {
   });
 
   testPeer.on("disconnected", () => {
-    console.log("Host signaling disconnected. Attempting to reconnect...");
-    testPeer.reconnect();
+    if (!testPeer.destroyed) {
+      console.log("Host signaling disconnected. Attempting to reconnect...");
+      testPeer.reconnect();
+    }
   });
 
   testPeer.on("error", (err: any) => {
@@ -534,8 +536,10 @@ const initPeerJS = async () => {
       });
 
       clientPeer.on("disconnected", () => {
-        console.log("Client signaling disconnected. Attempting to reconnect...");
-        clientPeer.reconnect();
+        if (!clientPeer.destroyed) {
+          console.log("Client signaling disconnected. Attempting to reconnect...");
+          clientPeer.reconnect();
+        }
       });
 
       clientPeer.on("error", (clientErr: any) => {

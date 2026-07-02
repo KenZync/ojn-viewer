@@ -1,7 +1,7 @@
 <template>
   <div class="relative w-full h-full flex flex-col overflow-hidden bg-zinc-950">
     <!-- PIXI rendering mount container -->
-    <div ref="pixiContainer" class="flex-grow w-full bg-zinc-950"></div>
+    <div ref="pixiContainer" class="flex-grow w-full relative overflow-hidden bg-zinc-950"></div>
 
     <!-- Settings Sidebar Panel -->
     <Sidebar
@@ -228,3 +228,14 @@ onUnmounted(() => {
   }
 });
 </script>
+
+<style scoped>
+:deep(canvas) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+</style>
