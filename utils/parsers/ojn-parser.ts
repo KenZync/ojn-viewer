@@ -405,7 +405,7 @@ export const convert = (
   const diffDetails = header.difficulty[difficulty];
   cursor = diffDetails.note_offset;
 
-  let note = 0;
+  const playableEvents: { beat: number; channel: number; measure: number; offset: number }[] = [];
   for (let i = 0; i < diffDetails.package_count; i++) {
     let current_package: CurrentPackage = {
       measure: 0,
@@ -556,22 +556,34 @@ export const convert = (
           });
         }
 
-        note++;
+        playableEvents.push({
+          beat,
+          channel: current_package.channel,
+          measure: current_package.measure,
+          offset: (j / current_package.events) * 192,
+        });
+      }
+    }
+  }
 
-        if (!score[current_package.measure]["99"]) {
-          score[current_package.measure]["99"] = [];
-        }
+  playableEvents.sort((a, b) => {
+    if (a.beat !== b.beat) {
+      return a.beat - b.beat;
+    }
+    return a.channel - b.channel;
+  });
 
-        if (death) {
-          if (Object.keys(death).includes(note.toString())) {
-            if (death[note] != null) {
-              const output: [number, string] = [
-                (j / current_package.events) * 192,
-                death[note],
-              ];
-              score[current_package.measure]["99"].push(output);
-            }
+  let note = 0;
+  for (const ev of playableEvents) {
+    note++;
+    if (death) {
+      if (Object.keys(death).includes(note.toString())) {
+        if (death[note] != null) {
+          if (!score[ev.measure]["99"]) {
+            score[ev.measure]["99"] = [];
           }
+          const output: [number, string] = [ev.offset, death[note]];
+          score[ev.measure]["99"].push(output);
         }
       }
     }
