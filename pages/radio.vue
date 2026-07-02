@@ -1,99 +1,22 @@
 <template>
   <div class="relative w-full h-screen bg-zinc-950 flex flex-col overflow-hidden font-sans text-zinc-100 select-none">
-    <!-- Unified Global Header (60px) -->
-    <header class="flex justify-between items-center h-[60px] bg-zinc-900 border-b border-zinc-800 px-3 sm:px-4 md:px-6 flex-shrink-0 z-20 text-white select-text font-sans">
-      <!-- Left Side: Header Song details -->
-      <div class="flex items-center min-w-0 flex-grow sm:flex-grow-0">
-        <div v-if="loadedChart" class="flex items-center space-x-2.5 sm:space-x-4 min-w-0 w-full sm:w-auto">
-          <!-- Level Badge -->
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-            Lv.{{ chartLevel }}
-          </span>
-          <!-- Title & Artist -->
-          <div class="flex flex-col sm:flex-row sm:items-baseline text-left min-w-0 sm:space-x-2 text-sm sm:text-base md:text-md">
-            <span class="text-white font-extrabold tracking-wide truncate max-w-[180px] sm:max-w-[280px]">
-              {{ loadedChart.header.title }}
-            </span>
-            <span class="text-zinc-700 hidden sm:inline select-none">•</span>
-            <span class="text-zinc-400 truncate max-w-[180px] sm:max-w-[240px] text-xs sm:text-sm font-medium">
-              {{ loadedChart.header.artist }}
-            </span>
-            <span class="text-zinc-700 select-none hidden xl:inline">•</span>
-            <!-- Header Details Chips -->
-            <div class="hidden xl:flex items-center space-x-3 flex-shrink-0 text-xs">
-              <span class="flex items-center space-x-1">
-                <span class="text-zinc-500 font-medium">obj:</span>
-                <span class="text-zinc-100 font-bold truncate max-w-[150px]">{{ loadedChart.header.noter }}</span>
-              </span>
-              <span class="flex items-center space-x-1">
-                <span class="text-zinc-500 font-medium">BPM:</span>
-                <span class="text-zinc-100 font-bold">{{ loadedChart.header.bpm }}</span>
-              </span>
-              <span class="flex items-center space-x-1">
-                <span class="text-zinc-500 font-medium">Time:</span>
-                <span class="text-zinc-100 font-bold">{{ formattedCurrentTime }} / {{ formattedTotalTime }}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-        <div v-else class="flex flex-col text-left">
-          <span class="text-white text-base sm:text-xl font-extrabold tracking-wide uppercase">
-            DMJAM P2P Radio
-          </span>
-        </div>
-      </div>
-
-      <!-- Right Side actions: Connection status, Volume & Exit Buttons -->
-      <div class="flex items-center space-x-2 sm:space-x-4 flex-shrink-0 pl-2">
-        <!-- Connection status badge -->
-        <div class="flex items-center space-x-1.5 bg-zinc-950/40 px-2.5 py-1 rounded-lg border border-zinc-800 text-[10px] sm:text-xs">
-          <span class="flex h-1.5 w-1.5 relative">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
-          </span>
-          <span class="font-semibold text-zinc-300">
-            {{ isHost ? 'Host' : 'Listener' }} ({{ peersCount }})
-          </span>
-        </div>
-
-        <!-- Master Volume Slider -->
-        <div class="hidden sm:flex items-center space-x-2 select-none mr-2">
-          <span class="text-zinc-400 font-bold uppercase tracking-wider text-[10px]">Vol</span>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            v-model="volumeLevel"
-            class="w-24 h-1.5 bg-zinc-700/90 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-          />
-          <span class="w-8 text-right font-bold text-white text-xs">{{ Math.round(volumeLevel * 100) }}%</span>
-        </div>
-
-        <!-- Settings Sidebar Toggle -->
-        <button 
-          @click="showSettings = !showSettings"
-          aria-label="Settings"
-          class="w-10 h-10 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl transition-all active:scale-95 flex items-center justify-center flex-shrink-0"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </button>
-
-        <!-- Home Button -->
-        <NuxtLink 
-          to="/" 
-          aria-label="Home"
-          class="w-10 h-10 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 rounded-xl transition-all active:scale-95 flex items-center justify-center flex-shrink-0"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
-        </NuxtLink>
-      </div>
-    </header>
+    <!-- Unified Global Header -->
+    <OjnHeader 
+      current-view="radio"
+      :loaded-chart="loadedChart"
+      :selected-difficulty="selectedDifficulty"
+      :is-playing="isPlaying"
+      v-model:volume-level="volumeLevel"
+      v-model:show-settings="showSettings"
+      active-workspace-label="DMJAM P2P Radio"
+      :is-host="isHost"
+      :peers-count="peersCount"
+      :current-time-formatted="formattedCurrentTime"
+      :total-time-formatted="formattedTotalTime"
+      @toggle-play="togglePlay"
+      @toggle-setting="showSettings = !showSettings"
+      @exit="navigateTo('/')"
+    />
 
     <!-- Main Layout Body -->
     <div class="flex-grow w-full flex flex-col md:flex-row overflow-hidden relative">
