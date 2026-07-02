@@ -58,7 +58,6 @@ interface ConvertedOJN {
   hitSounds?: HitSound;
   rawOjnBuffer?: ArrayBuffer;
   deathPoints?: DeathPoint;
-  playableEvents?: any[];
 }
 interface RibbitScore extends RibbitNote {
   length?: number;

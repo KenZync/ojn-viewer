@@ -30,8 +30,4 @@ export const useSelectedDifficulty = () => {
   return useState<OjnDifficulty>("selectedDifficulty", () => "hard");
 };
 
-export const useDebugMode = () => {
-  return useState("debugMode", () => false);
-};
-
 

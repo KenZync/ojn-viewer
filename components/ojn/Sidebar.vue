@@ -273,17 +273,6 @@
         />
       </div>
 
-      <!-- Debug Mode Toggle -->
-      <div class="flex items-center justify-between pt-2 border-t border-zinc-700/50">
-        <label for="debug-mode-toggle" class="text-xs text-stone-400 cursor-pointer select-none">Debug Mode (Show Note Numbers)</label>
-        <input
-          id="debug-mode-toggle"
-          type="checkbox"
-          v-model="debugMode"
-          class="w-4 h-4 text-orange-600 bg-zinc-700 border-zinc-600 rounded focus:ring-orange-500 cursor-pointer"
-        />
-      </div>
-
       <!-- Exit Workspace (Mobile/Squeeze viewport only) -->
       <div class="block xl:hidden mt-6 border-t border-zinc-700/50 pt-4">
         <button
@@ -350,7 +339,6 @@ const verticalMode = useVerticalMode();
 const scaleW = useScaleW();
 const scaleH = useScaleH();
 const noteHeight = useNoteHeight();
-const debugMode = useDebugMode();
 
 const setNoLN = (hide: boolean) => {
   if (noLN.value !== hide) {

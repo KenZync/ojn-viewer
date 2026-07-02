@@ -653,7 +653,7 @@ export const convert = (
     unit: 192,
   };
 
-  let output: ConvertedOJN = { header, ribbit, hard, hitSounds, playableEvents };
+  let output: ConvertedOJN = { header, ribbit, hard, hitSounds };
 
   processTimingPoints();
 

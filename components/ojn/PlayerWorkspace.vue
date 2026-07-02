@@ -72,7 +72,6 @@ const verticalMode = useVerticalMode();
 const noteHeight = useNoteHeight();
 const scaleW = useScaleW();
 const scaleH = useScaleH();
-const debugMode = useDebugMode();
 
 const pattern = computed(() => {
   return seed.value.split("").map((char) => (parseInt(char) - 1).toString());
@@ -125,7 +124,6 @@ const initChartRenderer = () => {
     ohmMode: ohmMode.value,
     pattern: pattern.value,
     deathPointPlayer: deathPointPlayer.value,
-    debugMode: debugMode.value,
     onSeek: (timeMs) => {
       chartRenderer.value?.resetSeekCache();
       emit("seek", timeMs);
@@ -154,7 +152,6 @@ const triggerNoteRender = () => {
       ohmMode: ohmMode.value,
       pattern: pattern.value,
       deathPointPlayer: deathPointPlayer.value,
-      debugMode: debugMode.value,
     });
 
     const scrollPosition = chartRenderer.value.getScrollPosition();
@@ -188,7 +185,7 @@ watch(() => props.seekOffset, (newVal) => {
 });
 
 // Settings update triggers
-watch([scaleW, scaleH, noteHeight, verticalMode, noLN, ohmMode, seed, debugMode], () => {
+watch([scaleW, scaleH, noteHeight, verticalMode, noLN, ohmMode, seed], () => {
   nextTick(() => {
     triggerNoteRender();
   });
