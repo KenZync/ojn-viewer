@@ -1,22 +1,27 @@
 <template>
   <div class="relative w-full h-screen bg-zinc-950 flex flex-col overflow-hidden font-sans text-zinc-100 select-none">
     <!-- Unified Global Header -->
-    <OjnHeader 
-      current-view="radio"
-      :loaded-chart="loadedChart"
-      :selected-difficulty="selectedDifficulty"
-      :is-playing="isPlaying"
-      v-model:volume-level="volumeLevel"
-      v-model:show-settings="showSettings"
-      active-workspace-label="DMJAM P2P Radio"
-      :is-host="isHost"
-      :peers-count="peersCount"
-      :current-time-formatted="formattedCurrentTime"
-      :total-time-formatted="formattedTotalTime"
-      @toggle-play="togglePlay"
-      @toggle-setting="showSettings = !showSettings"
-      @exit="navigateTo('/')"
-    />
+    <ClientOnly>
+      <OjnHeader 
+        current-view="radio"
+        :loaded-chart="loadedChart"
+        :selected-difficulty="selectedDifficulty"
+        :is-playing="isPlaying"
+        v-model:volume-level="volumeLevel"
+        v-model:show-settings="showSettings"
+        active-workspace-label="DMJAM P2P Radio"
+        :is-host="isHost"
+        :peers-count="peersCount"
+        :current-time-formatted="formattedCurrentTime"
+        :total-time-formatted="formattedTotalTime"
+        @toggle-play="togglePlay"
+        @toggle-setting="showSettings = !showSettings"
+        @exit="navigateTo('/')"
+      />
+      <template #fallback>
+        <div class="h-[60px] bg-zinc-900 border-b border-zinc-800 flex-shrink-0" />
+      </template>
+    </ClientOnly>
 
     <!-- Main Layout Body -->
     <div class="flex-grow w-full flex flex-col md:flex-row overflow-hidden relative">
