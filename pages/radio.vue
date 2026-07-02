@@ -162,7 +162,7 @@
 
       <!-- RIGHT/CENTER SIDE: VISUALIZER (Main Player) -->
       <div class="flex-grow h-2/3 md:h-full relative flex flex-col bg-zinc-950">
-        <div class="flex-grow w-full relative flex items-center justify-center bg-zinc-950">
+        <div class="flex-grow w-full relative overflow-hidden bg-zinc-950">
 
 
           <!-- Fetching overlay -->
