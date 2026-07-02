@@ -196,7 +196,7 @@ export class OjnChartRenderer {
         : this.thumbnailHeight + bottomMargin);
 
     let currentPosX = this.options.verticalMode
-      ? (this.pixiApp.renderer.width - finalColumnWidth) / 2
+      ? (this.pixiApp.renderer.width / 2 - 12 * finalScaleW)
       : -15;
     let currentPosY = initialPosY;
 
@@ -345,7 +345,7 @@ export class OjnChartRenderer {
     const previewLineWidth = 1;
     this.playheadHeight = unit * this.options.scaleH;
     const playheadWidth = measureGridSize[7] * finalScaleW;
-    const previewStart = 35;
+    const previewStart = this.options.verticalMode ? (finalScaleW * 5) : 35;
 
     this.playheadPreviewGraphics = new PIXI.Graphics();
     this.playheadPreviewGraphics.moveTo(
@@ -419,7 +419,7 @@ export class OjnChartRenderer {
     stretchRatio: number,
   ): PIXI.Container {
     const lineWidth = 1;
-    const lineStart = 35;
+    const lineStart = this.options.verticalMode ? (scaleW * 5) : 35;
     const measureContainer = new PIXI.Container();
     const graphics = new PIXI.Graphics();
     measureContainer.addChild(graphics);

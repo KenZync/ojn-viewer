@@ -135,6 +135,10 @@ const initChartRenderer = () => {
       emit("afterDrag");
     }
   });
+
+  // Call resize immediately to ensure visualizer canvas height matches 
+  // container clientHeight, preventing offset/cut-off at the bottom.
+  chartRenderer.value.resize();
 };
 
 const triggerNoteRender = () => {

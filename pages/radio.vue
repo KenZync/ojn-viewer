@@ -186,10 +186,10 @@
           />
 
           <!-- Fallback if no chart is active -->
-          <div v-else-if="!loadingSong" class="text-center text-zinc-500 space-y-1 text-xs">
-            <p>Ready to play.</p>
-            <p v-if="isHost" class="text-[10px] text-emerald-400">Selecting a random chart to broadcast...</p>
-            <p v-else class="text-[10px] text-cyan-400">Waiting for host to sync playback state...</p>
+          <div v-else-if="!loadingSong" class="absolute inset-0 flex flex-col items-center justify-center text-center text-zinc-500 space-y-1.5 text-xs bg-zinc-950/40">
+            <p class="font-bold text-sm text-zinc-400">Ready to play.</p>
+            <p v-if="isHost" class="text-[11px] text-emerald-400">Selecting a random chart to broadcast...</p>
+            <p v-else class="text-[11px] text-cyan-400">Waiting for host to sync playback state...</p>
           </div>
         </div>
       </div>
@@ -511,8 +511,9 @@ const playNextRandomSong = async () => {
   const nextTrackCode = trackCodes.value[randomIndex];
 
   hostCurrentTrackCode.value = nextTrackCode;
-  hostTrackStartTime.value = Date.now();
 
+  // We load the track first. hostTrackStartTime will be set inside loadRadioTrack 
+  // exactly when playback initiates.
   await loadRadioTrack(nextTrackCode, 0);
   broadcastSongChange(nextTrackCode, hostTrackStartTime.value);
 };
@@ -541,6 +542,12 @@ const loadRadioTrack = async (musicCode: number, offsetSeconds: number) => {
 
     // Decode all sounds
     await decodeAllSounds();
+
+    // Set host track start time exactly when the host is ready to start audio playback,
+    // ensuring the song starts at 0 without skipping due to download/decoding delays.
+    if (isHost.value) {
+      hostTrackStartTime.value = Date.now();
+    }
     
     // Play immediately at the seek offset (calculate right before playing to account for load latency)
     const elapsedSinceStartMs = Date.now() + hostClockOffset.value - hostTrackStartTime.value;
