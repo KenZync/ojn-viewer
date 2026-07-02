@@ -582,26 +582,21 @@ onUnmounted(() => {
     </div>
 
     <!-- Unified Global Header -->
-    <ClientOnly>
-      <OjnHeader 
-        v-show="currentView !== 'landing'"
-        :current-view="currentView"
-        :loaded-chart="loadedChart"
-        :selected-difficulty="selectedDifficulty"
-        :is-playing="isPlaying"
-        v-model:volume-level="volumeLevel"
-        v-model:show-settings="showSettings"
-        :active-workspace-label="activeWorkspaceLabel"
-        @toggle-play="handlePlaySongToggle"
-        @toggle-setting="toggleSetting"
-        @exit="unloadActiveWorkspace"
-        @export-png="dressingWorkspaceRef?.exportPng"
-        @clear-equipments="dressingWorkspaceRef?.clearEquipments"
-      />
-      <template #fallback>
-        <div class="h-[60px] bg-zinc-900 border-b border-zinc-800 flex-shrink-0" />
-      </template>
-    </ClientOnly>
+    <OjnHeader 
+      v-show="currentView !== 'landing'"
+      :current-view="currentView"
+      :loaded-chart="loadedChart"
+      :selected-difficulty="selectedDifficulty"
+      :is-playing="isPlaying"
+      v-model:volume-level="volumeLevel"
+      v-model:show-settings="showSettings"
+      :active-workspace-label="activeWorkspaceLabel"
+      @toggle-play="handlePlaySongToggle"
+      @toggle-setting="toggleSetting"
+      @exit="unloadActiveWorkspace"
+      @export-png="dressingWorkspaceRef?.exportPng"
+      @clear-equipments="dressingWorkspaceRef?.clearEquipments"
+    />
 
     <!-- Workspace view selector -->
     <div class="flex-grow flex overflow-hidden w-full relative">
