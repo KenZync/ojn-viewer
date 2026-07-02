@@ -73,7 +73,7 @@
           Playback Controls
         </div>
         <!-- Volume Slider -->
-        <div class="space-y-1">
+        <div class="space-y-1 sm:hidden">
           <div class="flex justify-between text-xs text-stone-400">
             <label for="sidebar-vol-slider"
               >Volume: {{ Math.round(sidebarVolume * 100) }}%</label

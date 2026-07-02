@@ -195,11 +195,7 @@ watch([scaleW, scaleH, noteHeight, verticalMode, noLN, ohmMode, seed], () => {
   });
 });
 
-const onResize = () => {
-  setTimeout(() => {
-    chartRenderer.value?.resize();
-  }, 200);
-};
+let resizeObserver: ResizeObserver | null = null;
 
 watch(
   () => [route.query.server, route.query.id, route.query.player],
@@ -210,14 +206,22 @@ watch(
 );
 
 onMounted(() => {
-  window.addEventListener("resize", onResize);
+  if (pixiContainer.value) {
+    resizeObserver = new ResizeObserver(() => {
+      chartRenderer.value?.resize();
+    });
+    resizeObserver.observe(pixiContainer.value);
+  }
   nextTick(() => {
     triggerNoteRender();
   });
 });
 
 onUnmounted(() => {
-  window.removeEventListener("resize", onResize);
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
   if (chartRenderer.value) {
     chartRenderer.value.destroy();
     chartRenderer.value = null;

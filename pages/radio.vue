@@ -105,14 +105,39 @@
 
     <!-- Main Layout Body -->
     <div class="flex-grow w-full flex flex-col md:flex-row overflow-hidden relative">
+      <!-- Mobile Chat Backdrop Overlay -->
+      <div 
+        v-if="showMobileChat" 
+        class="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
+        @click="showMobileChat = false"
+      ></div>
+
       <!-- LEFT SIDE: Glassmorphic Chat Panel -->
-      <div class="w-full md:w-80 h-1/3 md:h-full bg-zinc-900/40 backdrop-blur-lg border-b md:border-b-0 md:border-r border-zinc-800/80 flex flex-col z-30 shrink-0">
+      <div 
+        :class="[
+          'bg-zinc-900/95 md:bg-zinc-900/40 backdrop-blur-lg border-r border-zinc-800/80 flex flex-col shrink-0 transition-transform duration-300',
+          'fixed inset-y-0 left-0 w-80 max-w-[85vw] h-full z-50 md:z-30 md:static md:w-80 md:h-full md:translate-x-0',
+          showMobileChat ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        ]"
+      >
         <div class="p-4 border-b border-zinc-800/80 shrink-0 space-y-2">
           <div class="flex items-center justify-between">
             <h2 class="text-md font-bold bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">
               DMJAM Live Chat
             </h2>
-            <span class="text-[10px] text-zinc-500">P2P Room</span>
+            <div class="flex items-center space-x-2">
+              <span class="text-[10px] text-zinc-500 font-mono">P2P Room</span>
+              <!-- Close button only on mobile -->
+              <button 
+                @click="showMobileChat = false"
+                class="md:hidden text-zinc-400 hover:text-white transition-colors"
+                aria-label="Close Chat"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <!-- Nickname Editor -->
           <div class="flex items-center space-x-1.5 bg-zinc-950/60 border border-zinc-800/85 rounded px-2.5 py-1.5 text-xs">
@@ -169,10 +194,8 @@
       </div>
 
       <!-- RIGHT/CENTER SIDE: VISUALIZER (Main Player) -->
-      <div class="flex-grow h-2/3 md:h-full relative flex flex-col bg-zinc-950">
+      <div class="flex-grow h-full relative flex flex-col bg-zinc-950">
         <div class="flex-grow w-full relative overflow-hidden bg-zinc-950">
-
-
           <!-- Fetching overlay -->
           <div 
             v-if="loadingSong" 
@@ -190,7 +213,7 @@
             :seek-offset="seekOffset"
             v-model:show-panel="showSettings"
             :is-playing="isPlaying"
-            :volume-level="volumeLevel"
+            v-model:volume-level="volumeLevel"
           />
 
           <!-- Fallback if no chart is active -->
@@ -199,6 +222,26 @@
             <p v-if="isHost" class="text-[11px] text-emerald-400">Selecting a random chart to broadcast...</p>
             <p v-else class="text-[11px] text-cyan-400">Waiting for host to sync playback state...</p>
           </div>
+
+          <!-- Floating Mobile Chat Bubble Button -->
+          <button
+            @click="showMobileChat = !showMobileChat"
+            class="md:hidden fixed bottom-6 left-6 z-40 w-12 h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 duration-100"
+            aria-label="Toggle Chat"
+          >
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <!-- Unread Badge -->
+              <span 
+                v-if="unreadMessagesCount > 0"
+                class="absolute -top-2 -right-2 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full min-w-[16px] h-4 flex items-center justify-center animate-pulse"
+              >
+                {{ unreadMessagesCount }}
+              </span>
+            </div>
+          </button>
         </div>
       </div>
     </div>
@@ -220,6 +263,14 @@ const chatInput = ref("");
 const chatHistory = ref<Array<{ nickname: string, text: string, timestamp: string, isSystem?: boolean }>>([]);
 const chatBox = ref<HTMLElement | null>(null);
 const showSettings = ref(true);
+const showMobileChat = ref(false);
+const unreadMessagesCount = ref(0);
+
+watch(showMobileChat, (val) => {
+  if (val) {
+    unreadMessagesCount.value = 0;
+  }
+});
 
 // Audio States
 const loadedChart = ref<ConvertedOJN | null>(null);
@@ -322,10 +373,33 @@ onUnmounted(() => {
   stopSong();
   resetRadioScale();
   window.removeEventListener("resize", setRadioVerticalScale);
-  if (peer.value) {
-    peer.value.destroy();
-  }
+  destroyActivePeer();
 });
+
+const destroyActivePeer = () => {
+  if (peer.value) {
+    try {
+      peer.value.destroy();
+    } catch (e) {
+      console.warn("Error destroying peer:", e);
+    }
+    peer.value = null;
+  }
+  connections.value.forEach((conn) => {
+    try {
+      conn.close();
+    } catch (e) {}
+  });
+  connections.value = [];
+  
+  if (activeConnection.value) {
+    try {
+      activeConnection.value.close();
+    } catch (e) {}
+    activeConnection.value = null;
+  }
+  peersCount.value = 0;
+};
 
 const updateNickname = () => {
   const trimmed = nickname.value.trim();
@@ -361,6 +435,7 @@ const startRadio = async () => {
 
 // Setup PeerJS connection logic
 const initPeerJS = async () => {
+  destroyActivePeer();
   const { Peer } = await import("peerjs");
 
   const hostId = "dmjam-radio-active-host-global-v2";
@@ -394,6 +469,9 @@ const initPeerJS = async () => {
       conn.on("data", (data: any) => {
         if (data.type === "chat") {
           broadcastChat(data.nickname, data.text);
+          if (!showMobileChat.value && data.nickname !== nickname.value) {
+            unreadMessagesCount.value++;
+          }
         }
       });
 
@@ -405,9 +483,16 @@ const initPeerJS = async () => {
     });
   });
 
+  testPeer.on("disconnected", () => {
+    console.log("Host signaling disconnected. Attempting to reconnect...");
+    testPeer.reconnect();
+  });
+
   testPeer.on("error", (err: any) => {
     if (err.type === "unavailable-id") {
       isHost.value = false;
+      testPeer.destroy(); // Clean up failed testPeer
+
       const clientPeer = new Peer();
       
       clientPeer.on("open", () => {
@@ -433,6 +518,9 @@ const initPeerJS = async () => {
               isSystem: data.isSystem
             });
             scrollChatToBottom();
+            if (!showMobileChat.value && data.nickname !== nickname.value) {
+              unreadMessagesCount.value++;
+            }
           }
         });
 
@@ -444,8 +532,22 @@ const initPeerJS = async () => {
           }, 1000 + Math.random() * 2000);
         });
       });
+
+      clientPeer.on("disconnected", () => {
+        console.log("Client signaling disconnected. Attempting to reconnect...");
+        clientPeer.reconnect();
+      });
+
+      clientPeer.on("error", (clientErr: any) => {
+        console.error("Client peer error:", clientErr);
+        if (clientErr.type === "network" || clientErr.type === "server-error") {
+          setTimeout(() => {
+            initPeerJS();
+          }, 5000);
+        }
+      });
     } else {
-      console.error("PeerJS error:", err);
+      console.error("Host peer error:", err);
     }
   });
 };
@@ -571,7 +673,7 @@ const loadRadioTrack = async (musicCode: number, offsetSeconds: number) => {
     // Broadcast what is currently playing as a system chat message
     const timeFormatted = fancyTimeFormat(durationSec);
     const desc = `${converted.header.title} by ${converted.header.artist} (Level: ${chartLevel.value}) | obj: ${converted.header.noter} | BPM: ${converted.header.bpm} | Time: ${timeFormatted}`;
-    broadcastChat("System", `Now playing: ${desc}`, true);
+    addSystemMessage("System", `Now playing: ${desc}`);
   } catch (err) {
     console.error("Failed loading radio track:", err);
     // Auto-skip failed songs if we are the host
