@@ -20,6 +20,7 @@ export interface OjnRendererOptions {
   ohmMode: string;
   pattern: string[];
   deathPointPlayer: DeathPoint;
+  debugMode?: boolean;
   onSeek: (timeMs: number) => void;
   onBeforeDrag: () => void;
   onAfterDrag: () => void;
@@ -51,6 +52,8 @@ export class OjnChartRenderer {
   private labelTextStyle: PIXI.TextStyle | null = null;
   private bpmTextStyle: PIXI.TextStyle | null = null;
   private deathTextStyle: PIXI.TextStyle | null = null;
+  private debugTextStyle: PIXI.TextStyle | null = null;
+  private noteIndexMap = new Map<string, number>();
 
   // Performance: cache last known measure index for playhead seek
   private lastKnownMeasureIndex = 0;
@@ -180,6 +183,23 @@ export class OjnChartRenderer {
         width: 2,
       },
     });
+    this.debugTextStyle = new PIXI.TextStyle({
+      fontSize: finalScaleWForStyle * 1.2,
+      fontWeight: "bold",
+      fill: 0xffa500, // orange
+      stroke: {
+        color: 0x000000,
+        width: 2,
+      },
+    });
+
+    this.noteIndexMap.clear();
+    if (chartData.playableEvents) {
+      chartData.playableEvents.forEach((ev, idx) => {
+        const key = `${ev.measure}_${ev.channel}_${ev.offset}`;
+        this.noteIndexMap.set(key, idx + 1);
+      });
+    }
 
     this.mainChartContainer = new PIXI.Container();
 
@@ -419,7 +439,16 @@ export class OjnChartRenderer {
     stretchRatio: number,
   ): PIXI.Container {
     const lineWidth = 1;
-    const lineStart = 35;
+    const lineStart = scaleW * 5;
+    const keyNameToChannel: Record<string, number> = {
+      "11": 2,
+      "12": 3,
+      "13": 4,
+      "14": 5,
+      "15": 6,
+      "18": 7,
+      "19": 8,
+    };
     const measureContainer = new PIXI.Container();
     const graphics = new PIXI.Graphics();
     measureContainer.addChild(graphics);
@@ -533,9 +562,41 @@ export class OjnChartRenderer {
                 );
                 graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
               }
+
+              if (this.options.debugMode) {
+                const channel = keyNameToChannel[keyName];
+                const startKey = `${measureIndex}_${channel}_${lnBegin}`;
+                const noteIdx = this.noteIndexMap.get(startKey);
+                if (noteIdx !== undefined) {
+                  const debugText = new PIXI.Text({
+                    text: noteIdx.toString(),
+                    style: this.debugTextStyle ?? undefined,
+                  });
+                  debugText.anchor.set(0.5);
+                  debugText.x = currentDrawXIndex * scaleW + scaleW;
+                  debugText.y = calculatedHeight - rowHeight * lnBegin - noteHeight / 2 - lineWidth;
+                  measureContainer.addChild(debugText);
+                }
+              }
             }
             if (area[1][0] === measureIndex) {
               lnEnd = Number(area[1][1]);
+
+              if (this.options.debugMode) {
+                const channel = keyNameToChannel[keyName];
+                const endKey = `${measureIndex}_${channel}_${lnEnd}`;
+                const noteIdx = this.noteIndexMap.get(endKey);
+                if (noteIdx !== undefined) {
+                  const debugText = new PIXI.Text({
+                    text: noteIdx.toString(),
+                    style: this.debugTextStyle ?? undefined,
+                  });
+                  debugText.anchor.set(0.5);
+                  debugText.x = currentDrawXIndex * scaleW + scaleW;
+                  debugText.y = calculatedHeight - rowHeight * lnEnd - noteHeight / 2 - lineWidth;
+                  measureContainer.addChild(debugText);
+                }
+              }
             }
 
             if (!this.options.noLN) {
@@ -573,6 +634,25 @@ export class OjnChartRenderer {
             noteHeight,
           );
           graphics.fill({ color: keyColorConfig[keyIterationIndex] });
+
+          if (this.options.debugMode) {
+            const channel = keyNameToChannel[keyName];
+            const key = `${measureIndex}_${channel}_${positionData[0]}`;
+            const noteIdx = this.noteIndexMap.get(key);
+            if (noteIdx !== undefined) {
+              const debugText = new PIXI.Text({
+                text: noteIdx.toString(),
+                style: this.debugTextStyle ?? undefined,
+              });
+              debugText.anchor.set(0.5);
+              debugText.x = currentDrawXIndex * scaleW + scaleW;
+              debugText.y =
+                calculatedHeight -
+                (rowHeight * positionData[0] + noteHeight / 2) -
+                lineWidth;
+              measureContainer.addChild(debugText);
+            }
+          }
         });
       }
 
