@@ -109,8 +109,8 @@ export class OjnChartRenderer {
     this.pixiApp = new PIXI.Application();
     await this.pixiApp.init({
       backgroundColor: schemes.default.backgroundFill,
-      height: window.innerHeight - headerHeight,
-      width: window.innerWidth,
+      height: this.containerElement.clientHeight || (window.innerHeight - headerHeight),
+      width: this.containerElement.clientWidth || window.innerWidth,
       roundPixels: false,
     });
 
@@ -125,8 +125,8 @@ export class OjnChartRenderer {
     await this.initPromise;
     if (!this.pixiApp) return;
     this.pixiApp.renderer.resize(
-      window.innerWidth,
-      window.innerHeight - headerHeight,
+      this.containerElement.clientWidth || window.innerWidth,
+      this.containerElement.clientHeight || (window.innerHeight - headerHeight),
     );
     if (this.currentChartData) {
       await this.render(this.currentChartData);
