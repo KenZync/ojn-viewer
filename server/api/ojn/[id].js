@@ -1,26 +1,11 @@
-import { BoxClient, BoxJwtAuth, JwtConfig } from "box-node-sdk";
+import { getBoxClient } from "../../utils/box";
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
   const query = getQuery(event);
   const filename = `o2ma${id}.ojn`;
 
-  const configObj = {
-    boxAppSettings: {
-      clientID: process.env.NUXT_BOX_CLIENT_ID || "",
-      clientSecret: process.env.NUXT_BOX_CLIENT_SCRET || "",
-      appAuth: {
-        publicKeyID: process.env.NUXT_BOX_JWT_KEY_ID || "",
-        privateKey: process.env.NUXT_BOX_PRIVATE_KEY?.replace(/\\n/g, "\n") || "",
-        passphrase: process.env.NUXT_BOX_PRIVATE_KEY_PASSPHRASE || "",
-      },
-    },
-    enterpriseID: process.env.NUXT_BOX_ENTERPRISE_ID || "",
-  };
-
-  const jwtConfig = JwtConfig.fromConfigJsonString(JSON.stringify(configObj));
-  const auth = new BoxJwtAuth({ config: jwtConfig });
-  const client = new BoxClient({ auth });
+  const client = getBoxClient();
 
   const search = await client.search.searchForContent({
     query: filename,
