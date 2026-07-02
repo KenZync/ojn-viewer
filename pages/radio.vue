@@ -6,11 +6,19 @@
       <div class="flex items-center min-w-0 flex-grow sm:flex-grow-0">
         <div v-if="loadedChart" class="flex items-center space-x-2.5 sm:space-x-4 min-w-0 w-full sm:w-auto">
           <!-- Level Badge -->
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+          <span
+            :class="{
+              'bg-rose-500/10 text-rose-400 border-rose-500/20': selectedDifficulty === 'hard',
+              'bg-amber-500/10 text-amber-400 border-amber-500/20': selectedDifficulty === 'normal',
+              'bg-emerald-500/10 text-emerald-400 border-emerald-500/20': selectedDifficulty === 'easy'
+            }"
+            class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 border"
+          >
+            {{ selectedDifficulty === 'easy' ? 'EX' : selectedDifficulty === 'normal' ? 'NX' : 'HX' }}
             Lv.{{ chartLevel }}
           </span>
           <!-- Title & Artist -->
-          <div class="flex flex-col sm:flex-row sm:items-baseline text-left min-w-0 sm:space-x-2 text-sm sm:text-base md:text-md">
+          <div class="flex flex-col sm:flex-row sm:items-baseline text-left min-w-0 sm:space-x-2 text-sm sm:text-base md:text-lg lg:text-xl w-full sm:w-auto">
             <span class="text-white font-extrabold tracking-wide truncate max-w-[180px] sm:max-w-[280px]">
               {{ loadedChart.header.title }}
             </span>
