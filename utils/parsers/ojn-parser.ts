@@ -403,6 +403,44 @@ export const convert = (
   header.image = cover;
   header.bmp = bmp;
   const diffDetails = header.difficulty[difficulty];
+  
+  // Pass 1: Parse all channel 0 packages to get measure lengths
+  let tempCursor = diffDetails.note_offset;
+  for (let i = 0; i < diffDetails.package_count; i++) {
+    const measure = dataview.getInt32(tempCursor, true);
+    tempCursor += 4;
+    const channel = dataview.getInt16(tempCursor, true);
+    tempCursor += 2;
+    const events = dataview.getInt16(tempCursor, true);
+    tempCursor += 2;
+
+    if (!score[measure]) {
+      score[measure] = {};
+    }
+
+    if (channel === 0) {
+      for (let j = 0; j < events; j++) {
+        const val = dataview.getFloat32(tempCursor, true);
+        tempCursor += 4;
+        if (val > 10e-10) {
+          score[measure].length = 192 * val;
+        }
+      }
+    } else {
+      tempCursor += events * 4;
+    }
+  }
+
+  // Pre-calculate accumulated beats at the start of each measure.
+  const maxMeasures = Math.max(score.length, header.difficulty.easy.measure_count, header.difficulty.normal.measure_count, header.difficulty.hard.measure_count) + 100;
+  const measureStartBeats: number[] = [];
+  let accumulatedBeat = 0;
+  for (let m = 0; m < maxMeasures; m++) {
+    measureStartBeats[m] = accumulatedBeat;
+    const measureLength = (score[m] && score[m].length !== undefined) ? score[m].length : 192;
+    accumulatedBeat += measureLength / 48;
+  }
+
   cursor = diffDetails.note_offset;
 
   const playableEvents: { beat: number; channel: number; measure: number; offset: number }[] = [];
@@ -419,16 +457,10 @@ export const convert = (
     current_package.events = dataview.getInt16(cursor, true);
     cursor += 2;
 
-    if (!score[current_package.measure]) {
-      score[current_package.measure] = {};
-    }
-    // if(current_package.events != 1){
-    //   score[current_package.measure]["length"] = current_package.events;
-    // }
-    // score[current_package.measure]["length"] = current_package.events;
+    const measureLength = score[current_package.measure]?.length || 192;
 
     for (let j = 0; j < current_package.events; j++) {
-      let beat = (current_package.measure + j / current_package.events) * 4;
+      let beat = measureStartBeats[current_package.measure] + (j / current_package.events) * (measureLength / 48);
       let bpm = dataview.getFloat32(cursor, true);
       if (current_package.channel == 0 || current_package.channel == 1) {
         var multiplier = 1;
@@ -439,37 +471,20 @@ export const convert = (
         cursor += 4;
         if (bpm !== 0) {
           const beat_bpm: [number, number | string] = [
-            (j / current_package.events) * 192,
+            (j / current_package.events) * measureLength,
             bpm,
           ];
           if (bpm < 10e-10) {
             continue;
           }
           if (current_package.channel == 0 && bpm > 10e-10) {
-            score[current_package.measure].length = 192 * multiplier;
             continue;
           }
           if (!score[current_package.measure]["03"]) {
             score[current_package.measure]["03"] = [];
           }
-          // if(bpm > 0 || bpm < 10e-10){
-          //   continue
-          // }
           score[current_package.measure]["03"].push(beat_bpm);
           parseTimingPoint(beat, bpm);
-
-          // score[current_package.measure][key].push( [j,'00'] );
-
-          // if (score[current_package.measure]) {
-          //   // Check if the value already exists in the array
-          // const valueExists = score[current_package.measure]["03"].some(
-          //   (item: [number, string | number]) =>
-          //     item[0] === beat_bpm[0] && item[1] === beat_bpm[1]
-          // );
-          // if (!valueExists) {
-          //   // If the value doesn't exist, push it to the array
-          //   score[current_package.measure]["03"].push(beat_bpm);
-          // }
         }
       } else if (current_package.channel > 8) {
         let event: any = {};
@@ -516,7 +531,7 @@ export const convert = (
           switch (event.type) {
             case 0:
               score[current_package.measure][ribbit_key].push([
-                (j / current_package.events) * 192,
+                (j / current_package.events) * measureLength,
                 "00",
               ]);
               objectName = "note";
@@ -526,8 +541,8 @@ export const convert = (
                 lnmap[ribbit_key] = [];
               }
               lnmap[ribbit_key].push([
-                [current_package.measure, (j / current_package.events) * 192],
-                [current_package.measure, (j / current_package.events) * 192],
+                [current_package.measure, (j / current_package.events) * measureLength],
+                [current_package.measure, (j / current_package.events) * measureLength],
               ]);
               objectName = "longnote";
               commonData.start = true;
@@ -536,7 +551,7 @@ export const convert = (
               if (lnmap[ribbit_key]) {
                 lnmap[ribbit_key][lnmap[ribbit_key].length - 1][1] = [
                   current_package.measure,
-                  (j / current_package.events) * 192,
+                  (j / current_package.events) * measureLength,
                 ];
                 objectName = "longnote";
                 commonData.start = false;
@@ -560,7 +575,7 @@ export const convert = (
           beat,
           channel: current_package.channel,
           measure: current_package.measure,
-          offset: (j / current_package.events) * 192,
+          offset: (j / current_package.events) * measureLength,
         });
       }
     }
@@ -608,10 +623,11 @@ export const convert = (
   let bpmNow = 0;
   let timeCount = 0;
   score.forEach((item, m) => {
+    const measureLength = item.length || 192;
     if (item["03"] == null) {
       item["88"] = [];
-      let dura = (4 * 60000) / previousBpm;
-      item["88"].push([0, previousBpm, 192, dura, timeCount]);
+      let dura = ((measureLength / 48) * 60000) / previousBpm;
+      item["88"].push([0, previousBpm, measureLength, dura, timeCount]);
       timeCount = timeCount + dura;
       return;
     }
@@ -629,7 +645,7 @@ export const convert = (
       try {
         beatNext = score[m]["88"][indexGreenLine + 1][0];
       } catch (error) {
-        beatNext = 192;
+        beatNext = measureLength;
       }
       let duration = (((beatNext - beatNow) / 48) * 60000) / bpmNow;
       item["88"][indexGreenLine].push(beatNext, duration, timeCount);
