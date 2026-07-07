@@ -13,15 +13,31 @@ export default defineEventHandler(async (event) => {
     limit: 1,
   });
 
-  if (!search.entries || search.entries.length !== 1) {
+  const entries = search.entries;
+  if (!entries || entries.length !== 1) {
     throw createError({ statusCode: 404, statusMessage: 'OJN Not Found' })
   }
 
-  const [firstEntry] = search.entries; // Destructure the first entry
-
-  if (firstEntry.name !== filename) {
+  const firstEntry = entries[0];
+  if (!firstEntry) {
     throw createError({ statusCode: 404, statusMessage: 'OJN Not Found' })
   }
-  const url = await client.downloads.getDownloadFileUrl(firstEntry.id);
+
+  let fileId: string | undefined;
+  let fileName: string | undefined;
+
+  if ('item' in firstEntry && firstEntry.item) {
+    fileId = firstEntry.item.id;
+    fileName = 'name' in firstEntry.item ? firstEntry.item.name : undefined;
+  } else if ('id' in firstEntry) {
+    fileId = firstEntry.id;
+    fileName = 'name' in firstEntry ? firstEntry.name : undefined;
+  }
+
+  if (!fileId || !fileName || fileName !== filename) {
+    throw createError({ statusCode: 404, statusMessage: 'OJN Not Found' })
+  }
+
+  const url = await client.downloads.getDownloadFileUrl(fileId);
   return url;
 });

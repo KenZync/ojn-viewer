@@ -10,15 +10,16 @@ export const searchDeathPlayer = (
   // Iterate over the keys and values in the DeathPoint object
   for (const key in deathPoint) {
     if (Object.prototype.hasOwnProperty.call(deathPoint, key)) {
-      const value = deathPoint[key];
-
-      // Iterate over the search terms
-      for (const term of searchTerms) {
-        // Check if the value includes the search term (trimmed to remove leading/trailing spaces)
-        if (value.includes(term.trim())) {
-          // Convert key to a number and add it to the filteredDeathPoint object
-          filteredDeathPoint[+key] = value;
-          break; // Exit the loop after the first match for this key
+      const value = deathPoint[+key];
+      if (value !== undefined) {
+        // Iterate over the search terms
+        for (const term of searchTerms) {
+          // Check if the value includes the search term (trimmed to remove leading/trailing spaces)
+          if (value.includes(term.trim())) {
+            // Convert key to a number and add it to the filteredDeathPoint object
+            filteredDeathPoint[+key] = value;
+            break; // Exit the loop after the first match for this key
+          }
         }
       }
     }
@@ -30,8 +31,11 @@ export const searchDeathPlayer = (
 export const searchStringInDeathPoint = (dp: DeathPoint, search: string) => {
   search = search.toLowerCase(); // Convert search string to lowercase
   for (const key in dp) {
-    if (dp[key].toLowerCase().includes(search)) {
-      return true;
+    if (Object.prototype.hasOwnProperty.call(dp, key)) {
+      const value = dp[+key];
+      if (value !== undefined && value.toLowerCase().includes(search)) {
+        return true;
+      }
     }
   }
   return false;

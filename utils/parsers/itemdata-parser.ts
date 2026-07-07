@@ -165,13 +165,13 @@ export function parseItemData(buffer: Uint8Array): ItemMetadata[] {
 
     // Read render parts loop (excluding Large/SmallThumbnail)
     for (let pIndex = 0; pIndex < RenderPart.length; pIndex++) {
-      const pName = RenderPart[pIndex];
+      const pName = RenderPart[pIndex]!;
       if (pName === "LargeThumbnail" || pName === "SmallThumbnail") {
         continue;
       }
 
       for (let instIndex = 0; instIndex < Instrument.length; instIndex++) {
-        const instName = Instrument[instIndex];
+        const instName = Instrument[instIndex]!;
 
         // Loop male then female
         for (const gName of ["Male", "Female"] as const) {

@@ -437,7 +437,8 @@ export const convert = (
   let accumulatedBeat = 0;
   for (let m = 0; m < maxMeasures; m++) {
     measureStartBeats[m] = accumulatedBeat;
-    const measureLength = (score[m] && score[m].length !== undefined) ? score[m].length : 192;
+    const mScore = score[m];
+    const measureLength = (mScore && mScore.length !== undefined) ? mScore.length : 192;
     accumulatedBeat += measureLength / 48;
   }
 
@@ -460,7 +461,7 @@ export const convert = (
     const measureLength = score[current_package.measure]?.length || 192;
 
     for (let j = 0; j < current_package.events; j++) {
-      let beat = measureStartBeats[current_package.measure] + (j / current_package.events) * 4;
+      let beat = measureStartBeats[current_package.measure]! + (j / current_package.events) * 4;
       let bpm = dataview.getFloat32(cursor, true);
       if (current_package.channel == 0 || current_package.channel == 1) {
         var multiplier = 1;
@@ -480,10 +481,11 @@ export const convert = (
           if (current_package.channel == 0 && bpm > 10e-10) {
             continue;
           }
-          if (!score[current_package.measure]["03"]) {
-            score[current_package.measure]["03"] = [];
+          const mScore = score[current_package.measure]!;
+          if (!mScore["03"]) {
+            mScore["03"] = [];
           }
-          score[current_package.measure]["03"].push(beat_bpm);
+          mScore["03"].push(beat_bpm);
           parseTimingPoint(beat, bpm);
         }
       } else if (current_package.channel > 8) {
@@ -519,44 +521,54 @@ export const convert = (
         let ribbit_key =
           keyMapping[current_package.channel as keyof typeof keyMapping];
 
-        if (!score[current_package.measure][ribbit_key]) {
-          score[current_package.measure][ribbit_key] = [];
-        }
+        const mScore = score[current_package.measure]!;
+        if (ribbit_key) {
+          if (!mScore[ribbit_key]) {
+            mScore[ribbit_key] = [];
+          }
 
-        const commonData = parseCommon(event);
-        if (commonData) {
-          event.type %= 4;
+          const commonData = parseCommon(event);
+          if (commonData) {
+            event.type %= 4;
 
-          let objectName;
-          switch (event.type) {
-            case 0:
-              score[current_package.measure][ribbit_key].push([
-                (j / current_package.events) * 192,
-                "00",
-              ]);
-              objectName = "note";
-              break;
+            let objectName;
+            switch (event.type) {
+              case 0:
+                mScore[ribbit_key]!.push([
+                  (j / current_package.events) * 192,
+                  "00",
+                ]);
+                objectName = "note";
+                break;
             case 2:
-              if (!lnmap[ribbit_key]) {
-                lnmap[ribbit_key] = [];
+              if (ribbit_key) {
+                if (!lnmap[ribbit_key]) {
+                  lnmap[ribbit_key] = [];
+                }
+                lnmap[ribbit_key]!.push([
+                  [current_package.measure, (j / current_package.events) * 192],
+                  [current_package.measure, (j / current_package.events) * 192],
+                ]);
+                objectName = "longnote";
+                commonData.start = true;
               }
-              lnmap[ribbit_key].push([
-                [current_package.measure, (j / current_package.events) * 192],
-                [current_package.measure, (j / current_package.events) * 192],
-              ]);
-              objectName = "longnote";
-              commonData.start = true;
               break;
             case 3:
-              if (lnmap[ribbit_key]) {
-                lnmap[ribbit_key][lnmap[ribbit_key].length - 1][1] = [
-                  current_package.measure,
-                  (j / current_package.events) * 192,
-                ];
-                objectName = "longnote";
-                commonData.start = false;
-                break;
+              if (ribbit_key) {
+                const mapEntry = lnmap[ribbit_key];
+                if (mapEntry) {
+                  const lastItem = mapEntry[mapEntry.length - 1];
+                  if (lastItem) {
+                    lastItem[1] = [
+                      current_package.measure,
+                      (j / current_package.events) * 192,
+                    ];
+                    objectName = "longnote";
+                    commonData.start = false;
+                  }
+                }
               }
+              break;
           }
 
           let key = current_package.channel - 2;
@@ -570,6 +582,7 @@ export const convert = (
             soundTypes: [],
           });
         }
+      }
 
         playableEvents.push({
           beat,
@@ -594,11 +607,15 @@ export const convert = (
     if (death) {
       if (Object.keys(death).includes(note.toString())) {
         if (death[note] != null) {
-          if (!score[ev.measure]["99"]) {
-            score[ev.measure]["99"] = [];
+          const deathVal = death[note];
+          if (deathVal != null) {
+            const mScore = score[ev.measure]!;
+            if (!mScore["99"]) {
+              mScore["99"] = [];
+            }
+            const output: [number, string] = [ev.offset, deathVal];
+            mScore["99"].push(output);
           }
-          const output: [number, string] = [ev.offset, death[note]];
-          score[ev.measure]["99"].push(output);
         }
       }
     }
@@ -635,30 +652,35 @@ export const convert = (
     const newItem = [...item["03"]];
     item["88"] = newItem;
 
-    if (item["88"][0][0] != 0) {
+    const firstLine = item["88"]?.[0];
+    if (firstLine && firstLine[0] !== 0) {
       item["88"].unshift([0, previousBpm]);
     }
 
     item["88"].forEach((line, indexGreenLine) => {
       bpmNow = Number(line[1]);
       beatNow = line[0];
-      try {
-        beatNext = score[m]["88"][indexGreenLine + 1][0];
-      } catch (error) {
+      const nextLine = item["88"]?.[indexGreenLine + 1];
+      if (nextLine) {
+        beatNext = nextLine[0];
+      } else {
         beatNext = measureLength;
       }
       let duration = (((beatNext - beatNow) / 48) * 60000) / bpmNow;
-      item["88"][indexGreenLine].push(beatNext, duration, timeCount);
+      line.push(beatNext, duration, timeCount);
       timeCount = timeCount + duration;
     });
 
-    previousBpm = Number(item["88"][item["88"].length - 1][1]);
+    const lastLine = item["88"]?.[item["88"].length - 1];
+    if (lastLine) {
+      previousBpm = Number(lastLine[1]);
+    }
   });
 
   let ribbit: Ribbit = {
     artist: header.artist,
     bpm: header.bpm,
-    genre: genreMap[header.genre],
+    genre: genreMap[header.genre] ?? "Etc",
     keys: 7,
     lnmap: lnmap,
     notes: header.difficulty[difficulty].note_count,

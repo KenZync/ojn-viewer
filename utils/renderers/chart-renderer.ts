@@ -210,9 +210,10 @@ export class OjnChartRenderer {
     const lnmap = chartData.ribbit.lnmap;
 
     // Pre-compute the keys mapping once for all measures
+    const defaultKeys = keyCh[7] || [];
     const keysMapping: string[] = this.options.pattern
-      ? this.options.pattern.map((char) => keyCh[7][parseInt(char)])
-      : keyCh[7];
+      ? this.options.pattern.map((char) => defaultKeys[parseInt(char)] || "")
+      : defaultKeys;
 
     // Reset timing cache and cull state
     this.measureTimingCache = [];
@@ -226,7 +227,7 @@ export class OjnChartRenderer {
       maxY = -Infinity;
 
     for (let measureIndex = 0; measureIndex < score.length; measureIndex++) {
-      const currentScore = score[measureIndex];
+      const currentScore = score[measureIndex] || ({} as RibbitScore);
       const measureLength = currentScore.length || unit;
       const expectedHeight = measureLength * this.options.scaleH;
 
@@ -280,11 +281,15 @@ export class OjnChartRenderer {
 
       // Build timing cache entry for this measure (avoids .reduce() every frame)
       const timingLines = currentScore["88"];
-      if (timingLines && timingLines.length > 0) {
-        const startTime = timingLines[0][4] as number;
+      const firstLine = timingLines?.[0];
+      if (timingLines && firstLine) {
+        const startTime = firstLine[4] as number;
         let duration = 0;
         for (let t = 0; t < timingLines.length; t++) {
-          duration += timingLines[t][3] as number;
+          const line = timingLines[t];
+          if (line) {
+            duration += line[3] as number;
+          }
         }
         this.measureTimingCache[measureIndex] = {
           startTime,
@@ -374,9 +379,11 @@ export class OjnChartRenderer {
       this.pixiApp.stage.addChild(this.playheadPreviewGraphics);
     } else {
       const firstChild = this.mainChartContainer.children[0];
-      this.playheadPreviewGraphics.x = firstChild.x;
-      this.playheadPreviewGraphics.y = firstChild.y;
-      this.mainChartContainer.addChild(this.playheadPreviewGraphics);
+      if (firstChild) {
+        this.playheadPreviewGraphics.x = firstChild.x;
+        this.playheadPreviewGraphics.y = firstChild.y;
+        this.mainChartContainer.addChild(this.playheadPreviewGraphics);
+      }
     }
 
     this.pixiApp.stage.addChild(this.thumbnailContainer);
@@ -516,14 +523,18 @@ export class OjnChartRenderer {
 
     keysMapping.forEach((keyName) => {
       // 1. Draw Long Notes (LN)
-      if (keyName in lnmap) {
-        lnmap[keyName].forEach((area) => {
-          if (area[0][0] <= measureIndex && area[1][0] >= measureIndex) {
-            let lnBegin = 0;
-            let lnEnd = measureLength;
+      const mapEntries = lnmap[keyName];
+      if (mapEntries) {
+        mapEntries.forEach((area) => {
+          const firstPoint = area[0];
+          const secondPoint = area[1];
+          if (firstPoint && secondPoint) {
+            if (firstPoint[0] <= measureIndex && secondPoint[0] >= measureIndex) {
+              let lnBegin = 0;
+              let lnEnd = measureLength;
 
-            if (area[0][0] === measureIndex) {
-              lnBegin = Number(area[0][1]);
+              if (firstPoint[0] === measureIndex) {
+                lnBegin = Number(firstPoint[1]);
               if (this.options.noLN) {
                 graphics.beginPath();
                 graphics.rect(
@@ -542,8 +553,8 @@ export class OjnChartRenderer {
                 graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
               }
             }
-            if (area[1][0] === measureIndex) {
-              lnEnd = Number(area[1][1]);
+            if (secondPoint[0] === measureIndex) {
+              lnEnd = Number(secondPoint[1]);
             }
 
             if (!this.options.noLN) {
@@ -563,19 +574,21 @@ export class OjnChartRenderer {
               graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
             }
           }
-        });
+        }
+      });
       }
 
       // 2. Draw Normal Hit Notes
-      if (keyName in score) {
-        score[keyName].forEach((noteNode) => {
+      const scoreNotes = score[keyName];
+      if (scoreNotes) {
+        scoreNotes.forEach((noteNode) => {
           const positionData = noteNode as number[];
           graphics.beginPath();
           graphics.rect(
             currentDrawXIndex * scaleW -
               (currentDrawXIndex === 0 ? lineWidth : 0),
             calculatedHeight -
-              (rowHeight * positionData[0] + noteHeight) -
+              (rowHeight * noteNode[0] + noteHeight) -
               lineWidth,
             2 * scaleW - (currentDrawXIndex === 0 ? 0 : lineWidth),
             noteHeight,
@@ -594,10 +607,12 @@ export class OjnChartRenderer {
     // Draw BPM Markers
     const targetBpmChannels = ["03", "08", "99", "88"];
     targetBpmChannels.forEach((channelName) => {
-      if (!(channelName in score)) return;
       if (this.options.ohmMode === "off" && channelName === "99") return;
 
-      score[channelName].forEach((bpmNode) => {
+      const bpmNodes = score[channelName];
+      if (!bpmNodes) return;
+
+      bpmNodes.forEach((bpmNode) => {
         if (channelName === "88") return;
         if (
           channelName === "99" &&
@@ -662,7 +677,7 @@ export class OjnChartRenderer {
   }
 
   private buildThumbnailContainer(
-    renderer: PIXI.IRenderer,
+    renderer: PIXI.Renderer,
     stage: PIXI.Container,
   ): PIXI.Container {
     const lineWidth = 1;
@@ -969,23 +984,30 @@ export class OjnChartRenderer {
       if (!cached || cached.startTime < 0) continue;
       if (timeMs < cached.startTime || timeMs > cached.endTime) continue;
 
-      this.lastKnownMeasureIndex = m;
-      const timingLines = score[m]["88"]!;
-      for (let i = 0; i < timingLines.length; i++) {
-        const line = timingLines[i];
-        const beatNow = line[0] as number;
-        const beatNext = line[2] as number;
-        const duration = line[3] as number;
-        const timeCount = line[4] as number;
+      const mScore = score[m];
+      if (!mScore) continue;
 
-        if (timeMs >= timeCount && timeMs <= timeCount + duration) {
-          const elapsed = timeMs - timeCount;
-          const progress = duration > 0 ? elapsed / duration : 0;
-          return {
-            measureIndex: m,
-            beatInMeasure: beatNow + progress * (beatNext - beatNow),
-            measureLength: score[m].length || unit,
-          };
+      this.lastKnownMeasureIndex = m;
+      const timingLines = mScore["88"];
+      if (timingLines) {
+        for (let i = 0; i < timingLines.length; i++) {
+          const line = timingLines[i];
+          if (line) {
+            const beatNow = line[0] as number;
+            const beatNext = line[2] as number;
+            const duration = line[3] as number;
+            const timeCount = line[4] as number;
+
+            if (timeMs >= timeCount && timeMs <= timeCount + duration) {
+              const elapsed = timeMs - timeCount;
+              const progress = duration > 0 ? elapsed / duration : 0;
+              return {
+                measureIndex: m,
+                beatInMeasure: beatNow + progress * (beatNext - beatNow),
+                measureLength: mScore.length || unit,
+              };
+            }
+          }
         }
       }
     }
@@ -996,23 +1018,30 @@ export class OjnChartRenderer {
       if (!cached || cached.startTime < 0) continue;
       if (timeMs < cached.startTime || timeMs > cached.endTime) continue;
 
-      this.lastKnownMeasureIndex = m;
-      const timingLines = score[m]["88"]!;
-      for (let i = 0; i < timingLines.length; i++) {
-        const line = timingLines[i];
-        const beatNow = line[0] as number;
-        const beatNext = line[2] as number;
-        const duration = line[3] as number;
-        const timeCount = line[4] as number;
+      const mScore = score[m];
+      if (!mScore) continue;
 
-        if (timeMs >= timeCount && timeMs <= timeCount + duration) {
-          const elapsed = timeMs - timeCount;
-          const progress = duration > 0 ? elapsed / duration : 0;
-          return {
-            measureIndex: m,
-            beatInMeasure: beatNow + progress * (beatNext - beatNow),
-            measureLength: score[m].length || unit,
-          };
+      this.lastKnownMeasureIndex = m;
+      const timingLines = mScore["88"];
+      if (timingLines) {
+        for (let i = 0; i < timingLines.length; i++) {
+          const line = timingLines[i];
+          if (line) {
+            const beatNow = line[0] as number;
+            const beatNext = line[2] as number;
+            const duration = line[3] as number;
+            const timeCount = line[4] as number;
+
+            if (timeMs >= timeCount && timeMs <= timeCount + duration) {
+              const elapsed = timeMs - timeCount;
+              const progress = duration > 0 ? elapsed / duration : 0;
+              return {
+                measureIndex: m,
+                beatInMeasure: beatNow + progress * (beatNext - beatNow),
+                measureLength: mScore.length || unit,
+              };
+            }
+          }
         }
       }
     }
@@ -1058,26 +1087,30 @@ export class OjnChartRenderer {
     const measureHeight =
       targetMeasure.measureHeight || unit * this.options.scaleH;
     const localY = targetY - targetMeasure.position.y;
-    const measureLength = score[targetMeasureIndex].length || unit;
+    const mScore = score[targetMeasureIndex];
+    if (!mScore) return;
+    const measureLength = mScore.length || unit;
     const beatInMeasure =
       ((measureHeight - localY) / measureHeight) * measureLength;
 
-    const timingLines = score[targetMeasureIndex]["88"];
+    const timingLines = mScore["88"];
     if (!timingLines || timingLines.length === 0) return;
 
     let targetTime = 0;
     for (let i = 0; i < timingLines.length; i++) {
       const line = timingLines[i];
-      const beatNow = line[0] as number;
-      const beatNext = line[2] as number;
-      const duration = line[3] as number;
-      const timeCount = line[4] as number;
+      if (line) {
+        const beatNow = line[0] as number;
+        const beatNext = line[2] as number;
+        const duration = line[3] as number;
+        const timeCount = line[4] as number;
 
-      if (beatInMeasure >= beatNow && beatInMeasure <= beatNext) {
-        const elapsed =
-          ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
-        targetTime = timeCount + elapsed;
-        break;
+        if (beatInMeasure >= beatNow && beatInMeasure <= beatNext) {
+          const elapsed =
+            ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
+          targetTime = timeCount + elapsed;
+          break;
+        }
       }
     }
 
@@ -1098,26 +1131,30 @@ export class OjnChartRenderer {
     const unit = this.currentChartData?.ribbit?.unit;
     if (!score || !unit) return;
 
-    const measureLength = score[measureIndex].length || unit;
+    const mScore = score[measureIndex];
+    if (!mScore) return;
+    const measureLength = mScore.length || unit;
     const beatInMeasure =
       ((measureHeight - localY) / measureHeight) * measureLength;
 
-    const timingLines = score[measureIndex]["88"];
+    const timingLines = mScore["88"];
     if (!timingLines || timingLines.length === 0) return;
 
     let targetTime = 0;
     for (let i = 0; i < timingLines.length; i++) {
       const line = timingLines[i];
-      const beatNow = line[0] as number;
-      const beatNext = line[2] as number;
-      const duration = line[3] as number;
-      const timeCount = line[4] as number;
+      if (line) {
+        const beatNow = line[0] as number;
+        const beatNext = line[2] as number;
+        const duration = line[3] as number;
+        const timeCount = line[4] as number;
 
-      if (beatInMeasure >= beatNow && beatInMeasure <= beatNext) {
-        const elapsed =
-          ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
-        targetTime = timeCount + elapsed;
-        break;
+        if (beatInMeasure >= beatNow && beatInMeasure <= beatNext) {
+          const elapsed =
+            ((beatInMeasure - beatNow) / (beatNext - beatNow)) * duration;
+          targetTime = timeCount + elapsed;
+          break;
+        }
       }
     }
 

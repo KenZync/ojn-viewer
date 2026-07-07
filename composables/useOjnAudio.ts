@@ -162,12 +162,16 @@ export function useOjnAudio(
     const score = ribbitData.score;
     for (let m = score.length - 1; m >= 0; m--) {
       const measure = score[m];
-      const timingLines = measure["88"];
-      if (timingLines && timingLines.length > 0) {
-        const firstLine = timingLines[0];
-        const measureStartTime = firstLine[4] as number;
-        const measureDuration = timingLines.reduce((acc: number, line: any) => acc + (line[3] || 0), 0);
-        return measureStartTime + measureDuration;
+      if (measure) {
+        const timingLines = measure["88"];
+        if (timingLines && timingLines.length > 0) {
+          const firstLine = timingLines[0];
+          if (firstLine) {
+            const measureStartTime = firstLine[4] as number;
+            const measureDuration = timingLines.reduce((acc: number, line: any) => acc + (line[3] || 0), 0);
+            return measureStartTime + measureDuration;
+          }
+        }
       }
     }
     return 0;
