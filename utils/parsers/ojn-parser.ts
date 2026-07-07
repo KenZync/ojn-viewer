@@ -460,7 +460,7 @@ export const convert = (
     const measureLength = score[current_package.measure]?.length || 192;
 
     for (let j = 0; j < current_package.events; j++) {
-      let beat = measureStartBeats[current_package.measure] + (j / current_package.events) * (measureLength / 48);
+      let beat = measureStartBeats[current_package.measure] + (j / current_package.events) * 4;
       let bpm = dataview.getFloat32(cursor, true);
       if (current_package.channel == 0 || current_package.channel == 1) {
         var multiplier = 1;
@@ -471,7 +471,7 @@ export const convert = (
         cursor += 4;
         if (bpm !== 0) {
           const beat_bpm: [number, number | string] = [
-            (j / current_package.events) * measureLength,
+            (j / current_package.events) * 192,
             bpm,
           ];
           if (bpm < 10e-10) {
@@ -531,7 +531,7 @@ export const convert = (
           switch (event.type) {
             case 0:
               score[current_package.measure][ribbit_key].push([
-                (j / current_package.events) * measureLength,
+                (j / current_package.events) * 192,
                 "00",
               ]);
               objectName = "note";
@@ -541,8 +541,8 @@ export const convert = (
                 lnmap[ribbit_key] = [];
               }
               lnmap[ribbit_key].push([
-                [current_package.measure, (j / current_package.events) * measureLength],
-                [current_package.measure, (j / current_package.events) * measureLength],
+                [current_package.measure, (j / current_package.events) * 192],
+                [current_package.measure, (j / current_package.events) * 192],
               ]);
               objectName = "longnote";
               commonData.start = true;
@@ -551,7 +551,7 @@ export const convert = (
               if (lnmap[ribbit_key]) {
                 lnmap[ribbit_key][lnmap[ribbit_key].length - 1][1] = [
                   current_package.measure,
-                  (j / current_package.events) * measureLength,
+                  (j / current_package.events) * 192,
                 ];
                 objectName = "longnote";
                 commonData.start = false;
@@ -575,7 +575,7 @@ export const convert = (
           beat,
           channel: current_package.channel,
           measure: current_package.measure,
-          offset: (j / current_package.events) * measureLength,
+          offset: (j / current_package.events) * 192,
         });
       }
     }
