@@ -6,6 +6,7 @@ import { convert } from "~/utils/parsers/ojn-parser";
 import { normalizeFailData } from "~/utils/helpers/search";
 import { shuffle } from "~/utils/helpers/random";
 import { fancyTimeFormat } from "~/utils/helpers/formatter";
+import { LAYOUT_MODES } from "~/constants";
 
 const route = useRoute();
 
@@ -439,14 +440,56 @@ const onAfterDrag = () => {
 
 // Keyboard listener
 const handleKeyDown = (e: KeyboardEvent) => {
+  if (currentView.value !== 'player') return;
+
+  if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
+    return;
+  }
+
   if (e.code === "Space") {
-    if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
-      return;
-    }
     e.preventDefault();
-    if (currentView.value === 'player') {
-      handlePlaySongToggle();
+    handlePlaySongToggle();
+  } else if (e.key === "f" || e.key === "F") {
+    e.preventDefault();
+    const nextMode = !verticalMode.value;
+    verticalMode.value = nextMode;
+    if (nextMode) {
+      if (window.innerWidth < 1280) {
+        scaleW.value = LAYOUT_MODES.VERTICAL_COMPACT.SCALE_W;
+        scaleH.value = LAYOUT_MODES.VERTICAL_COMPACT.SCALE_H;
+        noteHeight.value = LAYOUT_MODES.VERTICAL_COMPACT.NOTE_HEIGHT;
+      } else {
+        scaleW.value = LAYOUT_MODES.VERTICAL_WIDE.SCALE_W;
+        scaleH.value = LAYOUT_MODES.VERTICAL_WIDE.SCALE_H;
+        noteHeight.value = LAYOUT_MODES.VERTICAL_WIDE.NOTE_HEIGHT;
+      }
+    } else {
+      scaleW.value = LAYOUT_MODES.HORIZONTAL.SCALE_W;
+      scaleH.value = LAYOUT_MODES.HORIZONTAL.SCALE_H;
+      noteHeight.value = LAYOUT_MODES.HORIZONTAL.NOTE_HEIGHT;
     }
+  } else if (e.key === "l" || e.key === "L") {
+    e.preventDefault();
+    noLN.value = !noLN.value;
+  } else if (e.key === "r" || e.key === "R") {
+    e.preventDefault();
+    random(true);
+  } else if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    const target = Math.max(0, seekOffset.value - 5000);
+    seekTo(target);
+  } else if (e.key === "ArrowRight") {
+    e.preventDefault();
+    const fallbackDurationSec = loadedChart.value?.header?.difficulty?.[selectedDifficulty.value]?.duration || 0;
+    const totalDurationMs = getChartDurationMs() || fallbackDurationSec * 1000;
+    const target = Math.min(totalDurationMs, seekOffset.value + 5000);
+    seekTo(target);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    volumeLevel.value = Math.min(1.0, volumeLevel.value + 0.05);
+  } else if (e.key === "ArrowDown") {
+    e.preventDefault();
+    volumeLevel.value = Math.max(0.0, volumeLevel.value - 0.05);
   }
 };
 

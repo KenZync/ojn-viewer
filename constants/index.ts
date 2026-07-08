@@ -81,3 +81,21 @@ export const rightMargin = 35;
 export const bottomMargin = 10;
 export const leftMargin = 0;
 export const headerHeight = 50;
+
+export const LAYOUT_MODES = {
+  HORIZONTAL: {
+    SCALE_W: 7,
+    SCALE_H: 2,
+    NOTE_HEIGHT: 4,
+  },
+  VERTICAL_COMPACT: {
+    SCALE_W: 8,
+    SCALE_H: 6,
+    NOTE_HEIGHT: 10,
+  },
+  VERTICAL_WIDE: {
+    SCALE_W: 15,
+    SCALE_H: 10,
+    NOTE_HEIGHT: 20,
+  },
+};

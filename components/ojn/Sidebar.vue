@@ -198,20 +198,20 @@
           )
         }}
       </div>
-      <div v-if="headerData.bmp" class="space-y-1">
+      <div class="space-y-1">
         <div class="text-xs text-stone-400">BMP Info</div>
         <img
-          :src="headerData.bmp"
+          :src="isValidImage(headerData.bmp) ? headerData.bmp : '/background.bmp'"
           alt="BMP"
-          class="rounded border border-stone-600"
+          class="w-full rounded border border-stone-600"
         />
       </div>
-      <div v-if="headerData.image" class="space-y-1">
+      <div class="space-y-1">
         <div class="text-xs text-stone-400">Cover Image</div>
         <img
-          :src="headerData.image"
+          :src="isValidImage(headerData.image) ? headerData.image : '/cover.bmp'"
           alt="Image"
-          class="rounded border border-stone-600"
+          class="w-full rounded border border-stone-600"
         />
       </div>
     </div>
@@ -296,12 +296,44 @@
           <span>Exit Workspace</span>
         </button>
       </div>
+
+      <!-- Keyboard Shortcuts Help -->
+      <div class="mt-6 border-t border-zinc-700/50 pt-4 space-y-2.5 text-xs text-stone-400">
+        <div class="text-xs font-semibold text-stone-300">Keyboard Shortcuts</div>
+        <div class="grid grid-cols-2 gap-x-2 gap-y-1.5">
+          <div class="flex items-center space-x-1">
+            <span class="text-[10px] text-zinc-300 font-mono bg-zinc-800 border border-zinc-700 px-1 py-0.5 rounded shadow-sm">Space</span>
+            <span>Play/Pause</span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <span class="text-[10px] text-zinc-300 font-mono bg-zinc-800 border border-zinc-700 px-1 py-0.5 rounded shadow-sm">F</span>
+            <span>Layout Mode</span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <span class="text-[10px] text-zinc-300 font-mono bg-zinc-800 border border-zinc-700 px-1 py-0.5 rounded shadow-sm">L</span>
+            <span>Long Notes</span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <span class="text-[10px] text-zinc-300 font-mono bg-zinc-800 border border-zinc-700 px-1 py-0.5 rounded shadow-sm">R</span>
+            <span>Random Seed</span>
+          </div>
+          <div class="flex items-center space-x-1 col-span-2">
+            <span class="text-[10px] text-zinc-300 font-mono bg-zinc-800 border border-zinc-700 px-1 py-0.5 rounded shadow-sm">← / →</span>
+            <span>Seek Backward / Forward 5s</span>
+          </div>
+          <div class="flex items-center space-x-1 col-span-2">
+            <span class="text-[10px] text-zinc-300 font-mono bg-zinc-800 border border-zinc-700 px-1 py-0.5 rounded shadow-sm">↑ / ↓</span>
+            <span>Volume Increase / Decrease</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { fancyTimeFormat } from "~/utils/helpers/formatter";
+import { LAYOUT_MODES } from "~/constants";
 
 const props = defineProps<{
   headerData?: OJNHeader;
@@ -352,20 +384,26 @@ const setVerticalMode = (vertical: boolean) => {
     verticalMode.value = vertical;
     if (vertical) {
       if (window.innerWidth < 1280) {
-        scaleW.value = 8;
-        scaleH.value = 6;
-        noteHeight.value = 10;
+        scaleW.value = LAYOUT_MODES.VERTICAL_COMPACT.SCALE_W;
+        scaleH.value = LAYOUT_MODES.VERTICAL_COMPACT.SCALE_H;
+        noteHeight.value = LAYOUT_MODES.VERTICAL_COMPACT.NOTE_HEIGHT;
       } else {
-        scaleW.value = 15;
-        scaleH.value = 10;
-        noteHeight.value = 20;
+        scaleW.value = LAYOUT_MODES.VERTICAL_WIDE.SCALE_W;
+        scaleH.value = LAYOUT_MODES.VERTICAL_WIDE.SCALE_H;
+        noteHeight.value = LAYOUT_MODES.VERTICAL_WIDE.NOTE_HEIGHT;
       }
     } else {
-      scaleW.value = 7;
-      scaleH.value = 2;
-      noteHeight.value = 4;
+      scaleW.value = LAYOUT_MODES.HORIZONTAL.SCALE_W;
+      scaleH.value = LAYOUT_MODES.HORIZONTAL.SCALE_H;
+      noteHeight.value = LAYOUT_MODES.HORIZONTAL.NOTE_HEIGHT;
     }
     emit("toggleVerticalMode");
   }
+};
+
+const isValidImage = (src: string | undefined | null) => {
+  if (!src) return false;
+  if (src === "data:image/png;base64,") return false;
+  return true;
 };
 </script>

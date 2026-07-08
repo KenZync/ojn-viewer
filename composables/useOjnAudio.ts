@@ -413,7 +413,14 @@ export function useOjnAudio(
       pauseAudioPlayback();
       return;
     }
-    startAudioPlayback(seekOffset.value);
+    const selectedDifficulty = useSelectedDifficulty();
+    const fallbackDurationSec = chartData.value?.header?.difficulty?.[selectedDifficulty.value]?.duration || 0;
+    const totalDurationMs = getChartDurationMs() || fallbackDurationSec * 1000;
+    if (seekOffset.value >= totalDurationMs - 100) {
+      startAudioPlayback(0);
+    } else {
+      startAudioPlayback(seekOffset.value);
+    }
   };
 
   watch(volumeLevel, (newVolume) => {
