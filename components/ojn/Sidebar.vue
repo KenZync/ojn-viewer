@@ -203,7 +203,7 @@
         <img
           :src="isValidImage(headerData.bmp) ? headerData.bmp : '/bmp.bmp'"
           alt="BMP"
-          class="w-full rounded border border-stone-600"
+          class="rounded border border-stone-600"
         />
       </div>
       <div class="space-y-1">
@@ -211,7 +211,7 @@
         <img
           :src="isValidImage(headerData.image) ? headerData.image : '/background.bmp'"
           alt="Image"
-          class="w-full rounded border border-stone-600"
+          class="rounded border border-stone-600"
         />
       </div>
     </div>
