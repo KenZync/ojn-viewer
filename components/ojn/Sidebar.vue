@@ -201,7 +201,7 @@
       <div class="space-y-1">
         <div class="text-xs text-stone-400">BMP Info</div>
         <img
-          :src="isValidImage(headerData.bmp) ? headerData.bmp : '/background.bmp'"
+          :src="isValidImage(headerData.bmp) ? headerData.bmp : '/bmp.bmp'"
           alt="BMP"
           class="w-full rounded border border-stone-600"
         />
@@ -209,7 +209,7 @@
       <div class="space-y-1">
         <div class="text-xs text-stone-400">Cover Image</div>
         <img
-          :src="isValidImage(headerData.image) ? headerData.image : '/cover.bmp'"
+          :src="isValidImage(headerData.image) ? headerData.image : '/background.bmp'"
           alt="Image"
           class="w-full rounded border border-stone-600"
         />
