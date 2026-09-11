@@ -186,11 +186,9 @@ export class OjnChartRenderer {
     const finalScaleW = this.options.verticalMode
       ? this.options.scaleW * 2
       : this.options.scaleW;
-    const finalColumnWidth = this.options.verticalMode
-      ? (measureGridSize[7] - 5) * finalScaleW
-      : measureGridSize[7] * finalScaleW;
+    const finalColumnWidth = measureGridSize[7] * finalScaleW;
 
-    const initialPosX = leftMargin;
+    const measureColumnGap = 35;
     const initialPosY =
       this.pixiApp.renderer.height -
       (this.options.verticalMode
@@ -199,7 +197,7 @@ export class OjnChartRenderer {
 
     let currentPosX = this.options.verticalMode
       ? (this.pixiApp.renderer.width - finalColumnWidth) / 2
-      : -15;
+      : leftMargin;
     let currentPosY = initialPosY;
 
     this.lastMeasureWidth = 0;
@@ -261,7 +259,7 @@ export class OjnChartRenderer {
           currentPosY -= this.lastMeasureHeight - 1;
         } else {
           currentPosY = initialPosY - this.lastMeasureHeight + 1;
-          currentPosX += this.lastMeasureWidth + initialPosX;
+          currentPosX += this.lastMeasureWidth + measureColumnGap;
         }
       }
 
@@ -351,10 +349,8 @@ export class OjnChartRenderer {
     // Create playhead preview
     const previewLineWidth = 1;
     this.playheadHeight = unit * this.options.scaleH;
-    const playheadWidth = this.options.verticalMode
-      ? (measureGridSize[7] - 5) * finalScaleW
-      : measureGridSize[7] * finalScaleW;
-    const previewStart = this.options.verticalMode ? 0 : 35;
+    const playheadWidth = measureGridSize[7] * finalScaleW;
+    const previewStart = 0;
 
     this.playheadPreviewGraphics = new PIXI.Graphics();
     this.playheadPreviewGraphics.moveTo(
@@ -430,20 +426,18 @@ export class OjnChartRenderer {
     stretchRatio: number,
   ): PIXI.Container {
     const lineWidth = 1;
-    const lineStart = this.options.verticalMode ? 0 : 35;
+    const lineStart = 0;
     const measureContainer = new PIXI.Container();
     const graphics = new PIXI.Graphics();
     measureContainer.addChild(graphics);
 
     const calculatedHeight = Math.round(measureLength * scaleH * stretchRatio);
-    const calculatedWidth = this.options.verticalMode
-      ? (measureGridSize[7] - 5) * scaleW
-      : measureGridSize[7] * scaleW;
+    const calculatedWidth = measureGridSize[7] * scaleW;
     const rowHeight = calculatedHeight / measureLength;
 
     // Draw grid lanes
     graphics.beginPath();
-    let columnIndex = this.options.verticalMode ? 0 : 5;
+    let columnIndex = 0;
     const totalKeys = 7;
     graphics.moveTo(scaleW * columnIndex, 0);
     graphics.lineTo(scaleW * columnIndex, calculatedHeight - lineWidth);
@@ -470,9 +464,7 @@ export class OjnChartRenderer {
     }
 
     // Draw label fill and text
-    let labelColumnIdx = this.options.verticalMode
-      ? 2 * totalKeys
-      : 2 * totalKeys + 5;
+    let labelColumnIdx = 2 * totalKeys;
     graphics.beginPath();
     graphics.moveTo(scaleW * labelColumnIdx, 0);
     graphics.lineTo(scaleW * labelColumnIdx, calculatedHeight - lineWidth);
@@ -518,7 +510,7 @@ export class OjnChartRenderer {
     const keyColorLNConfig = OjnChartRenderer.KEY_COLOR_LN_CONFIG;
 
     // keysMapping is now passed in pre-computed — no need to rebuild it here
-    let currentDrawXIndex = this.options.verticalMode ? 0 : 5;
+    let currentDrawXIndex = 0;
     let keyIterationIndex = 0;
 
     keysMapping.forEach((keyName) => {
@@ -627,9 +619,7 @@ export class OjnChartRenderer {
 
         const isDeathPoint = channelName === "99";
         const lineThickness = schemes.default.bpmLineH;
-        const leftLaneSize = this.options.verticalMode
-          ? measureLeftLaneSize[7] - 5
-          : measureLeftLaneSize[7];
+        const leftLaneSize = measureLeftLaneSize[7];
 
         const markerY =
           calculatedHeight - rowHeight * Number(bpmNode[0]) - lineThickness;

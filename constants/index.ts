@@ -66,7 +66,7 @@ export const schemes = {
 
 // 定数
 export const measureGridSize = {
-  7: 23,
+  7: 18,
 };
 
 export const measureLeftLaneSize = {
