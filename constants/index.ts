@@ -79,7 +79,7 @@ export const keyCh = {
 
 export const rightMargin = 35;
 export const bottomMargin = 10;
-export const leftMargin = 0;
+export const leftMargin = 15;
 export const headerHeight = 50;
 
 export const LAYOUT_MODES = {

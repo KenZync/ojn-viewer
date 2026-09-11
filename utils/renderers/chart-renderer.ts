@@ -250,7 +250,7 @@ export class OjnChartRenderer {
 
       // Compute position for the current measure based on its own height/width
       if (this.options.verticalMode) {
-        currentPosY -= this.lastMeasureHeight;
+        currentPosY -= this.lastMeasureHeight - 1;
       } else {
         if (
           currentPosY === initialPosY ||
@@ -320,7 +320,7 @@ export class OjnChartRenderer {
       this.mainChartContainer.hitArea = new PIXI.Rectangle(
         0,
         0,
-        this.totalChartWidth,
+        this.totalChartWidth + leftMargin + rightMargin,
         this.totalChartHeight + 50,
       );
     }
@@ -527,47 +527,56 @@ export class OjnChartRenderer {
 
               if (firstPoint[0] === measureIndex) {
                 lnBegin = Number(firstPoint[1]);
-              if (this.options.noLN) {
+                if (this.options.noLN) {
+                  graphics.beginPath();
+                  graphics.rect(
+                    currentDrawXIndex * scaleW -
+                      (currentDrawXIndex === 0 ? lineWidth : 0) +
+                      (schemes.default.lnWidthRatio * scaleW) / 2,
+                    calculatedHeight -
+                      rowHeight * lnBegin -
+                      noteHeight -
+                      lineWidth,
+                    2 * scaleW -
+                      (currentDrawXIndex === 0 ? 0 : lineWidth) -
+                      schemes.default.lnWidthRatio * scaleW,
+                    noteHeight,
+                  );
+                  graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
+                }
+              }
+              if (secondPoint[0] === measureIndex) {
+                lnEnd = Number(secondPoint[1]);
+              }
+
+              if (!this.options.noLN) {
+                const isContinuingFromPrev = firstPoint[0] < measureIndex;
+                const isContinuingToNext = secondPoint[0] > measureIndex;
+
+                const topY = isContinuingToNext
+                  ? 0
+                  : Math.max(0, calculatedHeight - rowHeight * lnEnd - lineWidth);
+
+                const bottomY = isContinuingFromPrev
+                  ? calculatedHeight
+                  : calculatedHeight - rowHeight * lnBegin - lineWidth;
+
                 graphics.beginPath();
                 graphics.rect(
                   currentDrawXIndex * scaleW -
                     (currentDrawXIndex === 0 ? lineWidth : 0) +
                     (schemes.default.lnWidthRatio * scaleW) / 2,
-                  calculatedHeight -
-                    rowHeight * lnBegin -
-                    noteHeight -
-                    lineWidth,
+                  topY,
                   2 * scaleW -
                     (currentDrawXIndex === 0 ? 0 : lineWidth) -
                     schemes.default.lnWidthRatio * scaleW,
-                  noteHeight,
+                  bottomY - topY,
                 );
                 graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
               }
             }
-            if (secondPoint[0] === measureIndex) {
-              lnEnd = Number(secondPoint[1]);
-            }
-
-            if (!this.options.noLN) {
-              graphics.beginPath();
-              graphics.rect(
-                currentDrawXIndex * scaleW -
-                  (currentDrawXIndex === 0 ? lineWidth : 0) +
-                  (schemes.default.lnWidthRatio * scaleW) / 2,
-                calculatedHeight - rowHeight * lnEnd - lineWidth,
-                2 * scaleW -
-                  (currentDrawXIndex === 0 ? 0 : lineWidth) -
-                  schemes.default.lnWidthRatio * scaleW,
-                rowHeight * (lnEnd - lnBegin) +
-                  (lnBegin === 0 ? lineWidth : 0) -
-                  lineWidth,
-              );
-              graphics.fill({ color: keyColorLNConfig[keyIterationIndex] });
-            }
           }
-        }
-      });
+        });
       }
 
       // 2. Draw Normal Hit Notes
@@ -1169,9 +1178,15 @@ export class OjnChartRenderer {
       );
       this.viewBoxContainer.position.x = 0;
     } else {
-      this.viewBoxContainer.position.x =
+      const viewBoxWidth =
+        this.pixiApp.renderer.width * this.containerWidthShrinkRatio;
+      const targetX =
         (-leftMargin - this.mainChartContainer.position.x) *
         this.containerWidthShrinkRatio;
+      this.viewBoxContainer.position.x = Math.min(
+        Math.max(targetX, 0),
+        this.pixiApp.renderer.width - viewBoxWidth,
+      );
       this.viewBoxContainer.position.y = 0;
     }
 

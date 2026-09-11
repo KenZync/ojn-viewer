@@ -31,7 +31,61 @@ const renderer = stripTypeScriptTypes(readFileSync(new URL('../utils/renderers/c
   .replace(/import[\s\S]*?from\s+"[^"]+";/g, '')
   .replace('export class OjnChartRenderer', 'class OjnChartRenderer');
 const context = vm.createContext({ PIXI: { Container, Graphics, Text, Rectangle }, searchStringInDeathPoint: () => true });
-const { Renderer, keys, colors } = vm.runInContext(`${constants}\n${renderer}\n({ Renderer: OjnChartRenderer, keys: keyCh[7], colors: schemes.default })`, context);
+const { Renderer, keys, colors, leftMargin: testLeftMargin } = vm.runInContext(`${constants}\n${renderer}\n({ Renderer: OjnChartRenderer, keys: keyCh[7], colors: schemes.default, leftMargin })`, context);
+
+test('leftMargin is configured to 15', () => {
+  assert.equal(testLeftMargin, 15);
+});
+
+test('long note starting at tick T aligns perfectly with normal note at tick T (no 1px misalignment)', () => {
+  const instance = Object.create(Renderer.prototype);
+  instance.options = { verticalMode: false, noLN: false, ohmMode: 'all' };
+  const scaleW = 7;
+  const scaleH = 2;
+  const noteHeight = 4;
+  const measureLength = 192;
+  const score = { '11': [[48, '00']] };
+  const lnmap = { '12': [[[0, 48], [0, 96]]] };
+
+  const measure = instance.buildMeasureContainer(0, score, lnmap, scaleW, scaleH, noteHeight, measureLength, keys, 192, 1);
+  const commands = measure.children[0].commands;
+  const rectangles = commands.filter(c => c[0] === 'rect');
+
+  const normalNoteRect = rectangles.find(c => c[4] === noteHeight);
+  const lnRect = rectangles.find(c => c[4] !== noteHeight);
+
+  assert.ok(normalNoteRect, 'normal note rect exists');
+  assert.ok(lnRect, 'long note rect exists');
+
+  const normalBottomY = normalNoteRect[2] + normalNoteRect[4];
+  const lnBottomY = lnRect[2] + lnRect[4];
+
+  assert.equal(lnBottomY, normalBottomY, 'bottom edge of long note must match normal note at same tick');
+});
+
+test('long note spanning across measures extends across measure boundaries to cover borders', () => {
+  const instance = Object.create(Renderer.prototype);
+  instance.options = { verticalMode: false, noLN: false, ohmMode: 'all' };
+  const scaleW = 7;
+  const scaleH = 2;
+  const noteHeight = 4;
+  const measureLength = 192;
+  const lnmap = { '11': [[[0, 48], [1, 96]]] };
+
+  // Measure 0: LN continues to next measure
+  const measure0 = instance.buildMeasureContainer(0, {}, lnmap, scaleW, scaleH, noteHeight, measureLength, keys, 192, 1);
+  const commands0 = measure0.children[0].commands;
+  const lnRect0 = commands0.filter(c => c[0] === 'rect')[0];
+  assert.equal(lnRect0[2], 0, 'LN top in measure 0 must stop at 0 (flush with top border, no 1px overlap into next measure)');
+
+  // Measure 1: LN continues from previous measure
+  const measure1 = instance.buildMeasureContainer(1, {}, lnmap, scaleW, scaleH, noteHeight, measureLength, keys, 192, 1);
+  const commands1 = measure1.children[0].commands;
+  const lnRect1 = commands1.filter(c => c[0] === 'rect')[0];
+  assert.ok(lnRect1, 'LN rect exists in measure 1');
+  const calculatedHeight1 = measureLength * scaleH;
+  assert.equal(lnRect1[2] + lnRect1[4], calculatedHeight1, 'LN bottom in measure 1 must extend to calculatedHeight (cross and cover bottom border)');
+});
 
 for (const verticalMode of [false, true]) {
   for (const scaleW of [4, 7, 16, 30]) {
