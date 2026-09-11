@@ -137,7 +137,7 @@ const initChartRenderer = () => {
   });
 };
 
-const triggerNoteRender = () => {
+const triggerNoteRender = (preserveCamera = false) => {
   if (!chartRenderer.value) {
     initChartRenderer();
   }
@@ -154,7 +154,9 @@ const triggerNoteRender = () => {
       deathPointPlayer: deathPointPlayer.value,
     });
 
-    const scrollPosition = chartRenderer.value.getScrollPosition();
+    const scrollPosition = preserveCamera
+      ? chartRenderer.value.getScrollPosition()
+      : null;
     
     chartRenderer.value.render({
       header: props.chartData.header,
@@ -163,11 +165,12 @@ const triggerNoteRender = () => {
       hitSounds: props.chartData.hitSounds,
     });
 
-    if (!verticalMode.value) {
+    if (preserveCamera && scrollPosition) {
       chartRenderer.value.setScrollPosition(scrollPosition);
+      chartRenderer.value.updatePlayheadPosition(props.seekOffset, false);
+    } else {
+      chartRenderer.value.updatePlayheadPosition(props.seekOffset, true);
     }
-
-    chartRenderer.value.updatePlayheadPosition(props.seekOffset);
   }
 };
 
@@ -184,10 +187,13 @@ watch(() => props.seekOffset, (newVal) => {
   chartRenderer.value?.updatePlayheadPosition(newVal);
 });
 
+let prevVerticalMode = verticalMode.value;
 // Settings update triggers
 watch([scaleW, scaleH, noteHeight, verticalMode, noLN, ohmMode, seed], () => {
+  const isModeSwitch = verticalMode.value !== prevVerticalMode;
+  prevVerticalMode = verticalMode.value;
   nextTick(() => {
-    triggerNoteRender();
+    triggerNoteRender(!isModeSwitch);
   });
 });
 

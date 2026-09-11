@@ -117,3 +117,61 @@ for (const verticalMode of [false, true]) {
     });
   }
 }
+
+test('getScrollPosition and setScrollPosition preserve coordinates in horizontal and vertical modes', async () => {
+  const instance = Object.create(Renderer.prototype);
+  instance.initPromise = Promise.resolve();
+  instance.options = { verticalMode: false };
+  instance.mainChartContainer = { position: { x: -250, y: 0 } };
+  instance.updateDrawbox = () => {};
+  instance.pixiApp = { renderer: { width: 1000 } };
+  instance.totalChartWidth = 2000;
+
+  const posH = instance.getScrollPosition();
+  assert.equal(posH.x, -250);
+  assert.equal(posH.y, 0);
+
+  await instance.setScrollPosition({ x: -400, y: 0 });
+  assert.equal(instance.mainChartContainer.position.x, -400);
+
+  // Vertical mode
+  instance.options.verticalMode = true;
+  instance.totalChartHeight = 5000;
+  instance.mainChartContainer.position = { x: 0, y: 1200 };
+
+  const posV = instance.getScrollPosition();
+  assert.equal(posV.x, 0);
+  assert.equal(posV.y, 1200);
+
+  await instance.setScrollPosition({ x: 0, y: 3500 });
+  assert.equal(instance.mainChartContainer.position.y, 3500);
+});
+
+test('updatePlayheadPosition with moveCamera=false does not move mainChartContainer', async () => {
+  const instance = Object.create(Renderer.prototype);
+  instance.initPromise = Promise.resolve();
+  instance.options = { verticalMode: false, scaleH: 2 };
+  instance.playheadHeight = 10;
+  instance.playheadPreviewGraphics = { x: 0, y: 0 };
+  instance.currentChartData = { ribbit: { unit: 192, score: [{ length: 192, '88': [[0, 0, 192, 1000, 0]] }] } };
+  instance.measureTimingCache = [{ startTime: 0, endTime: 1000 }];
+  instance.lastKnownMeasureIndex = 0;
+  instance.pixiApp = { renderer: { width: 1000, height: 800 } };
+  instance.totalChartWidth = 2000;
+  instance.updateDrawbox = () => {};
+
+  const measure0 = { position: { x: 100, y: 200 }, measureHeight: 384, measureWidth: 200 };
+  instance.mainChartContainer = {
+    children: [measure0],
+    position: { x: -350, y: 0 },
+  };
+
+  // When moveCamera is false, mainChartContainer.position.x should remain -350
+  await instance.updatePlayheadPosition(500, false);
+  assert.equal(instance.mainChartContainer.position.x, -350);
+
+  // When moveCamera is true (default), mainChartContainer.position.x is updated
+  await instance.updatePlayheadPosition(500, true);
+  assert.notEqual(instance.mainChartContainer.position.x, -350);
+});
+

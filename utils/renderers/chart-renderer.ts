@@ -895,7 +895,10 @@ export class OjnChartRenderer {
     this.lastKnownMeasureIndex = 0;
   }
 
-  public async updatePlayheadPosition(timeMs: number): Promise<void> {
+  public async updatePlayheadPosition(
+    timeMs: number,
+    moveCamera: boolean = true,
+  ): Promise<void> {
     await this.initPromise;
     if (
       !this.playheadPreviewGraphics ||
@@ -925,7 +928,7 @@ export class OjnChartRenderer {
     const yOffset = (beatInMeasure / measureLength) * measureHeight;
 
     if (this.options.verticalMode) {
-      if (!this.isDragging) {
+      if (moveCamera && !this.isDragging) {
         const posYinit = this.pixiApp.renderer.height - bottomMargin;
         // targetY is the local-space Y of the playhead within the chart container.
         // We want the playhead to sit at posYinit on screen, so:
@@ -947,7 +950,7 @@ export class OjnChartRenderer {
       this.playheadPreviewGraphics.x = measureX;
       this.playheadPreviewGraphics.y = targetY - this.playheadHeight;
 
-      if (!this.isDragging) {
+      if (moveCamera && !this.isDragging) {
         const targetScrollX =
           -measureX + this.pixiApp.renderer.width / 2 - measureWidth / 2;
         this.mainChartContainer.position.x = Math.min(
@@ -1420,14 +1423,45 @@ export class OjnChartRenderer {
     }
   }
 
-  public getScrollPosition(): number {
-    return this.mainChartContainer?.position.x ?? 0;
+  public getScrollPosition(): { x: number; y: number } {
+    return {
+      x: this.mainChartContainer?.position.x ?? 0,
+      y: this.mainChartContainer?.position.y ?? 0,
+    };
   }
 
-  public async setScrollPosition(x: number): Promise<void> {
+  public async setScrollPosition(
+    pos: { x: number; y: number } | number,
+  ): Promise<void> {
     await this.initPromise;
-    if (this.mainChartContainer && !this.options.verticalMode) {
-      this.mainChartContainer.position.x = x;
+    if (!this.mainChartContainer) return;
+
+    if (typeof pos === "number") {
+      if (!this.options.verticalMode) {
+        this.mainChartContainer.position.x = pos;
+        this.updateDrawbox();
+      }
+    } else {
+      if (this.options.verticalMode) {
+        this.mainChartContainer.position.y = Math.min(
+          Math.max(pos.y, 0),
+          this.totalChartHeight,
+        );
+        this.mainChartContainer.position.x = 0;
+      } else {
+        this.mainChartContainer.position.x = Math.min(
+          Math.max(
+            pos.x,
+            this.pixiApp?.renderer.width
+              ? this.pixiApp.renderer.width -
+                  this.totalChartWidth -
+                  leftMargin -
+                  rightMargin
+              : pos.x,
+          ),
+          0,
+        );
+      }
       this.updateDrawbox();
     }
   }
